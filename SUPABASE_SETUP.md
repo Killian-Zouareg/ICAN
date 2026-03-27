@@ -20,11 +20,14 @@ Ce guide explique pas à pas comment configurer Supabase et déployer Ican sur G
 
    **Bloc "Project URL"** (en haut) :
    - Tu verras une URL du type `https://abcdefghij.supabase.co`
-   - Copie cette URL entière → c'est ta `VITE_SUPABASE_URL`
+   - Copie cette URL entière → c'est ta `VITE_SUPABASE_URL` https://enlvlqidrbmsxbdtgwgw.supabase.co
 
    **Bloc "Project API keys"** (juste en dessous) :
    - Il y a deux clés listées : `anon public` et `service_role secret`
-   - Clique sur le bouton **copier** (icône à droite) à côté de la clé **`anon public`** → c'est ta `VITE_SUPABASE_ANON_KEY`
+   - Clique sur le bouton **copier** (icône à droite) à côté de la clé **`anon public`** → c'est ta `VITE_SUPABASE_ANON_KEY` 
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVubHZscWlkcmJtc3hiZHRnd2d3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjU4MzQsImV4cCI6MjA5MDIwMTgzNH0.rgpsd7YRsY6jwNaAQEDH2NuLGlDCLcPWQ40RCEs_I0Y
+
    - **Ne copie PAS** la clé `service_role secret` — celle-ci ne doit jamais être exposée dans le frontend
 
 ---
@@ -315,7 +318,6 @@ CREATE POLICY "Participants can update conversation timestamp"
 3. Va dans **Supabase Dashboard > Table Editor > profiles**
 4. Trouve ta ligne et change `is_admin` de `false` à `true`
 5. Sauvegarde
-
 Tu pourras maintenant supprimer les posts et commentaires de tout le monde.
 
 ---

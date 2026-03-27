@@ -4,6 +4,8 @@
       <h2>Messages</h2>
     </div>
 
+    <NewConversation />
+
     <div v-if="messagesStore.loading" class="loading">Chargement...</div>
     <ConversationList v-else :conversations="messagesStore.conversations" />
   </div>
@@ -13,6 +15,7 @@
 import { onMounted } from 'vue'
 import { useMessagesStore } from '../stores/messages'
 import ConversationList from '../components/ConversationList.vue'
+import NewConversation from '../components/NewConversation.vue'
 
 const messagesStore = useMessagesStore()
 
