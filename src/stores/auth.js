@@ -12,11 +12,32 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function fetchProfile() {
     if (!user.value) return
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.value.id)
-      .single()
+      .maybeSingle()
+
+    if (error) {
+      console.error('Erreur fetchProfile:', error.message)
+      profile.value = null
+      return
+    }
+
+    if (!data) {
+      // Profile missing — create it from auth metadata
+      const meta = user.value.user_metadata || {}
+      const username = meta.username || user.value.email.split('@')[0]
+      const displayName = meta.display_name || username
+      const { data: created } = await supabase
+        .from('profiles')
+        .insert({ id: user.value.id, username, display_name: displayName })
+        .select()
+        .maybeSingle()
+      profile.value = created
+      return
+    }
+
     profile.value = data
   }
 
@@ -52,12 +73,15 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function init() {
-    const { data: { session } } = await supabase.auth.getSession()
-    user.value = session?.user ?? null
-    if (user.value) {
-      await fetchProfile()
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      user.value = session?.user ?? null
+      if (user.value) {
+        await fetchProfile()
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
 
     supabase.auth.onAuthStateChange(async (_event, session) => {
       user.value = session?.user ?? null

@@ -10,30 +10,36 @@ export const usePostsStore = defineStore('posts', () => {
 
   async function fetchFeed() {
     loading.value = true
-    const { data, error } = await supabase
-      .from('posts_with_stats')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(50)
-    if (!error) {
-      posts.value = data || []
-      await fetchUserLikes()
+    try {
+      const { data, error } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50)
+      if (!error) {
+        posts.value = data || []
+        await fetchUserLikes()
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   }
 
   async function fetchUserPosts(userId) {
     loading.value = true
-    const { data, error } = await supabase
-      .from('posts_with_stats')
-      .select('*')
-      .eq('author_id', userId)
-      .order('created_at', { ascending: false })
-    if (!error) {
-      posts.value = data || []
-      await fetchUserLikes()
+    try {
+      const { data, error } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .eq('author_id', userId)
+        .order('created_at', { ascending: false })
+      if (!error) {
+        posts.value = data || []
+        await fetchUserLikes()
+      }
+    } finally {
+      loading.value = false
     }
-    loading.value = false
   }
 
   async function fetchUserLikes() {
