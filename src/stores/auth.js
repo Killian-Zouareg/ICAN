@@ -108,20 +108,33 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function init() {
     try {
+      // getSession returns cached session — may be expired
       const { data: { session } } = await supabase.auth.getSession()
-      user.value = session?.user ?? null
-      if (user.value) {
-        await fetchProfile()
+
+      if (session) {
+        // Validate the session by refreshing it
+        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError || !refreshed.session) {
+          // Refresh token expired — force logout
+          user.value = null
+          profile.value = null
+        } else {
+          user.value = refreshed.session.user
+          await fetchProfile()
+        }
       }
     } finally {
       loading.value = false
     }
 
-    supabase.auth.onAuthStateChange(async (_event, session) => {
-      user.value = session?.user ?? null
-      if (user.value) {
-        await fetchProfile()
-      } else {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+        user.value = session?.user ?? null
+        if (user.value && !profile.value) {
+          try { await fetchProfile() } catch (e) { console.error('fetchProfile error:', e) }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        user.value = null
         profile.value = null
       }
     })
