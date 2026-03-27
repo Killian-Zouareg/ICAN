@@ -7,9 +7,7 @@
     </div>
 
     <div class="post-body">
-      <div class="avatar">
-        {{ initials }}
-      </div>
+      <UserAvatar :url="displayPost.avatar_url" :name="displayPost.display_name || displayPost.username || '?'" :size="40" />
       <div class="post-content">
         <div class="post-header">
           <router-link
@@ -72,6 +70,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { timeAgo } from '../lib/time'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -85,11 +84,6 @@ const postsStore = usePostsStore()
 const router = useRouter()
 
 const displayPost = computed(() => props.originalPost || props.post)
-
-const initials = computed(() => {
-  const name = displayPost.value.display_name || displayPost.value.username || '?'
-  return name.charAt(0).toUpperCase()
-})
 
 const canDelete = computed(() => {
   return auth.user?.id === props.post.author_id || auth.isAdmin
@@ -140,20 +134,6 @@ async function handleDelete() {
 .post-body {
   display: flex;
   gap: 0.75rem;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-  flex-shrink: 0;
 }
 
 .post-content {

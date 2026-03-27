@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js \\\\\\))"
     ]
   }
 }

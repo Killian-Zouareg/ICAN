@@ -9,9 +9,7 @@
       :to="`/messages/${conv.id}`"
       class="conversation-item"
     >
-      <div class="conv-avatar">
-        {{ conv.otherUser.display_name.charAt(0).toUpperCase() }}
-      </div>
+      <UserAvatar :url="conv.otherUser.avatar_url" :name="conv.otherUser.display_name" :size="40" />
       <div class="conv-info">
         <span class="conv-name">{{ conv.otherUser.display_name }}</span>
         <span class="conv-handle">@{{ conv.otherUser.username }}</span>
@@ -21,6 +19,8 @@
 </template>
 
 <script setup>
+import UserAvatar from './UserAvatar.vue'
+
 defineProps({
   conversations: { type: Array, required: true },
 })
@@ -44,20 +44,6 @@ defineProps({
 
 .conversation-item:hover {
   background: var(--bg-hover);
-}
-
-.conv-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.1rem;
-  flex-shrink: 0;
 }
 
 .conv-info {

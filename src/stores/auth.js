@@ -65,6 +65,40 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function updateProfile({ username, displayName, avatarUrl }) {
+    if (!user.value) return
+    const updates = {}
+    if (username !== undefined) updates.username = username
+    if (displayName !== undefined) updates.display_name = displayName
+    if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', user.value.id)
+      .select()
+      .single()
+    if (error) throw error
+    profile.value = data
+  }
+
+  async function uploadAvatar(file) {
+    if (!user.value) return
+    const ext = file.name.split('.').pop()
+    const path = `${user.value.id}/avatar.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true })
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    const publicUrl = data.publicUrl + '?t=' + Date.now()
+
+    await updateProfile({ avatarUrl: publicUrl })
+    return publicUrl
+  }
+
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
@@ -100,6 +134,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAdmin,
     isAuthenticated,
     fetchProfile,
+    updateProfile,
+    uploadAvatar,
     signUp,
     signIn,
     signOut,

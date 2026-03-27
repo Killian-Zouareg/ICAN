@@ -11,10 +11,17 @@
       <router-link
         v-if="auth.profile"
         :to="`/user/${auth.profile.username}`"
-        class="nav-link"
+        class="nav-link profile-link"
       >
+        <img
+          v-if="auth.profile.avatar_url"
+          :src="auth.profile.avatar_url"
+          class="nav-avatar"
+        />
+        <span v-else class="nav-avatar-initial">{{ auth.profile.display_name.charAt(0).toUpperCase() }}</span>
         {{ auth.profile.display_name }}
       </router-link>
+      <router-link to="/settings" class="nav-link settings-link" title="Paramètres">&#x2699;</router-link>
       <button class="logout-btn" @click="handleLogout">Quitter</button>
     </nav>
   </header>
@@ -108,6 +115,36 @@ onUnmounted(() => {
   border-radius: 10px;
   min-width: 16px;
   text-align: center;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.nav-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.nav-avatar-initial {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.settings-link {
+  font-size: 1.2rem;
 }
 
 .logout-btn {

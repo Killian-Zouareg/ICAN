@@ -300,7 +300,45 @@ CREATE POLICY "Participants can update conversation timestamp"
 
 ---
 
-## 5. Configurer l'authentification
+## 5. Créer le bucket de stockage pour les avatars
+
+Les photos de profil sont stockées dans Supabase Storage.
+
+1. Va dans **Storage** (icône de dossier dans le menu de gauche)
+2. Clique sur **"New bucket"**
+3. Nom du bucket : `avatars`
+4. Coche **"Public bucket"** (les avatars doivent être accessibles publiquement)
+5. Clique **"Create bucket"**
+
+### Ajouter les policies de storage
+
+6. Clique sur le bucket `avatars` que tu viens de créer
+7. Va dans l'onglet **"Policies"** (en haut)
+8. Clique **"New policy"** puis **"For full customization"** et crée ces 3 policies :
+
+**Policy 1 — Lecture publique :**
+- Name : `Public read`
+- Allowed operation : `SELECT`
+- Target roles : laisser vide (public)
+- Policy definition : `true`
+
+**Policy 2 — Upload par l'utilisateur :**
+- Name : `Users can upload their avatar`
+- Allowed operation : `INSERT`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] = (auth.uid())::text)`
+
+**Policy 3 — Mise à jour par l'utilisateur :**
+- Name : `Users can update their avatar`
+- Allowed operation : `UPDATE`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] = (auth.uid())::text)`
+
+Ces policies font en sorte que chaque utilisateur ne peut uploader/modifier que dans son propre dossier (nommé avec son UUID).
+
+---
+
+## 6. Configurer l'authentification
 
 1. Va dans **Authentication > Providers** (menu de gauche)
 2. Vérifie que **Email** est activé
@@ -311,7 +349,7 @@ CREATE POLICY "Participants can update conversation timestamp"
 
 ---
 
-## 6. Créer ton compte admin
+## 7. Créer ton compte admin
 
 1. Lance l'application localement (`npm run dev`) ou attends le déploiement
 2. Inscris-toi avec ton compte
@@ -322,7 +360,7 @@ Tu pourras maintenant supprimer les posts et commentaires de tout le monde.
 
 ---
 
-## 7. Configurer le fichier .env local
+## 8. Configurer le fichier .env local
 
 Crée un fichier `.env` à la racine du projet :
 
@@ -338,7 +376,7 @@ npm run dev
 
 ---
 
-## 8. Déployer sur GitHub Pages
+## 9. Déployer sur GitHub Pages
 
 ### Créer le repo GitHub
 
@@ -378,7 +416,7 @@ git push -u origin main
 
 ---
 
-## 9. Désactiver les inscriptions (optionnel)
+## 10. Désactiver les inscriptions (optionnel)
 
 Une fois que tous tes amis se sont inscrits :
 
@@ -396,9 +434,10 @@ Une fois que tous tes amis se sont inscrits :
 | 2 | Exécuter le SQL (tables) | Supabase SQL Editor |
 | 3 | Exécuter le SQL (trigger) | Supabase SQL Editor |
 | 4 | Exécuter le SQL (RLS) | Supabase SQL Editor |
-| 5 | Configurer l'auth | Supabase Auth Settings |
-| 6 | Créer ton compte et le passer admin | App + Supabase Table Editor |
-| 7 | Créer le fichier .env | Local |
-| 8 | Créer le repo GitHub + push | GitHub |
-| 9 | Ajouter les secrets | GitHub Settings |
-| 10 | Activer GitHub Pages | GitHub Settings > Pages |
+| 5 | Créer le bucket avatars + policies | Supabase Storage |
+| 6 | Configurer l'auth | Supabase Auth Settings |
+| 7 | Créer ton compte et le passer admin | App + Supabase Table Editor |
+| 8 | Créer le fichier .env | Local |
+| 9 | Créer le repo GitHub + push | GitHub |
+| 10 | Ajouter les secrets | GitHub Settings |
+| 11 | Activer GitHub Pages | GitHub Settings > Pages |

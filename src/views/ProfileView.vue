@@ -7,9 +7,7 @@
     <div v-if="loading" class="loading">Chargement...</div>
     <template v-else-if="profileData">
       <div class="profile-header">
-        <div class="profile-avatar">
-          {{ profileData.display_name.charAt(0).toUpperCase() }}
-        </div>
+        <UserAvatar :url="profileData.avatar_url" :name="profileData.display_name" :size="64" />
         <div class="profile-info">
           <h2 class="profile-name">{{ profileData.display_name }}</h2>
           <span class="profile-handle">@{{ profileData.username }}</span>
@@ -47,6 +45,7 @@ import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { useMessagesStore } from '../stores/messages'
 import PostCard from '../components/PostCard.vue'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -115,20 +114,6 @@ watch(() => route.params.username, loadProfile)
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
-}
-
-.profile-avatar {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--accent);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 1.8rem;
-  flex-shrink: 0;
 }
 
 .profile-info {

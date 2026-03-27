@@ -33,6 +33,11 @@ const routes = [
     name: 'Conversation',
     component: () => import('../views/ConversationView.vue'),
   },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('../views/SettingsView.vue'),
+  },
 ]
 
 const router = createRouter({
