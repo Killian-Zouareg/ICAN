@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.4.0',
+    date: '28 mars 2026',
+    icon: '\u{2705}',
+    color: '#1da1f2',
+    title: 'Certification Admin',
+    description: 'Les comptes administrateurs sont d\u00e9sormais identifi\u00e9s par un badge certifi\u00e9 bleu \u00e0 c\u00f4t\u00e9 de leur nom. Leurs posts sont subtilement mis en avant avec une bordure et un fond color\u00e9.',
+    tags: ['Badge certifi\u00e9', 'Posts admin', 'Highlight'],
+  },
+  {
     version: '2.3.0',
     date: '28 mars 2026',
     icon: '\u{1F4DD}',
@@ -217,6 +226,17 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.4.0',
+    date: '28 mars 2026',
+    title: 'Certification Admin & Posts highlight\u00e9s',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Badge certifi\u00e9 bleu (checkmark) \u00e0 c\u00f4t\u00e9 du nom des admins dans chaque post' },
+      { type: 'new', text: 'Nom des admins affich\u00e9 en couleur accent (bleu) dans les posts' },
+      { type: 'new', text: 'Posts des admins mis en avant : bordure bleue \u00e0 gauche et fond l\u00e9g\u00e8rement teint\u00e9' },
+    ],
+  },
   {
     version: '2.3.0',
     date: '28 mars 2026',

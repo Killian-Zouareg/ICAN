@@ -1,5 +1,5 @@
 <template>
-  <div class="post-card" @click="goToPost">
+  <div class="post-card" :class="{ 'admin-post': displayPost.is_admin }" @click="goToPost">
     <!-- Repost badge -->
     <div v-if="isRepost" class="repost-badge">
       <span class="repost-icon">&#x21BB;</span>
@@ -26,9 +26,13 @@
           <router-link
             :to="`/user/${displayPost.username}`"
             class="author-name"
+            :class="{ 'admin-name': displayPost.is_admin }"
             @click.stop
           >
             {{ displayPost.display_name }}
+            <svg v-if="displayPost.is_admin" class="verified-badge" viewBox="0 0 22 22" aria-label="Compte certifié">
+              <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.274-.586-.705-1.084-1.246-1.439-.54-.354-1.17-.551-1.816-.569-.646.018-1.275.215-1.816.57-.54.354-.972.852-1.246 1.438-.607-.223-1.264-.27-1.897-.14-.634.131-1.218.437-1.687.882-.445.47-.75 1.053-.882 1.687-.13.633-.083 1.29.14 1.897-.586.274-1.084.705-1.439 1.246-.354.54-.551 1.17-.569 1.816.018.646.215 1.275.57 1.816.354.54.852.972 1.438 1.246-.223.607-.27 1.264-.14 1.897.131.634.437 1.218.882 1.687.47.445 1.053.75 1.687.882.633.13 1.29.083 1.897-.14.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.646-.018 1.275-.215 1.816-.57.54-.354.972-.852 1.246-1.438.607.223 1.264.27 1.897.14.634-.131 1.218-.437 1.687-.882.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="currentColor"/>
+            </svg>
           </router-link>
           <span class="author-handle">@{{ displayPost.username }}</span>
           <span class="dot">&middot;</span>
@@ -160,6 +164,16 @@ async function handleDelete() {
   background: var(--bg-hover);
 }
 
+/* Admin post highlight */
+.post-card.admin-post {
+  border-left: 3px solid var(--accent);
+  background: rgba(29, 161, 242, 0.04);
+}
+
+.post-card.admin-post:hover {
+  background: rgba(29, 161, 242, 0.08);
+}
+
 .repost-badge {
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -206,10 +220,24 @@ async function handleDelete() {
   font-weight: 700;
   color: var(--text-primary);
   text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .author-name:hover {
   text-decoration: underline;
+}
+
+.author-name.admin-name {
+  color: var(--accent);
+}
+
+.verified-badge {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+  flex-shrink: 0;
 }
 
 .author-handle {
