@@ -699,7 +699,7 @@ onUnmounted(() => {
 .dm-widget {
   position: fixed;
   bottom: 0;
-  left: 20px;
+  right: 20px;
   width: 360px;
   z-index: 1000;
   display: flex;
