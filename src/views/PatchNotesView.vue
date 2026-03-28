@@ -42,6 +42,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '1.6.4',
+    date: '28 mars 2026',
+    title: 'Fix cache & création de groupe',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'Ajout de meta tags anti-cache pour éviter que le navigateur serve une ancienne version du site après un déploiement' },
+      { type: 'fixed', text: 'Correction de l\'erreur 403 lors de la création d\'un groupe de discussion (policy INSERT mise à jour)' },
+      { type: 'improved', text: 'Protection contre les déconnexions fantômes : vérification de la session avant logout automatique' },
+    ],
+  },
+  {
     version: '1.6.3',
     date: '28 mars 2026',
     title: 'Fix persistance de session',
