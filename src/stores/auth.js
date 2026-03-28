@@ -160,6 +160,28 @@ export const useAuthStore = defineStore('auth', () => {
     clearState()
   }
 
+  async function refreshActiveProfile() {
+    if (!activeProfile.value) return
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', activeProfile.value.id)
+      .maybeSingle()
+    if (data) {
+      const idx = profiles.value.findIndex((p) => p.id === data.id)
+      if (idx !== -1) profiles.value[idx] = data
+      activeProfile.value = data
+    }
+  }
+
+  async function checkBan() {
+    await refreshActiveProfile()
+    if (isBanned.value) {
+      throw new Error('Votre profil est temporairement banni jusqu\'au ' +
+        new Date(activeProfile.value.banned_until).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }))
+    }
+  }
+
   function clearState() {
     user.value = null
     profiles.value = []
@@ -204,6 +226,13 @@ export const useAuthStore = defineStore('auth', () => {
         loading.value = false
       }
     }, 3000)
+
+    // Periodically refresh active profile to detect bans
+    setInterval(() => {
+      if (activeProfile.value) {
+        refreshActiveProfile().catch(() => {})
+      }
+    }, 30000)
   }
 
   return {
@@ -216,6 +245,8 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isBanned,
     bannedUntil,
+    refreshActiveProfile,
+    checkBan,
     fetchProfiles,
     switchProfile,
     createProfile,

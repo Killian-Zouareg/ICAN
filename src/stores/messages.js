@@ -45,7 +45,7 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function sendMessage(conversationId, content) {
     const auth = useAuthStore()
-    if (auth.isBanned) throw new Error('Votre profil est temporairement banni. Vous ne pouvez pas envoyer de messages.')
+    await auth.checkBan()
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: auth.activeProfile.id,
