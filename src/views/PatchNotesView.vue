@@ -82,6 +82,24 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.1.0',
+    date: '28 mars 2026',
+    icon: '\u{2702}',
+    color: '#9b59b6',
+    title: 'Sidebar & Recadrage avatar',
+    description: 'Nouvelle navigation lat\u00e9rale inspir\u00e9e de Twitter avec acc\u00e8s rapide au Feed, Messages, Profil, Param\u00e8tres et Admin. Recadrage interactif de la photo de profil avec zoom et d\u00e9placement.',
+    tags: ['Sidebar', 'Crop avatar', 'Navigation', 'Mobile'],
+  },
+  {
+    version: '2.0.0',
+    date: '28 mars 2026',
+    icon: '\u{1F6E1}',
+    color: '#e74c3c',
+    title: 'Panel Administrateur',
+    description: 'Un tableau de bord complet pour les admins : statistiques en temps r\u00e9el, gestion des utilisateurs, bans temporaires, mod\u00e9ration des commentaires, et surveillance de toutes les conversations priv\u00e9es.',
+    tags: ['Admin', 'Mod\u00e9ration', 'Bans temporaires', 'Surveillance DM'],
+  },
+  {
     version: '1.9.0',
     date: '28 mars 2026',
     icon: '\u{1F3A8}',
@@ -181,6 +199,38 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.1.0',
+    date: '28 mars 2026',
+    title: 'Sidebar navigation & Recadrage avatar',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Barre lat\u00e9rale fixe avec navigation : Feed, Messages, Profil, Param\u00e8tres, Patch Notes, Admin' },
+      { type: 'new', text: 'Navigation mobile en barre inf\u00e9rieure sur petits \u00e9crans' },
+      { type: 'new', text: 'Switcher de profil int\u00e9gr\u00e9 dans la sidebar avec recherche' },
+      { type: 'new', text: 'Badge compteur de messages non-lus dans la sidebar' },
+      { type: 'new', text: 'Recadrage interactif de la photo de profil : zoom, d\u00e9placement, aper\u00e7u circulaire' },
+      { type: 'improved', text: 'Header simplifi\u00e9 — navigation d\u00e9plac\u00e9e dans la sidebar' },
+    ],
+  },
+  {
+    version: '2.0.0',
+    date: '28 mars 2026',
+    title: 'Panel Administrateur',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Dashboard avec statistiques globales : comptes, profils, posts, likes, commentaires, messages, reposts, conversations' },
+      { type: 'new', text: 'Gestion des utilisateurs : liste compl\u00e8te, recherche, toggle admin, suppression de profils' },
+      { type: 'new', text: 'Mod\u00e9ration des posts : parcourir, rechercher et supprimer n\'importe quel post' },
+      { type: 'new', text: 'Surveillance des conversations : voir toutes les conversations priv\u00e9es et lire tous les messages' },
+      { type: 'new', text: 'Mod\u00e9ration des commentaires : parcourir, rechercher et supprimer des commentaires' },
+      { type: 'new', text: 'Fil d\'activit\u00e9 r\u00e9cente : derniers posts, commentaires et likes en temps r\u00e9el' },
+      { type: 'new', text: 'Bans temporaires : 15min, 30min, 1h, 3h, 6h, 12h, 24h, 3j, 7j ou dur\u00e9e personnalis\u00e9e' },
+      { type: 'new', text: 'Banni\u00e8re d\'avertissement pour les profils bannis — actions bloqu\u00e9es (posts, likes, commentaires, DMs)' },
+      { type: 'security', text: 'Route prot\u00e9g\u00e9e par guard admin — acc\u00e8s refus\u00e9 aux non-admins' },
+      { type: 'improved', text: 'Lien admin visible uniquement pour les admins dans le header' },
+    ],
+  },
   {
     version: '1.9.0',
     date: '28 mars 2026',

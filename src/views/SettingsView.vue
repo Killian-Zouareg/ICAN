@@ -71,6 +71,14 @@
         />
       </div>
 
+      <!-- Image Cropper -->
+      <ImageCropper
+        v-if="showCropper"
+        :src="cropperSrc"
+        @cancel="showCropper = false"
+        @crop="onCropped"
+      />
+
       <!-- Display name -->
       <div class="field">
         <label>Nom affiché</label>
@@ -115,6 +123,7 @@
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from '../components/UserAvatar.vue'
+import ImageCropper from '../components/ImageCropper.vue'
 
 const auth = useAuthStore()
 
@@ -128,6 +137,9 @@ const fileInput = ref(null)
 const saving = ref(false)
 const editError = ref('')
 const editSuccess = ref('')
+
+const showCropper = ref(false)
+const cropperSrc = ref('')
 
 const showNewProfile = ref(false)
 const newUsername = ref('')
@@ -159,12 +171,20 @@ function triggerFileInput() {
 function handleFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
-  if (file.size > 2 * 1024 * 1024) {
-    editError.value = 'Image trop lourde (max 2 Mo)'
+  if (file.size > 5 * 1024 * 1024) {
+    editError.value = 'Image trop lourde (max 5 Mo)'
     return
   }
+  cropperSrc.value = URL.createObjectURL(file)
+  showCropper.value = true
+  // Reset file input so same file can be re-selected
+  e.target.value = ''
+}
+
+function onCropped(file, previewUrl) {
   avatarFile.value = file
-  avatarPreview.value = URL.createObjectURL(file)
+  avatarPreview.value = previewUrl
+  showCropper.value = false
 }
 
 async function handleSave() {

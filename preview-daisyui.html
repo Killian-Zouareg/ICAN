@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="night">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iCAN — Dashboard Moderne</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { min-height: 100vh; }
+    .glass-card {
+      background: rgba(255,255,255,0.04);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .glass-card:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .sidebar-link {
+      transition: all 0.2s;
+      border-radius: 12px;
+      padding: 0.6rem 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.55);
+      cursor: pointer;
+    }
+    .sidebar-link:hover, .sidebar-link.active {
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+    }
+    .sidebar-link.active {
+      background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(59,130,246,0.15));
+      color: #fff;
+      font-weight: 600;
+    }
+    .gradient-blob {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(120px);
+      opacity: 0.12;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .post-actions button {
+      transition: all 0.15s;
+      border-radius: 8px;
+      padding: 0.3rem 0.6rem;
+      font-size: 0.8rem;
+      background: transparent;
+      border: none;
+      color: rgba(255,255,255,0.4);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .post-actions button:hover { background: rgba(255,255,255,0.06); color: #fff; }
+    .stat-card {
+      background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      padding: 1.2rem;
+    }
+    .composer-input {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 0.8rem 1rem;
+      color: #fff;
+      width: 100%;
+      resize: none;
+      outline: none;
+      font-size: 0.9rem;
+    }
+    .composer-input:focus { border-color: rgba(124,58,237,0.5); }
+    .composer-input::placeholder { color: rgba(255,255,255,0.25); }
+    .theme-selector { position: fixed; bottom: 1rem; right: 1rem; z-index: 999; }
+    .notif-dot { width: 8px; height: 8px; border-radius: 50%; background: #7c3aed; position: absolute; top: 2px; right: 2px; }
+    .online-dot { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; border: 2px solid rgba(0,0,0,0.3); position: absolute; bottom: 0; right: 0; }
+    .dm-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.65rem 0.75rem; border-radius: 12px; cursor: pointer; transition: all 0.15s; }
+    .dm-item:hover { background: rgba(255,255,255,0.05); }
+    .trending-tag { display: inline-block; padding: 0.3rem 0.7rem; border-radius: 20px; font-size: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); cursor: pointer; transition: all 0.15s; }
+    .trending-tag:hover { background: rgba(124,58,237,0.15); border-color: rgba(124,58,237,0.3); color: #c4b5fd; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+  </style>
+</head>
+<body class="bg-[#0a0a12] text-white overflow-x-hidden">
+
+  <!-- Background blobs -->
+  <div class="gradient-blob" style="width:600px;height:600px;background:#7c3aed;top:-200px;left:-100px;"></div>
+  <div class="gradient-blob" style="width:500px;height:500px;background:#3b82f6;bottom:-150px;right:-100px;"></div>
+  <div class="gradient-blob" style="width:350px;height:350px;background:#ec4899;top:50%;left:50%;transform:translate(-50%,-50%);"></div>
+
+  <!-- Theme switcher -->
+  <div class="theme-selector">
+    <select id="themePicker" class="select select-bordered select-xs bg-base-300/80 backdrop-blur text-xs">
+      <option value="default">🎨 Violet/Bleu (défaut)</option>
+      <option value="green">🌿 Vert/Cyan</option>
+      <option value="sunset">🌅 Orange/Rose</option>
+      <option value="mono">⚪ Monochrome</option>
+    </select>
+  </div>
+
+  <div class="flex h-screen relative z-10">
+
+    <!-- ============ SIDEBAR ============ -->
+    <aside class="w-64 flex flex-col p-4 gap-1 border-r border-white/5 shrink-0">
+      <!-- Logo -->
+      <div class="flex items-center gap-2.5 px-2 mb-6 mt-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-500 to-blue-500 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-violet-500/20">iC</div>
+        <span class="font-bold text-lg tracking-tight">iCAN</span>
+      </div>
+
+      <!-- Nav -->
+      <div class="sidebar-link active">
+        <span>🏠</span> <span>Feed</span>
+      </div>
+      <div class="sidebar-link">
+        <span>🔍</span> <span>Explorer</span>
+      </div>
+      <div class="sidebar-link" style="position:relative;">
+        <span>🔔</span> <span>Notifications</span>
+        <span style="margin-left:auto;" class="badge badge-sm bg-violet-500 border-0 text-white text-xs">3</span>
+      </div>
+      <div class="sidebar-link">
+        <span>💬</span> <span>Messages</span>
+        <span style="margin-left:auto;" class="badge badge-sm bg-blue-500 border-0 text-white text-xs">5</span>
+      </div>
+      <div class="sidebar-link">
+        <span>📋</span> <span>Patch Notes</span>
+      </div>
+      <div class="sidebar-link">
+        <span>⚙️</span> <span>Paramètres</span>
+      </div>
+
+      <!-- Spacer -->
+      <div class="flex-1"></div>
+
+      <!-- Profile card (bottom) -->
+      <div class="glass-card rounded-2xl p-3 mt-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm">K</div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-sm truncate">Killian</div>
+            <div class="text-xs text-white/40 truncate">@killian</div>
+          </div>
+          <button class="text-white/30 hover:text-white text-xs">⋮</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ============ MAIN FEED ============ -->
+    <main class="flex-1 overflow-y-auto p-6" style="max-height:100vh;">
+      <div class="max-w-xl mx-auto space-y-4">
+
+        <!-- Greeting -->
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold">Bonjour, Killian 👋</h1>
+          <p class="text-white/40 text-sm mt-1">Voici ce qui se passe sur iCAN aujourd'hui.</p>
+        </div>
+
+        <!-- Stats bento -->
+        <div class="grid grid-cols-3 gap-3 mb-6">
+          <div class="stat-card">
+            <div class="text-2xl font-bold bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">24</div>
+            <div class="text-xs text-white/40 mt-1">Nouveaux posts</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-2xl font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent">128</div>
+            <div class="text-xs text-white/40 mt-1">Likes reçus</div>
+          </div>
+          <div class="stat-card">
+            <div class="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">7</div>
+            <div class="text-xs text-white/40 mt-1">Messages</div>
+          </div>
+        </div>
+
+        <!-- Composer -->
+        <div class="glass-card rounded-2xl p-4">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center text-white font-bold text-sm shrink-0">K</div>
+            <div class="flex-1">
+              <textarea class="composer-input" placeholder="Quoi de neuf, Killian ?" rows="2"></textarea>
+              <div class="flex justify-between items-center mt-3">
+                <div class="flex gap-1">
+                  <button class="text-white/30 hover:text-white/60 text-sm px-2 py-1 rounded-lg hover:bg-white/5 transition">📷</button>
+                  <button class="text-white/30 hover:text-white/60 text-sm px-2 py-1 rounded-lg hover:bg-white/5 transition">😊</button>
+                </div>
+                <button class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-medium hover:from-violet-500 hover:to-blue-500 transition-all shadow-lg shadow-violet-500/20">Publier</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post 1 -->
+        <div class="glass-card rounded-2xl p-4 transition-all duration-200">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-bold text-sm shrink-0">M</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm">Marie Dupont</span>
+                <span class="text-xs text-white/30">@marie</span>
+                <span class="text-xs text-white/20 ml-auto">il y a 5 min</span>
+              </div>
+              <p class="mt-2 text-sm text-white/75 leading-relaxed">Est-ce que quelqu'un a testé le nouveau resto sur les quais ? 🍕 J'hésite à y aller ce soir, les avis sont partagés...</p>
+              <div class="post-actions flex gap-4 mt-3">
+                <button>❤️ 12</button>
+                <button>💬 4</button>
+                <button>🔁 2</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post 2 (with image) -->
+        <div class="glass-card rounded-2xl p-4 transition-all duration-200">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-sm shrink-0">T</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm">Thomas R.</span>
+                <span class="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-500/20 text-amber-400">Admin</span>
+                <span class="text-xs text-white/30">@thomas</span>
+                <span class="text-xs text-white/20 ml-auto">il y a 1h</span>
+              </div>
+              <p class="mt-2 text-sm text-white/75 leading-relaxed">Petit coucher de soleil d'hier soir depuis le balcon 🌅</p>
+              <div class="mt-3 rounded-xl overflow-hidden bg-gradient-to-br from-orange-500/20 via-pink-500/10 to-purple-500/20 h-44 flex items-center justify-center border border-white/5">
+                <span class="text-4xl">🌅</span>
+              </div>
+              <div class="post-actions flex gap-4 mt-3">
+                <button>🤍 28</button>
+                <button>💬 7</button>
+                <button>🔁 5</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post 3 (repost) -->
+        <div class="glass-card rounded-2xl p-4 transition-all duration-200">
+          <div class="text-xs text-white/30 mb-2 flex items-center gap-1">🔁 <span class="text-white/40 font-medium">Killian</span> a reposté</div>
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm shrink-0">L</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm">Lucas M.</span>
+                <span class="text-xs text-white/30">@lucas</span>
+                <span class="text-xs text-white/20 ml-auto">il y a 3h</span>
+              </div>
+              <p class="mt-2 text-sm text-white/75 leading-relaxed">Je cherche des gens pour un tournoi Mario Kart ce weekend. Qui est chaud ? 🏎️🎮</p>
+              <div class="post-actions flex gap-4 mt-3">
+                <button>🤍 9</button>
+                <button>💬 11</button>
+                <button style="color:rgba(74,222,128,0.7);">🔁 3</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Post 4 -->
+        <div class="glass-card rounded-2xl p-4 transition-all duration-200">
+          <div class="flex gap-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-sm shrink-0">S</div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <span class="font-semibold text-sm">Sarah K.</span>
+                <span class="text-xs text-white/30">@sarah</span>
+                <span class="text-xs text-white/20 ml-auto">il y a 6h</span>
+              </div>
+              <p class="mt-2 text-sm text-white/75 leading-relaxed">Le nouveau film de Villeneuve est incroyable. J'y retourne demain sans hésiter 🎬✨</p>
+              <div class="post-actions flex gap-4 mt-3">
+                <button>❤️ 34</button>
+                <button>💬 15</button>
+                <button>🔁 8</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- ============ RIGHT PANEL ============ -->
+    <aside class="w-72 border-l border-white/5 p-4 overflow-y-auto shrink-0 space-y-4" style="max-height:100vh;">
+
+      <!-- Search -->
+      <div class="relative">
+        <input type="text" placeholder="Rechercher..." class="w-full composer-input text-sm py-2 pl-9" />
+        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/25 text-sm">🔍</span>
+      </div>
+
+      <!-- Trending -->
+      <div class="glass-card rounded-2xl p-4">
+        <h3 class="font-semibold text-sm mb-3">🔥 Tendances</h3>
+        <div class="flex flex-wrap gap-2">
+          <span class="trending-tag">#MarioKart</span>
+          <span class="trending-tag">#Resto</span>
+          <span class="trending-tag">#Sunset</span>
+          <span class="trending-tag">#Villeneuve</span>
+          <span class="trending-tag">#Weekend</span>
+          <span class="trending-tag">#iCAN</span>
+        </div>
+      </div>
+
+      <!-- DMs -->
+      <div class="glass-card rounded-2xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="font-semibold text-sm">💬 Messages</h3>
+          <button class="text-white/30 hover:text-white/60 text-xs">Voir tout →</button>
+        </div>
+        <div class="space-y-1">
+          <div class="dm-item">
+            <div class="relative shrink-0">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-bold text-xs">M</div>
+              <div class="online-dot"></div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center">
+                <span class="font-semibold text-xs">Marie</span>
+                <span class="text-[10px] text-white/25">14:32</span>
+              </div>
+              <p class="text-xs text-white/35 truncate">Oui parfait, on se retrouve là-bas !</p>
+            </div>
+            <div class="w-2 h-2 rounded-full bg-violet-500 shrink-0"></div>
+          </div>
+          <div class="dm-item">
+            <div class="relative shrink-0">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xs">T</div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center">
+                <span class="font-semibold text-xs">Thomas</span>
+                <span class="text-[10px] text-white/25">hier</span>
+              </div>
+              <p class="text-xs text-white/35 truncate">Le lien du tournoi est ici</p>
+            </div>
+          </div>
+          <div class="dm-item">
+            <div class="relative shrink-0">
+              <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-xs">🏎️</div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex justify-between items-center">
+                <span class="font-semibold text-xs">Mario Kart Gang</span>
+                <span class="text-[10px] text-white/25">lun.</span>
+              </div>
+              <p class="text-xs text-white/35 truncate">Lucas: qui ramène les manettes ?</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Active users -->
+      <div class="glass-card rounded-2xl p-4">
+        <h3 class="font-semibold text-sm mb-3">🟢 En ligne</h3>
+        <div class="flex flex-wrap gap-2">
+          <div class="tooltip" data-tip="Marie">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-bold text-xs ring-2 ring-emerald-500/50 cursor-pointer hover:scale-110 transition">M</div>
+          </div>
+          <div class="tooltip" data-tip="Thomas">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-xs ring-2 ring-emerald-500/50 cursor-pointer hover:scale-110 transition">T</div>
+          </div>
+          <div class="tooltip" data-tip="Lucas">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-xs ring-2 ring-emerald-500/50 cursor-pointer hover:scale-110 transition">L</div>
+          </div>
+          <div class="tooltip" data-tip="Sarah">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-white font-bold text-xs ring-2 ring-emerald-500/50 cursor-pointer hover:scale-110 transition">S</div>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+
+  <!-- ============ PROFILE PAGE (below) ============ -->
+  <div class="relative z-10 border-t border-white/5 mt-0">
+    <div class="max-w-3xl mx-auto p-6">
+      <h2 class="text-lg font-bold text-white/50 mb-6 text-center">— Aperçu page Profil —</h2>
+
+      <div class="glass-card rounded-3xl overflow-hidden">
+        <!-- Banner -->
+        <div class="h-44 bg-gradient-to-r from-violet-600/50 via-fuchsia-500/30 to-blue-600/50 relative">
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0a0a12] to-transparent"></div>
+        </div>
+        <!-- Profile info -->
+        <div class="px-6 pb-6 -mt-16 relative">
+          <div class="flex items-end justify-between">
+            <div class="w-28 h-28 rounded-2xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white font-bold text-4xl ring-4 ring-[#0a0a12] shadow-2xl">M</div>
+            <div class="flex gap-2 mb-2">
+              <button class="px-4 py-1.5 rounded-xl bg-white/5 border border-white/10 text-sm text-white/70 hover:bg-white/10 transition">💬 Message</button>
+              <button class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-sm text-white font-medium shadow-lg shadow-violet-500/20">Suivre</button>
+            </div>
+          </div>
+          <div class="mt-4">
+            <div class="flex items-center gap-2">
+              <h2 class="text-xl font-bold">Marie Dupont</h2>
+              <span class="px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-violet-500/20 text-violet-400">OG Member</span>
+            </div>
+            <p class="text-sm text-white/35 mt-0.5">@marie</p>
+            <p class="text-sm text-white/50 mt-3">Passionnée de cuisine, de ciné et de road trips 🚗✨ Toujours partante pour un bon plan restau.</p>
+            <div class="flex gap-2 mt-3">
+              <span class="text-xs text-white/25">📅 Membre depuis mars 2026</span>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div class="flex gap-6 mt-4 pt-4 border-t border-white/5">
+            <div class="text-center">
+              <div class="text-lg font-bold bg-gradient-to-r from-violet-400 to-blue-400 bg-clip-text text-transparent">42</div>
+              <div class="text-xs text-white/30">Posts</div>
+            </div>
+            <div class="text-center">
+              <div class="text-lg font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent">128</div>
+              <div class="text-xs text-white/30">Likes</div>
+            </div>
+            <div class="text-center">
+              <div class="text-lg font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">15</div>
+              <div class="text-xs text-white/30">Reposts</div>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="flex gap-1 mt-5 p-1 rounded-xl bg-white/[0.03] border border-white/5">
+            <button class="flex-1 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-violet-600/30 to-blue-600/20 text-white">Posts</button>
+            <button class="flex-1 py-2 rounded-lg text-sm text-white/40 hover:bg-white/5 transition">Reposts</button>
+            <button class="flex-1 py-2 rounded-lg text-sm text-white/40 hover:bg-white/5 transition">J'aime</button>
+            <button class="flex-1 py-2 rounded-lg text-sm text-white/40 hover:bg-white/5 transition">Médias</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Color theme switcher -->
+  <script>
+    const themes = {
+      default: { blobs: ['#7c3aed','#3b82f6','#ec4899'], accent: 'violet' },
+      green:   { blobs: ['#059669','#06b6d4','#10b981'], accent: 'emerald' },
+      sunset:  { blobs: ['#ea580c','#e11d48','#f59e0b'], accent: 'orange' },
+      mono:    { blobs: ['#6b7280','#9ca3af','#4b5563'], accent: 'gray' },
+    };
+    document.getElementById('themePicker').addEventListener('change', (e) => {
+      const t = themes[e.target.value];
+      const blobs = document.querySelectorAll('.gradient-blob');
+      blobs.forEach((b, i) => { b.style.background = t.blobs[i % t.blobs.length]; });
+    });
+  </script>
+</body>
+</html>

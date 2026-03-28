@@ -98,10 +98,10 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function createPost(content, imageFile = null) {
+    const auth = useAuthStore()
+    if (auth.isBanned) throw new Error('Votre profil est temporairement banni. Vous ne pouvez pas publier.')
     const rateLimitMsg = checkRateLimit('post')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
-
-    const auth = useAuthStore()
     let imageUrl = null
 
     // Upload image if provided
@@ -151,9 +151,10 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function toggleLike(postId) {
+    const auth = useAuthStore()
+    if (auth.isBanned) throw new Error('Votre profil est temporairement banni.')
     const rateLimitMsg = checkRateLimit('like')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
-    const auth = useAuthStore()
     const profileId = auth.activeProfile.id
     if (userLikes.value.has(postId)) {
       await supabase
@@ -176,9 +177,10 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function toggleRepost(originalPostId) {
+    const auth = useAuthStore()
+    if (auth.isBanned) throw new Error('Votre profil est temporairement banni.')
     const rateLimitMsg = checkRateLimit('repost')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
-    const auth = useAuthStore()
     const profileId = auth.activeProfile.id
 
     if (userReposts.value.has(originalPostId)) {
@@ -291,9 +293,10 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function addComment(postId, content, parentId = null) {
+    const auth = useAuthStore()
+    if (auth.isBanned) throw new Error('Votre profil est temporairement banni.')
     const rateLimitMsg = checkRateLimit('comment')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
-    const auth = useAuthStore()
     const insertData = {
       author_id: auth.activeProfile.id,
       post_id: postId,

@@ -43,6 +43,12 @@ const routes = [
     name: 'PatchNotes',
     component: () => import('../views/PatchNotesView.vue'),
   },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('../views/AdminView.vue'),
+    meta: { admin: true },
+  },
 ]
 
 const router = createRouter({
@@ -66,6 +72,9 @@ router.beforeEach(async (to) => {
 
   if (!to.meta.public && !auth.isAuthenticated) {
     return '/login'
+  }
+  if (to.meta.admin && !auth.isAdmin) {
+    return '/'
   }
   if (to.path === '/login' && auth.isAuthenticated) {
     return '/'

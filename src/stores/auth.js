@@ -10,6 +10,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAdmin = computed(() => activeProfile.value?.is_admin === true)
   const isAuthenticated = computed(() => !!user.value)
+  const isBanned = computed(() => {
+    if (!activeProfile.value?.banned_until) return false
+    return new Date(activeProfile.value.banned_until) > new Date()
+  })
+  const bannedUntil = computed(() => activeProfile.value?.banned_until ? new Date(activeProfile.value.banned_until) : null)
   // Keep backward compat — components use auth.profile
   const profile = computed(() => activeProfile.value)
 
@@ -209,6 +214,8 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     isAdmin,
     isAuthenticated,
+    isBanned,
+    bannedUntil,
     fetchProfiles,
     switchProfile,
     createProfile,
