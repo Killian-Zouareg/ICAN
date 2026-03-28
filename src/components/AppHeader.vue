@@ -47,6 +47,7 @@
         </div>
       </div>
 
+      <NotificationBell />
       <router-link to="/patch-notes" class="nav-link patchnotes-link" title="Patch Notes">&#x1F4CB;</router-link>
       <router-link to="/settings" class="nav-link settings-link" title="Param&egrave;tres">&#x2699;</router-link>
       <button class="logout-btn" @click="handleLogout">Quitter</button>
@@ -59,6 +60,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
+import NotificationBell from './NotificationBell.vue'
 
 const auth = useAuthStore()
 const router = useRouter()

@@ -129,6 +129,20 @@ CREATE TABLE conversation_members (
 );
 
 -- =============================================
+-- TABLE: notifications
+-- =============================================
+CREATE TABLE notifications (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'reply', 'repost')),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
+  read BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- =============================================
 -- TABLE: messages
 -- =============================================
 CREATE TABLE messages (
@@ -149,6 +163,7 @@ CREATE INDEX idx_likes_post_id ON likes(post_id);
 CREATE INDEX idx_comments_post_id ON comments(post_id);
 CREATE INDEX idx_comments_parent_id ON comments(parent_id);
 CREATE INDEX idx_comment_likes_comment_id ON comment_likes(comment_id);
+CREATE INDEX idx_notifications_recipient ON notifications(recipient_id, read, created_at DESC);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_read ON messages(read) WHERE read = false;
 CREATE INDEX idx_conversation_members_conv ON conversation_members(conversation_id);

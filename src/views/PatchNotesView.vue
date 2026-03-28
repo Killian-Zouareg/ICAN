@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '1.8.0',
+    date: '28 mars 2026',
+    icon: '\u{1F514}',
+    color: '#e74c3c',
+    title: 'Notifications & Discord',
+    description: 'Soyez alert\u00e9 en temps r\u00e9el : cloche de notifications in-app pour les likes, commentaires, r\u00e9ponses et reposts. Chaque nouveau post est aussi envoy\u00e9 automatiquement sur Discord via webhook.',
+    tags: ['Notifications in-app', 'Webhook Discord', 'Temps r\u00e9el'],
+  },
+  {
     version: '1.6.0',
     date: '28 mars 2026',
     icon: '\u{1F465}',
@@ -163,6 +172,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '1.8.0',
+    date: '28 mars 2026',
+    title: 'Notifications in-app & Discord',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Cloche de notifications dans le header avec badge compteur de non-lues' },
+      { type: 'new', text: 'Notifications automatiques pour : likes, commentaires, r\u00e9ponses aux commentaires, reposts' },
+      { type: 'new', text: 'Panel d\u00e9roulant avec liste des notifications, avatar de l\'acteur et lien vers le post' },
+      { type: 'new', text: 'Bouton "Tout lire" pour marquer toutes les notifications comme lues' },
+      { type: 'new', text: 'Webhook Discord : chaque nouveau post est automatiquement envoy\u00e9 dans un salon Discord' },
+      { type: 'improved', text: 'Triggers SQL serveur pour g\u00e9n\u00e9rer les notifications — aucune action c\u00f4t\u00e9 client' },
+    ],
+  },
   {
     version: '1.7.0',
     date: '28 mars 2026',
