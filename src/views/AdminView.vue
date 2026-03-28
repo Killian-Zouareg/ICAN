@@ -390,24 +390,40 @@ async function fetchProfiles() {
 }
 
 async function fetchConversations() {
-  const { data } = await supabase
-    .from('conversations')
-    .select(`
-      *,
-      user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
-      user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
-    `)
-    .order('updated_at', { ascending: false })
-
-  // Count messages per conversation
-  const convs = data || []
-  for (const c of convs) {
-    const { count } = await supabase
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .eq('conversation_id', c.id)
-    c.messageCount = count || 0
+  // Use RPC to bypass RLS and get ALL conversations
+  const { data: rawConvs, error } = await supabase.rpc('admin_get_all_conversations')
+  if (error) {
+    console.error('admin_get_all_conversations error:', error)
+    allConversations.value = []
+    return
   }
+
+  const convs = rawConvs || []
+
+  // Enrich with profile data
+  const profileIds = new Set()
+  for (const c of convs) {
+    if (c.user1_id) profileIds.add(c.user1_id)
+    if (c.user2_id) profileIds.add(c.user2_id)
+  }
+
+  const profileMap = {}
+  if (profileIds.size > 0) {
+    const { data: profilesData } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', [...profileIds])
+    for (const p of profilesData || []) {
+      profileMap[p.id] = p
+    }
+  }
+
+  for (const c of convs) {
+    c.user1 = profileMap[c.user1_id] || null
+    c.user2 = profileMap[c.user2_id] || null
+    c.messageCount = 0 // Will be loaded on click
+  }
+
   allConversations.value = convs
 }
 
@@ -575,12 +591,38 @@ async function deleteComment(comment) {
 
 async function selectConversation(conv) {
   selectedConv.value = conv
-  const { data } = await supabase
-    .from('messages')
-    .select('*, sender:profiles!messages_sender_id_fkey(id, username, display_name, avatar_url)')
-    .eq('conversation_id', conv.id)
-    .order('created_at', { ascending: true })
-  convMessages.value = data || []
+
+  // Use RPC to bypass RLS and get ALL messages
+  const { data: rawMessages, error } = await supabase.rpc('admin_get_conversation_messages', {
+    p_conversation_id: conv.id,
+  })
+  if (error) {
+    console.error('admin_get_conversation_messages error:', error)
+    convMessages.value = []
+    return
+  }
+
+  // Enrich with sender profiles
+  const msgs = rawMessages || []
+  const senderIds = new Set(msgs.map((m) => m.sender_id).filter(Boolean))
+  const senderMap = {}
+  if (senderIds.size > 0) {
+    const { data: sendersData } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', [...senderIds])
+    for (const p of sendersData || []) {
+      senderMap[p.id] = p
+    }
+  }
+
+  for (const m of msgs) {
+    m.sender = senderMap[m.sender_id] || null
+  }
+
+  convMessages.value = msgs
+  conv.messageCount = msgs.length
+
   await nextTick()
   if (messagesBody.value) {
     messagesBody.value.scrollTop = messagesBody.value.scrollHeight

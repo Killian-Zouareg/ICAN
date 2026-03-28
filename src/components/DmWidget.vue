@@ -930,8 +930,7 @@ onUnmounted(() => {
 .dm-empty { padding: 1.5rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem; }
 .dm-empty-conv { text-align: center; color: var(--text-secondary); font-size: 0.82rem; margin-top: 2rem; }
 
-@media (max-width: 600px) {
-  .dm-widget { left: 0; right: 0; width: 100%; border-radius: 12px 12px 0 0; }
-  .dm-panel { height: 50vh; }
+@media (max-width: 768px) {
+  .dm-widget { display: none; }
 }
 </style>

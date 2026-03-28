@@ -28,7 +28,8 @@ onMounted(() => {
 .messages-page {
   border-left: 1px solid var(--border);
   border-right: 1px solid var(--border);
-  min-height: calc(100vh - 52px);
+  min-height: calc(100vh - var(--header-height));
+  padding-bottom: var(--page-bottom-padding);
 }
 
 .page-header {

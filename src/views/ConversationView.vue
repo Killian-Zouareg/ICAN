@@ -93,7 +93,13 @@ onUnmounted(() => {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 52px);
+  height: calc(100vh - var(--header-height));
+}
+
+@media (max-width: 768px) {
+  .conversation-page {
+    height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
+  }
 }
 
 .conv-header {

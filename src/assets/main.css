@@ -10,6 +10,19 @@
   --danger: #e0245e;
   --success: #17bf63;
   --repost: #17bf63;
+  --header-height: 48px;
+  --mobile-nav-height: 48px;
+}
+
+@media (max-width: 768px) {
+  :root {
+    --page-bottom-padding: var(--mobile-nav-height);
+  }
+}
+@media (min-width: 769px) {
+  :root {
+    --page-bottom-padding: 0px;
+  }
 }
 
 * {
