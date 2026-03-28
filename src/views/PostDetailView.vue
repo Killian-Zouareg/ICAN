@@ -57,6 +57,19 @@ async function fetchPost() {
     .select('*')
     .eq('id', route.params.id)
     .single()
+
+  if (data && data.repost_of) {
+    // If this is a repost, fetch the original post
+    const { data: original } = await supabase
+      .from('posts_with_stats')
+      .select('*')
+      .eq('id', data.repost_of)
+      .single()
+    if (original) {
+      data._original = original
+    }
+  }
+
   post.value = data
 }
 

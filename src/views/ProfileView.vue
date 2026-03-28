@@ -56,7 +56,10 @@ const messagesStore = useMessagesStore()
 const profileData = ref(null)
 const loading = ref(true)
 
-const isOwnProfile = computed(() => profileData.value?.id === auth.user?.id)
+const isOwnProfile = computed(() => {
+  if (!profileData.value) return false
+  return auth.profiles.some((p) => p.id === profileData.value.id)
+})
 
 async function loadProfile() {
   loading.value = true

@@ -1,13 +1,26 @@
 <template>
   <div class="post-card" @click="goToPost">
     <!-- Repost badge -->
-    <div v-if="post.repost_of" class="repost-badge">
+    <div v-if="isRepost" class="repost-badge">
       <span class="repost-icon">&#x21BB;</span>
-      {{ post.display_name }} a reposté
+      <router-link
+        :to="`/user/${post.username}`"
+        class="repost-author"
+        @click.stop
+      >
+        {{ post.display_name }}
+      </router-link>
+      a repost&eacute;
     </div>
 
     <div class="post-body">
-      <UserAvatar :url="displayPost.avatar_url" :name="displayPost.display_name || displayPost.username || '?'" :size="40" />
+      <router-link :to="`/user/${displayPost.username}`" @click.stop>
+        <UserAvatar
+          :url="displayPost.avatar_url"
+          :name="displayPost.display_name || displayPost.username || '?'"
+          :size="40"
+        />
+      </router-link>
       <div class="post-content">
         <div class="post-header">
           <router-link
@@ -18,8 +31,8 @@
             {{ displayPost.display_name }}
           </router-link>
           <span class="author-handle">@{{ displayPost.username }}</span>
-          <span class="dot">·</span>
-          <span class="timestamp">{{ timeAgo(post.created_at) }}</span>
+          <span class="dot">&middot;</span>
+          <span class="timestamp">{{ timeAgo(displayPost.created_at) }}</span>
         </div>
 
         <p class="post-text">{{ displayPost.content }}</p>
@@ -27,28 +40,28 @@
         <div class="actions">
           <button
             class="action-btn comment-btn"
-            @click.stop="$emit('comment', post.id)"
+            @click.stop="$emit('comment', originalPostId)"
           >
             <span class="icon">&#x1F4AC;</span>
-            <span v-if="post.comment_count > 0">{{ post.comment_count }}</span>
+            <span v-if="displayPost.comment_count > 0">{{ displayPost.comment_count }}</span>
           </button>
 
           <button
             class="action-btn repost-btn"
-            :class="{ active: post.user_reposted }"
+            :class="{ active: postsStore.hasReposted(originalPostId) }"
             @click.stop="handleRepost"
           >
             <span class="icon">&#x21BB;</span>
-            <span v-if="post.repost_count > 0">{{ post.repost_count }}</span>
+            <span v-if="displayPost.repost_count > 0">{{ displayPost.repost_count }}</span>
           </button>
 
           <button
             class="action-btn like-btn"
-            :class="{ active: postsStore.hasLiked(post.id) }"
+            :class="{ active: postsStore.hasLiked(originalPostId) }"
             @click.stop="handleLike"
           >
-            <span class="icon">{{ postsStore.hasLiked(post.id) ? '&#x2764;' : '&#x2661;' }}</span>
-            <span v-if="post.like_count > 0">{{ post.like_count }}</span>
+            <span class="icon">{{ postsStore.hasLiked(originalPostId) ? '&#x2764;' : '&#x2661;' }}</span>
+            <span v-if="displayPost.like_count > 0">{{ displayPost.like_count }}</span>
           </button>
 
           <button
@@ -74,7 +87,6 @@ import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },
-  originalPost: { type: Object, default: null },
 })
 
 defineEmits(['comment'])
@@ -83,7 +95,18 @@ const auth = useAuthStore()
 const postsStore = usePostsStore()
 const router = useRouter()
 
-const displayPost = computed(() => props.originalPost || props.post)
+const isRepost = computed(() => !!props.post.repost_of)
+
+// For reposts, show the original post content. For normal posts, show the post itself.
+const displayPost = computed(() => {
+  if (isRepost.value && props.post._original) {
+    return props.post._original
+  }
+  return props.post
+})
+
+// The actual post ID to interact with (like, comment, repost)
+const originalPostId = computed(() => displayPost.value.id)
 
 const canDelete = computed(() => {
   const myProfileIds = auth.profiles.map((p) => p.id)
@@ -91,15 +114,18 @@ const canDelete = computed(() => {
 })
 
 function goToPost() {
-  router.push(`/post/${displayPost.value.id}`)
+  router.push(`/post/${originalPostId.value}`)
 }
 
 async function handleLike() {
-  await postsStore.toggleLike(props.post.id)
+  await postsStore.toggleLike(originalPostId.value)
 }
 
 async function handleRepost() {
-  await postsStore.repost(displayPost.value.id)
+  // Don't allow reposting your own post
+  const myProfileIds = auth.profiles.map((p) => p.id)
+  if (myProfileIds.includes(displayPost.value.author_id)) return
+  await postsStore.toggleRepost(originalPostId.value)
 }
 
 async function handleDelete() {
@@ -123,13 +149,27 @@ async function handleDelete() {
 
 .repost-badge {
   font-size: 0.8rem;
-  color: var(--repost);
+  color: var(--text-secondary);
   padding-left: 3.5rem;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .repost-icon {
-  margin-right: 0.25rem;
+  color: var(--repost);
+  font-size: 0.95rem;
+}
+
+.repost-author {
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.repost-author:hover {
+  text-decoration: underline;
 }
 
 .post-body {

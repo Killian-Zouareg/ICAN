@@ -7,6 +7,7 @@ export const usePostsStore = defineStore('posts', () => {
   const posts = ref([])
   const loading = ref(false)
   const userLikes = ref(new Set())
+  const userReposts = ref(new Set()) // IDs of original posts the user has reposted
 
   async function fetchFeed() {
     loading.value = true
@@ -17,8 +18,9 @@ export const usePostsStore = defineStore('posts', () => {
         .order('created_at', { ascending: false })
         .limit(50)
       if (!error) {
-        posts.value = data || []
+        posts.value = await enrichReposts(data || [])
         await fetchUserLikes()
+        await fetchUserReposts()
       }
     } finally {
       loading.value = false
@@ -34,12 +36,40 @@ export const usePostsStore = defineStore('posts', () => {
         .eq('author_id', profileId)
         .order('created_at', { ascending: false })
       if (!error) {
-        posts.value = data || []
+        posts.value = await enrichReposts(data || [])
         await fetchUserLikes()
+        await fetchUserReposts()
       }
     } finally {
       loading.value = false
     }
+  }
+
+  // Fetch original posts for any reposts in the list
+  async function enrichReposts(postsList) {
+    const repostIds = postsList
+      .filter((p) => p.repost_of)
+      .map((p) => p.repost_of)
+
+    if (repostIds.length === 0) return postsList
+
+    const uniqueIds = [...new Set(repostIds)]
+    const { data: originals } = await supabase
+      .from('posts_with_stats')
+      .select('*')
+      .in('id', uniqueIds)
+
+    const originalsMap = {}
+    ;(originals || []).forEach((p) => {
+      originalsMap[p.id] = p
+    })
+
+    return postsList.map((p) => {
+      if (p.repost_of && originalsMap[p.repost_of]) {
+        return { ...p, _original: originalsMap[p.repost_of] }
+      }
+      return p
+    })
   }
 
   async function fetchUserLikes() {
@@ -54,6 +84,18 @@ export const usePostsStore = defineStore('posts', () => {
       .in('user_id', profileIds)
       .in('post_id', postIds)
     userLikes.value = new Set((data || []).map((l) => l.post_id))
+  }
+
+  async function fetchUserReposts() {
+    const auth = useAuthStore()
+    if (!auth.activeProfile) return
+    const profileIds = auth.profiles.map((p) => p.id)
+    const { data } = await supabase
+      .from('posts')
+      .select('repost_of')
+      .in('author_id', profileIds)
+      .not('repost_of', 'is', null)
+    userReposts.value = new Set((data || []).map((r) => r.repost_of))
   }
 
   async function createPost(content) {
@@ -95,15 +137,49 @@ export const usePostsStore = defineStore('posts', () => {
     }
   }
 
-  async function repost(postId) {
+  async function toggleRepost(originalPostId) {
     const auth = useAuthStore()
-    const { error } = await supabase.from('posts').insert({
-      author_id: auth.activeProfile.id,
-      content: '',
-      repost_of: postId,
-    })
-    if (error) throw error
-    await fetchFeed()
+    const profileId = auth.activeProfile.id
+
+    if (userReposts.value.has(originalPostId)) {
+      // Undo repost: delete the repost post
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('author_id', profileId)
+        .eq('repost_of', originalPostId)
+      if (error) throw error
+      userReposts.value.delete(originalPostId)
+      // Update repost count on the original post in the list
+      posts.value.forEach((p) => {
+        if (p.id === originalPostId) p.repost_count--
+        if (p._original && p._original.id === originalPostId) p._original.repost_count--
+      })
+      // Remove the repost from the feed
+      posts.value = posts.value.filter(
+        (p) => !(p.repost_of === originalPostId && p.author_id === profileId)
+      )
+    } else {
+      // Create repost
+      const { error } = await supabase.from('posts').insert({
+        author_id: profileId,
+        content: '',
+        repost_of: originalPostId,
+      })
+      if (error) throw error
+      userReposts.value.add(originalPostId)
+      // Update repost count locally
+      posts.value.forEach((p) => {
+        if (p.id === originalPostId) p.repost_count++
+        if (p._original && p._original.id === originalPostId) p._original.repost_count++
+      })
+      // Refresh to get the new repost in feed
+      await fetchFeed()
+    }
+  }
+
+  function hasReposted(originalPostId) {
+    return userReposts.value.has(originalPostId)
   }
 
   // =========================================
@@ -117,7 +193,6 @@ export const usePostsStore = defineStore('posts', () => {
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
 
-    // Fetch like counts for all comments
     const comments = data || []
     if (comments.length > 0) {
       const commentIds = comments.map((c) => c.id)
@@ -126,7 +201,6 @@ export const usePostsStore = defineStore('posts', () => {
         .select('comment_id')
         .in('comment_id', commentIds)
 
-      // Count likes per comment
       const likeMap = {}
       ;(likeCounts || []).forEach((l) => {
         likeMap[l.comment_id] = (likeMap[l.comment_id] || 0) + 1
@@ -154,7 +228,6 @@ export const usePostsStore = defineStore('posts', () => {
   async function toggleCommentLike(commentId) {
     const auth = useAuthStore()
     const profileId = auth.activeProfile.id
-    // Check if already liked
     const { data: existing } = await supabase
       .from('comment_likes')
       .select('id')
@@ -168,13 +241,13 @@ export const usePostsStore = defineStore('posts', () => {
         .delete()
         .eq('user_id', profileId)
         .eq('comment_id', commentId)
-      return false // unliked
+      return false
     } else {
       await supabase.from('comment_likes').insert({
         user_id: profileId,
         comment_id: commentId,
       })
-      return true // liked
+      return true
     }
   }
 
@@ -205,12 +278,14 @@ export const usePostsStore = defineStore('posts', () => {
     posts,
     loading,
     userLikes,
+    userReposts,
     fetchFeed,
     fetchUserPosts,
     createPost,
     deletePost,
     toggleLike,
-    repost,
+    toggleRepost,
+    hasReposted,
     fetchComments,
     fetchCommentLikes,
     toggleCommentLike,
