@@ -24,10 +24,53 @@
       </div>
     </div>
 
-    <!-- Empty state -->
-    <div v-if="!query.trim()" class="search-empty">
-      <span class="search-empty-icon">&#x1F50D;</span>
-      <p>Recherchez des profils ou des posts</p>
+    <!-- Empty state: show inline trending -->
+    <div v-if="!query.trim()" class="search-discover">
+      <div class="search-empty">
+        <span class="search-empty-icon">&#x1F50D;</span>
+        <p>Recherchez des profils ou des posts</p>
+      </div>
+
+      <!-- Inline Trending -->
+      <div class="inline-trending">
+        <div class="inline-section">
+          <h3 class="inline-section-title">&#x1F525; Tendances de la semaine</h3>
+          <div v-if="trendingLoading" class="search-loading" style="padding: 1rem;">
+            <div class="spinner"></div>
+          </div>
+          <div v-else-if="trends.length === 0" class="inline-empty">
+            Pas assez de posts pour afficher les tendances
+          </div>
+          <div v-else class="inline-trends-grid">
+            <button
+              v-for="(trend, i) in trends"
+              :key="i"
+              class="inline-trend-chip"
+              @click="searchTrend(trend.word)"
+            >
+              <span class="inline-trend-word">{{ trend.word }}</span>
+              <span class="inline-trend-count">{{ trend.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="activeUsers.length > 0" class="inline-section">
+          <h3 class="inline-section-title">&#x1F4C8; Utilisateurs actifs</h3>
+          <router-link
+            v-for="u in activeUsers"
+            :key="u.id"
+            :to="`/user/${u.username}`"
+            class="inline-active-user"
+          >
+            <UserAvatar :url="u.avatar_url" :name="u.display_name" :size="36" />
+            <div class="inline-user-info">
+              <span class="inline-user-name">{{ u.display_name }}</span>
+              <span class="inline-user-handle">@{{ u.username }}</span>
+            </div>
+            <span class="inline-user-posts">{{ u.post_count }} post{{ u.post_count > 1 ? 's' : '' }}</span>
+          </router-link>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -95,7 +138,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -113,6 +156,92 @@ const results = ref({
   posts: [],
 })
 
+// ---- Inline trending data (for mobile & empty state) ----
+const trendingLoading = ref(true)
+const trends = ref([])
+const activeUsers = ref([])
+
+const stopWords = new Set([
+  'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'au', 'aux',
+  'et', 'ou', 'mais', 'donc', 'car', 'ni', 'que', 'qui', 'quoi',
+  'ce', 'se', 'sa', 'son', 'ses', 'ma', 'mon', 'mes', 'ta', 'ton', 'tes',
+  'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles',
+  'ne', 'pas', 'plus', 'en', 'dans', 'sur', 'par', 'pour', 'avec', 'sans',
+  'est', 'sont', 'suis', 'es', 'ai', 'as', 'a', 'ont', 'avons', 'avez',
+  'fait', 'faire', 'dit', 'dire', 'etre', 'avoir',
+  'bien', 'tout', 'tous', 'toute', 'toutes', 'trop', 'tres', 'si',
+  'the', 'is', 'are', 'was', 'and', 'or', 'but', 'not', 'this', 'that',
+  'it', 'to', 'of', 'in', 'for', 'with', 'at', 'by', 'from', 'be',
+  'moi', 'toi', 'lui', 'eux', 'y', 'ca', 'comme', 'quand',
+])
+
+async function fetchInlineTrends() {
+  trendingLoading.value = true
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data: posts } = await supabase
+    .from('posts')
+    .select('content, author_id')
+    .gte('created_at', since)
+    .not('content', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(200)
+
+  if (!posts || posts.length === 0) {
+    trends.value = []
+    activeUsers.value = []
+    trendingLoading.value = false
+    return
+  }
+
+  // Word frequencies
+  const wordCount = {}
+  for (const post of posts) {
+    if (!post.content) continue
+    const words = post.content
+      .toLowerCase()
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/[^a-zA-Z\u00C0-\u024F\s#@]/g, '')
+      .split(/\s+/)
+      .filter(w => w.length >= 3 && !stopWords.has(w) && !w.startsWith('@'))
+    const uniqueWords = [...new Set(words)]
+    for (const word of uniqueWords) {
+      wordCount[word] = (wordCount[word] || 0) + 1
+    }
+  }
+
+  trends.value = Object.entries(wordCount)
+    .filter(([, count]) => count >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8)
+    .map(([word, count]) => ({ word, count }))
+
+  // Active users
+  const authorCount = {}
+  for (const p of posts) {
+    authorCount[p.author_id] = (authorCount[p.author_id] || 0) + 1
+  }
+  const topIds = Object.entries(authorCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([id, count]) => ({ id, count }))
+
+  if (topIds.length > 0) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, username, display_name, avatar_url')
+      .in('id', topIds.map(t => t.id))
+    const profileMap = {}
+    for (const p of (profiles || [])) profileMap[p.id] = p
+    activeUsers.value = topIds
+      .filter(t => profileMap[t.id])
+      .map(t => ({ ...profileMap[t.id], post_count: t.count }))
+  }
+
+  trendingLoading.value = false
+}
+
+// ---- Search logic ----
 const hasNoResults = computed(() =>
   query.value.trim() &&
   !searching.value &&
@@ -133,6 +262,11 @@ function clearSearch() {
   query.value = ''
   results.value = { profiles: [], posts: [] }
   searchInput.value?.focus()
+}
+
+function searchTrend(word) {
+  query.value = word
+  doSearch()
 }
 
 async function doSearch() {
@@ -168,7 +302,16 @@ function highlightQuery(text) {
   return text.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>')
 }
 
+// Watch route.query.q for changes (clicking trending links)
+watch(() => route.query.q, (newQ) => {
+  if (newQ && newQ !== query.value) {
+    query.value = newQ
+    doSearch()
+  }
+})
+
 onMounted(() => {
+  fetchInlineTrends()
   if (route.query.q) {
     query.value = route.query.q
     doSearch()
@@ -458,5 +601,114 @@ onMounted(() => {
   margin-top: 0.4rem;
   font-size: 0.8rem;
   color: var(--text-secondary);
+}
+
+/* ---- Inline trending (shown in empty state) ---- */
+.search-discover {
+  padding-bottom: var(--page-bottom-padding);
+}
+
+.inline-trending {
+  padding: 0 1rem 1rem;
+}
+
+.inline-section {
+  margin-bottom: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.inline-section-title {
+  padding: 0.7rem 1rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+}
+
+.inline-empty {
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.inline-trends-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+
+.inline-trend-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.inline-trend-chip:hover {
+  border-color: var(--accent);
+  background: rgba(29, 161, 242, 0.1);
+  color: var(--accent);
+}
+
+.inline-trend-word {
+  font-weight: 600;
+}
+
+.inline-trend-count {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 0.1rem 0.35rem;
+  border-radius: 8px;
+}
+
+.inline-active-user {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.inline-active-user:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.inline-user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.inline-user-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.inline-user-handle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.inline-user-posts {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
 }
 </style>

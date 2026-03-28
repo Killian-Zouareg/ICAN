@@ -220,6 +220,8 @@ const patches = [
       { type: 'new', text: 'Section utilisateurs les plus actifs de la semaine' },
       { type: 'new', text: 'Lien Recherche ajout\u00e9 dans la sidebar et la navigation mobile' },
       { type: 'improved', text: 'Layout 3 colonnes sur grand \u00e9cran : sidebar + contenu + tendances' },
+      { type: 'fixed', text: 'Navigation entre tendances sans rechargement — watch sur le param\u00e8tre URL' },
+      { type: 'improved', text: 'Tendances et utilisateurs actifs affich\u00e9s directement dans la page recherche sur mobile' },
     ],
   },
   {
