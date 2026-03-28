@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.3.0',
+    date: '28 mars 2026',
+    icon: '\u{1F4DD}',
+    color: '#2ecc71',
+    title: 'Bio & Visionneuse avatar',
+    description: 'Ajoutez une bio \u00e0 votre profil pour vous pr\u00e9senter en quelques mots. Cliquez sur la photo de profil pour l\'afficher en grand dans une lightbox \u00e9l\u00e9gante.',
+    tags: ['Bio', 'Lightbox avatar', 'Profil'],
+  },
+  {
     version: '2.2.0',
     date: '28 mars 2026',
     icon: '\u{1F50D}',
@@ -208,6 +217,18 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.3.0',
+    date: '28 mars 2026',
+    title: 'Bio & Visionneuse avatar',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Champ bio dans les param\u00e8tres du profil (160 caract\u00e8res max) avec compteur' },
+      { type: 'new', text: 'Bio affich\u00e9e sur la page de profil sous le nom d\'utilisateur' },
+      { type: 'new', text: 'Lightbox avatar : cliquez sur la photo de profil pour l\'afficher en grand (300px, circulaire)' },
+      { type: 'improved', text: 'Animation d\'ouverture fluide avec backdrop blur sur la lightbox' },
+    ],
+  },
   {
     version: '2.2.0',
     date: '28 mars 2026',

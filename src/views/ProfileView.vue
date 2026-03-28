@@ -17,7 +17,7 @@
         <div class="banner-gradient"></div>
       </div>
       <div class="profile-avatar-row">
-        <div class="avatar-wrapper">
+        <div class="avatar-wrapper" @click="openAvatarViewer" :class="{ clickable: profileData.avatar_url }">
           <UserAvatar :url="profileData.avatar_url" :name="profileData.display_name" :size="120" />
         </div>
         <div class="profile-actions">
@@ -155,6 +155,20 @@
 
     </template>
     <div v-else class="empty">Utilisateur introuvable</div>
+
+    <!-- Avatar lightbox -->
+    <Teleport to="body">
+      <div v-if="showAvatarViewer" class="avatar-lightbox" @click="showAvatarViewer = false">
+        <button class="lightbox-close" @click.stop="showAvatarViewer = false">&times;</button>
+        <div class="lightbox-content" @click.stop>
+          <img :src="profileData?.avatar_url" :alt="profileData?.display_name" />
+          <div class="lightbox-info">
+            <span class="lightbox-name">{{ profileData?.display_name }}</span>
+            <span class="lightbox-handle">@{{ profileData?.username }}</span>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -180,6 +194,7 @@ const tabLoading = ref(false)
 const reposts = ref([])
 const likedPosts = ref([])
 const mediaPosts = ref([])
+const showAvatarViewer = ref(false)
 
 const stats = ref({ posts: 0, likes: 0 })
 
@@ -340,6 +355,12 @@ function goToPost(postId) {
   router.push(`/post/${postId}`)
 }
 
+function openAvatarViewer() {
+  if (profileData.value?.avatar_url) {
+    showAvatarViewer.value = true
+  }
+}
+
 onMounted(loadProfile)
 watch(() => route.params.username, loadProfile)
 </script>
@@ -419,6 +440,15 @@ watch(() => route.params.username, loadProfile)
   border-radius: 50%;
   background: var(--bg-primary);
   line-height: 0;
+  transition: transform 0.15s;
+}
+
+.avatar-wrapper.clickable {
+  cursor: pointer;
+}
+
+.avatar-wrapper.clickable:hover {
+  transform: scale(1.05);
 }
 
 .profile-actions {
@@ -620,11 +650,97 @@ watch(() => route.params.username, loadProfile)
   opacity: 0.8;
 }
 
+/* ============ Avatar Lightbox ============ */
+.avatar-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+  z-index: 10000;
+}
+
+.lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.lightbox-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.lightbox-content img {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  animation: scaleIn 0.25s ease;
+}
+
+@keyframes scaleIn {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.lightbox-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.lightbox-name {
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.lightbox-handle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
 /* ============ Responsive ============ */
 @media (max-width: 600px) {
   .profile-banner { height: 130px; }
   .profile-avatar-row { margin-top: -45px; }
   .avatar-wrapper :deep(.user-avatar) { width: 90px !important; height: 90px !important; }
   .media-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .lightbox-content img {
+    width: 240px;
+    height: 240px;
+  }
 }
 </style>

@@ -94,6 +94,19 @@
         </div>
       </div>
 
+      <!-- Bio -->
+      <div class="field">
+        <label>Bio</label>
+        <textarea
+          v-model="editBio"
+          class="bio-input"
+          maxlength="160"
+          rows="3"
+          placeholder="Décrivez-vous en quelques mots..."
+        ></textarea>
+        <span class="char-count">{{ editBio.length }}/160</span>
+      </div>
+
       <!-- Email (read-only) -->
       <div class="field">
         <label>Email (compte)</label>
@@ -131,6 +144,7 @@ const editingProfileId = ref(null)
 const editingProfile = ref(null)
 const editDisplayName = ref('')
 const editUsername = ref('')
+const editBio = ref('')
 const avatarPreview = ref(null)
 const avatarFile = ref(null)
 const fileInput = ref(null)
@@ -158,6 +172,7 @@ function startEditing(p) {
   editingProfile.value = p
   editDisplayName.value = p.display_name || ''
   editUsername.value = p.username || ''
+  editBio.value = p.bio || ''
   avatarPreview.value = p.avatar_url || null
   avatarFile.value = null
   editError.value = ''
@@ -214,6 +229,7 @@ async function handleSave() {
     const updated = await auth.updateProfile(editingProfileId.value, {
       username: editUsername.value.trim(),
       displayName: editDisplayName.value.trim(),
+      bio: editBio.value.trim(),
     })
 
     editingProfile.value = updated
@@ -471,6 +487,33 @@ async function handleDeleteProfile() {
 .field input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.bio-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.4;
+  outline: none;
+}
+
+.bio-input:focus {
+  border-color: var(--accent);
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 0.2rem;
 }
 
 .input-with-prefix {
