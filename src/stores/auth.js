@@ -164,7 +164,6 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function init() {
     let manualSignOut = false
-    let initialSessionHandled = false
 
     const origSignOut = signOut
     signOut = async function () {
@@ -172,52 +171,34 @@ export const useAuthStore = defineStore('auth', () => {
       return origSignOut()
     }
 
-    // Use onAuthStateChange as the SOLE source of session info.
-    // Supabase fires INITIAL_SESSION first with the stored session,
-    // then SIGNED_IN/TOKEN_REFRESHED/SIGNED_OUT as needed.
-    // This avoids the lock contention caused by calling getSession() separately.
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange((event, session) => {
       console.log('[AUTH]', event, session ? 'session exists' : 'no session')
 
-      if (event === 'INITIAL_SESSION') {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
           user.value = session.user
-          try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
-        }
-        initialSessionHandled = true
-        loading.value = false
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user) {
-          user.value = session.user
+          // Load profiles in background — don't block the app
           if (profiles.value.length === 0) {
-            try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
+            fetchProfiles().catch((e) => console.error('fetchProfiles error:', e))
           }
         }
-        if (!initialSessionHandled) {
-          initialSessionHandled = true
-          loading.value = false
-        }
+        loading.value = false
       } else if (event === 'SIGNED_OUT') {
         if (manualSignOut) {
           clearState()
           manualSignOut = false
-        } else {
-          console.warn('[AUTH] Unexpected SIGNED_OUT — ignoring (user did not sign out)')
         }
-        if (!initialSessionHandled) {
-          initialSessionHandled = true
-          loading.value = false
-        }
+        loading.value = false
       }
     })
 
-    // Safety timeout — if onAuthStateChange never fires (broken Supabase, network down)
+    // Safety timeout — if onAuthStateChange never fires
     setTimeout(() => {
-      if (!initialSessionHandled) {
+      if (loading.value) {
         console.warn('[AUTH] Init timeout — unblocking app')
         loading.value = false
       }
-    }, 5000)
+    }, 3000)
   }
 
   return {
