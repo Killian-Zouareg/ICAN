@@ -4,10 +4,6 @@
 
     <nav v-if="auth.isAuthenticated" class="nav">
       <router-link to="/" class="nav-link">Feed</router-link>
-      <router-link to="/messages" class="nav-link messages-link">
-        Messages
-        <span v-if="unreadCount > 0" class="badge">{{ unreadCount }}</span>
-      </router-link>
 
       <!-- Profile switcher -->
       <div class="profile-switcher" v-if="auth.profile">
@@ -32,12 +28,12 @@
             <span v-if="p.id === auth.activeProfile?.id" class="check">&#x2713;</span>
           </div>
           <router-link to="/settings" class="switcher-option manage-link" @click="showSwitcher = false">
-            Gérer les profils
+            G&eacute;rer les profils
           </router-link>
         </div>
       </div>
 
-      <router-link to="/settings" class="nav-link settings-link" title="Paramètres">&#x2699;</router-link>
+      <router-link to="/settings" class="nav-link settings-link" title="Param&egrave;tres">&#x2699;</router-link>
       <button class="logout-btn" @click="handleLogout">Quitter</button>
     </nav>
   </header>
@@ -47,26 +43,11 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { supabase } from '../lib/supabase'
 import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
-const unreadCount = ref(0)
 const showSwitcher = ref(false)
-let pollInterval = null
-
-async function fetchUnreadCount() {
-  if (!auth.activeProfile) return
-  // Count unread messages for ALL profiles owned by this user
-  const profileIds = auth.profiles.map((p) => p.id)
-  const { count } = await supabase
-    .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .not('sender_id', 'in', `(${profileIds.join(',')})`)
-    .eq('read', false)
-  unreadCount.value = count || 0
-}
 
 function selectProfile(profileId) {
   auth.switchProfile(profileId)
@@ -79,7 +60,6 @@ async function handleLogout() {
   router.push('/login')
 }
 
-// Close dropdown when clicking outside
 function handleClickOutside(e) {
   if (!e.target.closest('.profile-switcher')) {
     showSwitcher.value = false
@@ -87,13 +67,10 @@ function handleClickOutside(e) {
 }
 
 onMounted(() => {
-  fetchUnreadCount()
-  pollInterval = setInterval(fetchUnreadCount, 15000)
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  clearInterval(pollInterval)
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
@@ -109,6 +86,7 @@ onUnmounted(() => {
   position: sticky;
   top: 0;
   z-index: 100;
+  height: 52px;
 }
 
 .logo {
@@ -133,23 +111,6 @@ onUnmounted(() => {
 .nav-link:hover,
 .nav-link.router-link-active {
   color: var(--accent);
-}
-
-.messages-link {
-  position: relative;
-}
-
-.badge {
-  position: absolute;
-  top: -8px;
-  right: -12px;
-  background: var(--danger);
-  color: white;
-  font-size: 0.7rem;
-  padding: 1px 5px;
-  border-radius: 10px;
-  min-width: 16px;
-  text-align: center;
 }
 
 .profile-switcher {
