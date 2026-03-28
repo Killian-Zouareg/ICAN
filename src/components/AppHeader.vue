@@ -1,6 +1,9 @@
 <template>
   <header class="app-header">
-    <router-link to="/" class="logo">Ican</router-link>
+    <router-link to="/" class="logo">
+      <img src="/src/assets/ican-logo.png" alt="iCAN logo" class="logo-img" />
+      iCAN
+    </router-link>
 
     <nav v-if="auth.isAuthenticated" class="nav">
       <router-link to="/" class="nav-link">Feed</router-link>
@@ -90,11 +93,22 @@ onUnmounted(() => {
   height: 52px;
 }
 
+
 .logo {
+  display: flex;
+  align-items: center;
   font-size: 1.4rem;
   font-weight: 700;
   color: var(--accent);
   text-decoration: none;
+  gap: 0.5rem;
+}
+
+.logo-img {
+  height: 28px;
+  width: 28px;
+  object-fit: contain;
+  margin-right: 0.2rem;
 }
 
 .nav {
