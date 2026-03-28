@@ -47,7 +47,6 @@ export const usePostsStore = defineStore('posts', () => {
     if (!auth.activeProfile) return
     const postIds = posts.value.map((p) => p.id)
     if (postIds.length === 0) return
-    // Fetch likes from ALL profiles owned by this user
     const profileIds = auth.profiles.map((p) => p.id)
     const { data } = await supabase
       .from('likes')
@@ -107,22 +106,89 @@ export const usePostsStore = defineStore('posts', () => {
     await fetchFeed()
   }
 
+  // =========================================
+  // Comments
+  // =========================================
+
   async function fetchComments(postId) {
     const { data } = await supabase
       .from('comments')
       .select('*, profiles(username, display_name, avatar_url)')
       .eq('post_id', postId)
       .order('created_at', { ascending: true })
-    return data || []
+
+    // Fetch like counts for all comments
+    const comments = data || []
+    if (comments.length > 0) {
+      const commentIds = comments.map((c) => c.id)
+      const { data: likeCounts } = await supabase
+        .from('comment_likes')
+        .select('comment_id')
+        .in('comment_id', commentIds)
+
+      // Count likes per comment
+      const likeMap = {}
+      ;(likeCounts || []).forEach((l) => {
+        likeMap[l.comment_id] = (likeMap[l.comment_id] || 0) + 1
+      })
+      comments.forEach((c) => {
+        c.like_count = likeMap[c.id] || 0
+      })
+    }
+
+    return comments
   }
 
-  async function addComment(postId, content) {
+  async function fetchCommentLikes(commentIds) {
     const auth = useAuthStore()
-    const { error } = await supabase.from('comments').insert({
+    if (!auth.activeProfile || commentIds.length === 0) return new Set()
+    const profileIds = auth.profiles.map((p) => p.id)
+    const { data } = await supabase
+      .from('comment_likes')
+      .select('comment_id')
+      .in('user_id', profileIds)
+      .in('comment_id', commentIds)
+    return new Set((data || []).map((l) => l.comment_id))
+  }
+
+  async function toggleCommentLike(commentId) {
+    const auth = useAuthStore()
+    const profileId = auth.activeProfile.id
+    // Check if already liked
+    const { data: existing } = await supabase
+      .from('comment_likes')
+      .select('id')
+      .eq('user_id', profileId)
+      .eq('comment_id', commentId)
+      .maybeSingle()
+
+    if (existing) {
+      await supabase
+        .from('comment_likes')
+        .delete()
+        .eq('user_id', profileId)
+        .eq('comment_id', commentId)
+      return false // unliked
+    } else {
+      await supabase.from('comment_likes').insert({
+        user_id: profileId,
+        comment_id: commentId,
+      })
+      return true // liked
+    }
+  }
+
+  async function addComment(postId, content, parentId = null) {
+    const auth = useAuthStore()
+    const insertData = {
       author_id: auth.activeProfile.id,
       post_id: postId,
       content,
-    })
+    }
+    if (parentId) {
+      insertData.parent_id = parentId
+    }
+    const { error } = await supabase.from('comments').insert(insertData)
     if (error) throw error
   }
 
@@ -146,6 +212,8 @@ export const usePostsStore = defineStore('posts', () => {
     toggleLike,
     repost,
     fetchComments,
+    fetchCommentLikes,
+    toggleCommentLike,
     addComment,
     deleteComment,
     hasLiked,

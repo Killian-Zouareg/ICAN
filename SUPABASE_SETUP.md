@@ -76,14 +76,26 @@ CREATE TABLE likes (
 );
 
 -- =============================================
--- TABLE: comments
+-- TABLE: comments (avec r&eacute;ponses imbriqu&eacute;es)
 -- =============================================
 CREATE TABLE comments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (char_length(content) <= 300),
   created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- =============================================
+-- TABLE: comment_likes
+-- =============================================
+CREATE TABLE comment_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  comment_id UUID NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, comment_id)
 );
 
 -- =============================================
@@ -118,6 +130,8 @@ CREATE INDEX idx_posts_created_at ON posts(created_at DESC);
 CREATE INDEX idx_posts_author_id ON posts(author_id);
 CREATE INDEX idx_likes_post_id ON likes(post_id);
 CREATE INDEX idx_comments_post_id ON comments(post_id);
+CREATE INDEX idx_comments_parent_id ON comments(parent_id);
+CREATE INDEX idx_comment_likes_comment_id ON comment_likes(comment_id);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_read ON messages(read) WHERE read = false;
 
@@ -253,6 +267,22 @@ CREATE POLICY "Authors and admins can delete comments"
   );
 
 -- =============================================
+-- RLS: comment_likes
+-- =============================================
+ALTER TABLE comment_likes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Comment likes viewable by authenticated users"
+  ON comment_likes FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Users can like comments with their profiles"
+  ON comment_likes FOR INSERT TO authenticated
+  WITH CHECK (user_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Users can remove own comment likes"
+  ON comment_likes FOR DELETE TO authenticated
+  USING (user_id IN (SELECT my_profile_ids()));
+
+-- =============================================
 -- RLS: conversations
 -- =============================================
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
@@ -350,15 +380,15 @@ Les photos de profil sont stockées dans Supabase Storage.
 - Name : `Users can upload their avatar`
 - Allowed operation : `INSERT`
 - Target roles : `authenticated`
-- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] = (auth.uid())::text)`
+- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
 
 **Policy 3 — Mise à jour par l'utilisateur :**
 - Name : `Users can update their avatar`
 - Allowed operation : `UPDATE`
 - Target roles : `authenticated`
-- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] = (auth.uid())::text)`
+- Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
 
-Ces policies font en sorte que chaque utilisateur ne peut uploader/modifier que dans son propre dossier (nommé avec son UUID).
+Ces policies font en sorte que chaque utilisateur ne peut uploader/modifier que dans les dossiers correspondant à ses profils.
 
 ---
 
@@ -520,8 +550,9 @@ SET user1_id = LEAST(user1_id, user2_id),
     user2_id = GREATEST(user1_id, user2_id)
 WHERE user1_id > user2_id;
 
--- Recréer la PK, les FK et la contrainte CHECK
+-- Recréer la PK (avec le DEFAULT), les FK et la contrainte CHECK
 ALTER TABLE profiles ADD PRIMARY KEY (id);
+ALTER TABLE profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
 ALTER TABLE posts ADD CONSTRAINT posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE;
 ALTER TABLE likes ADD CONSTRAINT likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
 ALTER TABLE comments ADD CONSTRAINT comments_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE;
