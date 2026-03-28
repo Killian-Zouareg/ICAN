@@ -72,4 +72,16 @@ router.beforeEach(async (to) => {
   }
 })
 
+// When a new deploy changes chunk hashes, old cached index.js tries to load
+// chunks that no longer exist → 404. Detect this and force a full reload.
+router.onError((error) => {
+  if (
+    error.message.includes('Failed to fetch dynamically imported module') ||
+    error.message.includes('Importing a module script failed') ||
+    error.message.includes('error loading dynamically imported module')
+  ) {
+    window.location.reload()
+  }
+})
+
 export default router
