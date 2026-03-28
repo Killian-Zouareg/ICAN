@@ -314,6 +314,7 @@ function getSenderName(senderId) {
 
 async function fetchConversations() {
   if (!auth.activeProfile) return
+  try {
   loadingConvs.value = conversations.value.length === 0
   const profileId = auth.activeProfile.id
   const allProfileIds = auth.profiles.map((p) => p.id)
@@ -429,17 +430,24 @@ async function fetchConversations() {
 
   unreadCount.value = unreadMessages.length
   loadingConvs.value = false
+  } catch {
+    loadingConvs.value = false
+  }
 }
 
 async function fetchUnreadCount() {
   if (!auth.activeProfile) return
-  const allProfileIds = auth.profiles.map((p) => p.id)
-  const { count } = await supabase
-    .from('messages')
-    .select('*', { count: 'exact', head: true })
-    .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
-    .eq('read', false)
-  unreadCount.value = count || 0
+  try {
+    const allProfileIds = auth.profiles.map((p) => p.id)
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+      .eq('read', false)
+    if (!error) unreadCount.value = count || 0
+  } catch {
+    // Silently ignore — polling will retry
+  }
 }
 
 // =========================================

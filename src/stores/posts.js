@@ -78,11 +78,10 @@ export const usePostsStore = defineStore('posts', () => {
     if (!auth.activeProfile) return
     const postIds = posts.value.map((p) => p.id)
     if (postIds.length === 0) return
-    const profileIds = auth.profiles.map((p) => p.id)
     const { data } = await supabase
       .from('likes')
       .select('post_id')
-      .in('user_id', profileIds)
+      .eq('user_id', auth.activeProfile.id)
       .in('post_id', postIds)
     userLikes.value = new Set((data || []).map((l) => l.post_id))
   }
@@ -90,11 +89,10 @@ export const usePostsStore = defineStore('posts', () => {
   async function fetchUserReposts() {
     const auth = useAuthStore()
     if (!auth.activeProfile) return
-    const profileIds = auth.profiles.map((p) => p.id)
     const { data } = await supabase
       .from('posts')
       .select('repost_of')
-      .in('author_id', profileIds)
+      .eq('author_id', auth.activeProfile.id)
       .not('repost_of', 'is', null)
     userReposts.value = new Set((data || []).map((r) => r.repost_of))
   }
@@ -258,11 +256,10 @@ export const usePostsStore = defineStore('posts', () => {
   async function fetchCommentLikes(commentIds) {
     const auth = useAuthStore()
     if (!auth.activeProfile || commentIds.length === 0) return new Set()
-    const profileIds = auth.profiles.map((p) => p.id)
     const { data } = await supabase
       .from('comment_likes')
       .select('comment_id')
-      .in('user_id', profileIds)
+      .eq('user_id', auth.activeProfile.id)
       .in('comment_id', commentIds)
     return new Set((data || []).map((l) => l.comment_id))
   }

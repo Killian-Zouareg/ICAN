@@ -42,6 +42,42 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '1.6.2',
+    date: '28 mars 2026',
+    title: 'Fix erreurs 500 RLS groupes',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'Correction des erreurs 500 sur les requêtes messages causées par une récursion infinie dans les policies RLS des groupes' },
+      { type: 'fixed', text: 'Nouvelle fonction helper my_conversation_ids() en SECURITY DEFINER pour éviter les boucles RLS' },
+      { type: 'improved', text: 'Gestion d\'erreurs sur le polling DM — les erreurs réseau ne bloquent plus l\'interface' },
+    ],
+  },
+  {
+    version: '1.6.1',
+    date: '28 mars 2026',
+    title: 'Fix likes multi-profils',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'Les likes ne sont plus partagés entre tous les profils d\'un même compte — chaque profil a ses propres likes' },
+      { type: 'fixed', text: 'Le compteur de likes se met correctement à jour lors du unlike' },
+      { type: 'fixed', text: 'Les likes de commentaires et les reposts respectent aussi le profil actif' },
+    ],
+  },
+  {
+    version: '1.6.0',
+    date: '28 mars 2026',
+    title: 'Groupes de discussion',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Conversations de groupe dans le widget DM — discutez à plusieurs en temps réel' },
+      { type: 'new', text: 'Création de groupe : nom personnalisé, recherche et ajout de membres (minimum 2)' },
+      { type: 'new', text: 'Affichage du nom de l\'expéditeur dans les bulles de messages de groupe' },
+      { type: 'new', text: 'Badge compteur de membres dans l\'en-tête des conversations de groupe' },
+      { type: 'improved', text: 'Liste de conversations unifiée : DMs et groupes triés par dernière activité' },
+      { type: 'improved', text: 'Avatars de groupe distincts pour différencier les conversations 1-à-1 des groupes' },
+    ],
+  },
+  {
     version: '1.5.1',
     date: '28 mars 2026',
     title: 'Switcher profils amélioré',

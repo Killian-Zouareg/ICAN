@@ -311,9 +311,7 @@ CREATE POLICY "Participants can view their conversations"
   USING (
     user1_id IN (SELECT my_profile_ids())
     OR user2_id IN (SELECT my_profile_ids())
-    OR (is_group = true AND id IN (
-      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-    ))
+    OR (is_group = true AND id IN (SELECT my_conversation_ids()))
   );
 
 CREATE POLICY "Users can create conversations with their profiles"
@@ -329,35 +327,31 @@ CREATE POLICY "Participants can update conversation timestamp"
   USING (
     user1_id IN (SELECT my_profile_ids())
     OR user2_id IN (SELECT my_profile_ids())
-    OR (is_group = true AND id IN (
-      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-    ))
+    OR (is_group = true AND id IN (SELECT my_conversation_ids()))
   );
+
+-- =============================================
+-- Helper: IDs des conversations de groupe de l'utilisateur
+-- =============================================
+CREATE OR REPLACE FUNCTION my_conversation_ids()
+RETURNS SETOF UUID AS $$
+  SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids());
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 -- =============================================
 -- RLS: conversation_members
 -- =============================================
 ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Members can view their group memberships"
+CREATE POLICY "Members can view group memberships"
   ON conversation_members FOR SELECT TO authenticated
-  USING (profile_id IN (SELECT my_profile_ids()));
-
-CREATE POLICY "Members can view co-members"
-  ON conversation_members FOR SELECT TO authenticated
-  USING (
-    conversation_id IN (
-      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-    )
-  );
+  USING (conversation_id IN (SELECT my_conversation_ids()));
 
 CREATE POLICY "Users can add members to their groups"
   ON conversation_members FOR INSERT TO authenticated
   WITH CHECK (
     profile_id IN (SELECT my_profile_ids())
-    OR conversation_id IN (
-      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-    )
+    OR conversation_id IN (SELECT my_conversation_ids())
   );
 
 -- =============================================
@@ -374,9 +368,7 @@ CREATE POLICY "Participants can view conversation messages"
       AND (
         c.user1_id IN (SELECT my_profile_ids())
         OR c.user2_id IN (SELECT my_profile_ids())
-        OR (c.is_group = true AND c.id IN (
-          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-        ))
+        OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
       )
     )
   );
@@ -391,9 +383,7 @@ CREATE POLICY "Participants can send messages"
       AND (
         c.user1_id IN (SELECT my_profile_ids())
         OR c.user2_id IN (SELECT my_profile_ids())
-        OR (c.is_group = true AND c.id IN (
-          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-        ))
+        OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
       )
     )
   );
@@ -407,9 +397,7 @@ CREATE POLICY "Recipients can mark messages as read"
       AND (
         c.user1_id IN (SELECT my_profile_ids())
         OR c.user2_id IN (SELECT my_profile_ids())
-        OR (c.is_group = true AND c.id IN (
-          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-        ))
+        OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
       )
     )
   )
@@ -420,9 +408,7 @@ CREATE POLICY "Recipients can mark messages as read"
       AND (
         c.user1_id IN (SELECT my_profile_ids())
         OR c.user2_id IN (SELECT my_profile_ids())
-        OR (c.is_group = true AND c.id IN (
-          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
-        ))
+        OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
       )
     )
   );
