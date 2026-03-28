@@ -152,10 +152,20 @@ export const useAuthStore = defineStore('auth', () => {
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
+    clearState()
+  }
+
+  function clearState() {
     user.value = null
     profiles.value = []
     activeProfile.value = null
     localStorage.removeItem('ican_active_profile')
+  }
+
+  function isTokenExpired(session) {
+    if (!session?.expires_at) return true
+    // expires_at is in seconds since epoch
+    return session.expires_at * 1000 < Date.now()
   }
 
   async function init() {
@@ -163,16 +173,22 @@ export const useAuthStore = defineStore('auth', () => {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        // Try to refresh, but fall back to the cached session if refresh fails
-        // (e.g. temporary network issue — don't log out the user)
+        // Try to refresh the session
         const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
         if (!refreshError && refreshed.session) {
+          // Refresh succeeded — use the new session
           user.value = refreshed.session.user
-        } else {
-          // Use the cached session — it may still be valid
+          await fetchProfiles()
+        } else if (!isTokenExpired(session)) {
+          // Refresh failed but the access token is still valid (temporary network issue?)
           user.value = session.user
+          await fetchProfiles()
+        } else {
+          // Both refresh failed AND token is expired — session is dead, clean logout
+          console.warn('Session expir\u00e9e, d\u00e9connexion')
+          clearState()
+          await supabase.auth.signOut().catch(() => {})
         }
-        await fetchProfiles()
       }
     } finally {
       loading.value = false
@@ -185,13 +201,9 @@ export const useAuthStore = defineStore('auth', () => {
           try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
         }
       } else if (event === 'TOKEN_REFRESHED') {
-        // Just update the user object, profiles are already loaded
         user.value = session?.user ?? null
       } else if (event === 'SIGNED_OUT') {
-        user.value = null
-        profiles.value = []
-        activeProfile.value = null
-        localStorage.removeItem('ican_active_profile')
+        clearState()
       }
     })
   }
