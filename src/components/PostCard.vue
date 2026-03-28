@@ -86,7 +86,8 @@ const router = useRouter()
 const displayPost = computed(() => props.originalPost || props.post)
 
 const canDelete = computed(() => {
-  return auth.user?.id === props.post.author_id || auth.isAdmin
+  const myProfileIds = auth.profiles.map((p) => p.id)
+  return myProfileIds.includes(props.post.author_id) || auth.isAdmin
 })
 
 function goToPost() {

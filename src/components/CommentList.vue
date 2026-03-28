@@ -38,7 +38,8 @@ defineEmits(['delete'])
 const auth = useAuthStore()
 
 function canDeleteComment(comment) {
-  return auth.user?.id === comment.author_id || auth.isAdmin
+  const myProfileIds = auth.profiles.map((p) => p.id)
+  return myProfileIds.includes(comment.author_id) || auth.isAdmin
 }
 </script>
 

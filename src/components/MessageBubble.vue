@@ -15,7 +15,10 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
-const isMine = computed(() => props.message.sender_id === auth.user?.id)
+const isMine = computed(() => {
+  const myProfileIds = auth.profiles.map((p) => p.id)
+  return myProfileIds.includes(props.message.sender_id)
+})
 </script>
 
 <style scoped>

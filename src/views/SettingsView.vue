@@ -4,15 +4,61 @@
       <button @click="$router.back()" class="back-btn">&larr; Retour</button>
     </div>
 
-    <h2 class="page-title">Paramètres du profil</h2>
+    <h2 class="page-title">Paramètres</h2>
 
-    <div v-if="auth.profile" class="settings-form">
+    <!-- Profile selector -->
+    <div class="section">
+      <h3 class="section-title">Mes profils</h3>
+      <div
+        v-for="p in auth.profiles"
+        :key="p.id"
+        class="profile-item"
+        :class="{ active: p.id === editingProfileId }"
+        @click="startEditing(p)"
+      >
+        <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="36" />
+        <div class="profile-item-info">
+          <span class="profile-item-name">{{ p.display_name }}</span>
+          <span class="profile-item-handle">@{{ p.username }}</span>
+        </div>
+        <span v-if="p.id === auth.activeProfile?.id" class="active-badge">Actif</span>
+      </div>
+
+      <button class="add-profile-btn" @click="showNewProfile = true" v-if="!showNewProfile">
+        + Créer un nouveau profil
+      </button>
+
+      <!-- New profile form -->
+      <div v-if="showNewProfile" class="new-profile-form">
+        <h4>Nouveau profil</h4>
+        <div class="field">
+          <label>Nom d'utilisateur (@)</label>
+          <input v-model="newUsername" type="text" placeholder="nouveau_pseudo" maxlength="30" />
+        </div>
+        <div class="field">
+          <label>Nom affiché</label>
+          <input v-model="newDisplayName" type="text" placeholder="Nom affiché" maxlength="50" />
+        </div>
+        <p v-if="newError" class="error">{{ newError }}</p>
+        <div class="form-actions">
+          <button class="save-btn small" @click="handleCreateProfile" :disabled="creatingProfile">
+            {{ creatingProfile ? '...' : 'Créer' }}
+          </button>
+          <button class="cancel-btn" @click="showNewProfile = false">Annuler</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit selected profile -->
+    <div v-if="editingProfile" class="section">
+      <h3 class="section-title">Modifier : {{ editingProfile.display_name }}</h3>
+
       <!-- Avatar -->
       <div class="avatar-section">
         <div class="avatar-preview" @click="triggerFileInput">
           <img v-if="avatarPreview" :src="avatarPreview" alt="Avatar" />
           <span v-else class="avatar-initial">
-            {{ auth.profile.display_name.charAt(0).toUpperCase() }}
+            {{ editingProfile.display_name.charAt(0).toUpperCase() }}
           </span>
           <div class="avatar-overlay">Changer</div>
         </div>
@@ -23,50 +69,44 @@
           class="hidden"
           @change="handleFileChange"
         />
-        <p class="avatar-hint">Clique sur la photo pour la changer</p>
       </div>
 
       <!-- Display name -->
       <div class="field">
-        <label for="displayName">Nom affiché</label>
-        <input
-          id="displayName"
-          v-model="displayName"
-          type="text"
-          placeholder="Ton nom"
-          maxlength="50"
-        />
+        <label>Nom affiché</label>
+        <input v-model="editDisplayName" type="text" maxlength="50" />
       </div>
 
       <!-- Username -->
       <div class="field">
-        <label for="username">Nom d'utilisateur (@)</label>
+        <label>Nom d'utilisateur (@)</label>
         <div class="input-with-prefix">
           <span class="prefix">@</span>
-          <input
-            id="username"
-            v-model="username"
-            type="text"
-            placeholder="ton_pseudo"
-            maxlength="30"
-            pattern="[a-zA-Z0-9_]+"
-          />
+          <input v-model="editUsername" type="text" maxlength="30" />
         </div>
-        <p class="field-hint">Lettres, chiffres et underscores uniquement</p>
       </div>
 
       <!-- Email (read-only) -->
       <div class="field">
-        <label>Email</label>
+        <label>Email (compte)</label>
         <input :value="auth.user?.email" type="email" disabled />
       </div>
 
-      <p v-if="error" class="error">{{ error }}</p>
-      <p v-if="success" class="success">{{ success }}</p>
+      <p v-if="editError" class="error">{{ editError }}</p>
+      <p v-if="editSuccess" class="success">{{ editSuccess }}</p>
 
-      <button class="save-btn" @click="save" :disabled="saving">
-        {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
-      </button>
+      <div class="form-actions">
+        <button class="save-btn" @click="handleSave" :disabled="saving">
+          {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
+        </button>
+        <button
+          v-if="auth.profiles.length > 1"
+          class="delete-profile-btn"
+          @click="handleDeleteProfile"
+        >
+          Supprimer ce profil
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -74,25 +114,43 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 
-const displayName = ref('')
-const username = ref('')
+const editingProfileId = ref(null)
+const editingProfile = ref(null)
+const editDisplayName = ref('')
+const editUsername = ref('')
 const avatarPreview = ref(null)
 const avatarFile = ref(null)
 const fileInput = ref(null)
 const saving = ref(false)
-const error = ref('')
-const success = ref('')
+const editError = ref('')
+const editSuccess = ref('')
+
+const showNewProfile = ref(false)
+const newUsername = ref('')
+const newDisplayName = ref('')
+const newError = ref('')
+const creatingProfile = ref(false)
 
 onMounted(() => {
-  if (auth.profile) {
-    displayName.value = auth.profile.display_name || ''
-    username.value = auth.profile.username || ''
-    avatarPreview.value = auth.profile.avatar_url || null
+  if (auth.activeProfile) {
+    startEditing(auth.activeProfile)
   }
 })
+
+function startEditing(p) {
+  editingProfileId.value = p.id
+  editingProfile.value = p
+  editDisplayName.value = p.display_name || ''
+  editUsername.value = p.username || ''
+  avatarPreview.value = p.avatar_url || null
+  avatarFile.value = null
+  editError.value = ''
+  editSuccess.value = ''
+}
 
 function triggerFileInput() {
   fileInput.value?.click()
@@ -102,51 +160,96 @@ function handleFileChange(e) {
   const file = e.target.files[0]
   if (!file) return
   if (file.size > 2 * 1024 * 1024) {
-    error.value = 'Image trop lourde (max 2 Mo)'
+    editError.value = 'Image trop lourde (max 2 Mo)'
     return
   }
   avatarFile.value = file
   avatarPreview.value = URL.createObjectURL(file)
 }
 
-async function save() {
-  error.value = ''
-  success.value = ''
+async function handleSave() {
+  editError.value = ''
+  editSuccess.value = ''
 
-  if (!displayName.value.trim()) {
-    error.value = 'Le nom affiché est requis'
+  if (!editDisplayName.value.trim()) {
+    editError.value = 'Le nom affiché est requis'
     return
   }
-  if (!username.value.trim()) {
-    error.value = "Le nom d'utilisateur est requis"
+  if (!editUsername.value.trim()) {
+    editError.value = "Le nom d'utilisateur est requis"
     return
   }
-  if (!/^[a-zA-Z0-9_]+$/.test(username.value)) {
-    error.value = "Le nom d'utilisateur ne peut contenir que des lettres, chiffres et underscores"
+  if (!/^[a-zA-Z0-9_]+$/.test(editUsername.value)) {
+    editError.value = "Lettres, chiffres et underscores uniquement"
     return
   }
 
   saving.value = true
   try {
     if (avatarFile.value) {
-      await auth.uploadAvatar(avatarFile.value)
+      await auth.uploadAvatar(editingProfileId.value, avatarFile.value)
       avatarFile.value = null
     }
 
-    await auth.updateProfile({
-      username: username.value.trim(),
-      displayName: displayName.value.trim(),
+    const updated = await auth.updateProfile(editingProfileId.value, {
+      username: editUsername.value.trim(),
+      displayName: editDisplayName.value.trim(),
     })
 
-    success.value = 'Profil mis à jour !'
+    editingProfile.value = updated
+    editSuccess.value = 'Profil mis à jour !'
   } catch (e) {
     if (e.message?.includes('duplicate') || e.message?.includes('unique')) {
-      error.value = "Ce nom d'utilisateur est déjà pris"
+      editError.value = "Ce nom d'utilisateur est déjà pris"
     } else {
-      error.value = e.message || 'Erreur lors de la sauvegarde'
+      editError.value = e.message || 'Erreur lors de la sauvegarde'
     }
   } finally {
     saving.value = false
+  }
+}
+
+async function handleCreateProfile() {
+  newError.value = ''
+  if (!newUsername.value.trim()) {
+    newError.value = "Le nom d'utilisateur est requis"
+    return
+  }
+  if (!/^[a-zA-Z0-9_]+$/.test(newUsername.value)) {
+    newError.value = "Lettres, chiffres et underscores uniquement"
+    return
+  }
+
+  creatingProfile.value = true
+  try {
+    const created = await auth.createProfile(newUsername.value.trim(), newDisplayName.value.trim())
+    showNewProfile.value = false
+    newUsername.value = ''
+    newDisplayName.value = ''
+    startEditing(created)
+  } catch (e) {
+    if (e.message?.includes('duplicate') || e.message?.includes('unique')) {
+      newError.value = "Ce nom d'utilisateur est déjà pris"
+    } else {
+      newError.value = e.message || 'Erreur'
+    }
+  } finally {
+    creatingProfile.value = false
+  }
+}
+
+async function handleDeleteProfile() {
+  if (!confirm(`Supprimer le profil @${editingProfile.value.username} ? Tous ses posts seront supprimés.`)) return
+  try {
+    await auth.deleteProfile(editingProfileId.value)
+    if (auth.profiles.length > 0) {
+      startEditing(auth.profiles[0])
+    } else {
+      editingProfile.value = null
+      editingProfileId.value = null
+    }
+  } catch (e) {
+    editError.value = e.message
   }
 }
 </script>
@@ -178,15 +281,96 @@ async function save() {
   border-bottom: 1px solid var(--border);
 }
 
-.settings-form {
-  padding: 1.5rem 1rem;
+.section {
+  padding: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+.profile-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 0.25rem;
+}
+
+.profile-item:hover {
+  background: var(--bg-hover);
+}
+
+.profile-item.active {
+  background: var(--bg-hover);
+  border: 1px solid var(--accent);
+}
+
+.profile-item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.profile-item-handle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.active-badge {
+  font-size: 0.7rem;
+  background: var(--accent);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.add-profile-btn {
+  width: 100%;
+  margin-top: 0.5rem;
+  padding: 0.6rem;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.add-profile-btn:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.new-profile-form {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-primary);
+}
+
+.new-profile-form h4 {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
 }
 
 .avatar-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.25rem;
 }
 
 .avatar-preview {
@@ -199,7 +383,6 @@ async function save() {
   align-items: center;
   justify-content: center;
   font-weight: 700;
-  font-size: 2rem;
   cursor: pointer;
   position: relative;
   overflow: hidden;
@@ -233,18 +416,12 @@ async function save() {
   opacity: 1;
 }
 
-.avatar-hint {
-  margin-top: 0.5rem;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
 .hidden {
   display: none;
 }
 
 .field {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1rem;
 }
 
 .field label {
@@ -287,7 +464,6 @@ async function save() {
 .input-with-prefix .prefix {
   padding: 0.6rem 0 0.6rem 0.75rem;
   color: var(--text-secondary);
-  font-size: 0.95rem;
 }
 
 .input-with-prefix input {
@@ -296,37 +472,37 @@ async function save() {
   padding-left: 0.25rem;
 }
 
-.input-with-prefix input:focus {
-  border: none;
-}
-
-.field-hint {
-  margin-top: 0.25rem;
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
 .error {
   color: var(--danger);
   font-size: 0.85rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .success {
   color: var(--success);
   font-size: 0.85rem;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .save-btn {
-  width: 100%;
-  padding: 0.7rem;
+  padding: 0.6rem 1.5rem;
   border: none;
   border-radius: 8px;
   background: var(--accent);
   color: white;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
+}
+
+.save-btn.small {
+  padding: 0.4rem 1rem;
+  font-size: 0.85rem;
 }
 
 .save-btn:disabled {
@@ -334,7 +510,26 @@ async function save() {
   cursor: not-allowed;
 }
 
-.save-btn:hover:not(:disabled) {
-  opacity: 0.9;
+.cancel-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.delete-profile-btn {
+  background: none;
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.delete-profile-btn:hover {
+  background: var(--danger);
+  color: white;
 }
 </style>

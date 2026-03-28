@@ -4,41 +4,125 @@ import { supabase } from '../lib/supabase'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
-  const profile = ref(null)
+  const profiles = ref([])
+  const activeProfile = ref(null)
   const loading = ref(true)
 
-  const isAdmin = computed(() => profile.value?.is_admin === true)
+  const isAdmin = computed(() => activeProfile.value?.is_admin === true)
   const isAuthenticated = computed(() => !!user.value)
+  // Keep backward compat — components use auth.profile
+  const profile = computed(() => activeProfile.value)
 
-  async function fetchProfile() {
+  async function fetchProfiles() {
     if (!user.value) return
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.value.id)
-      .maybeSingle()
+      .eq('owner_id', user.value.id)
+      .order('created_at', { ascending: true })
 
     if (error) {
-      console.error('Erreur fetchProfile:', error.message)
-      profile.value = null
+      console.error('Erreur fetchProfiles:', error.message)
+      profiles.value = []
       return
     }
 
-    if (!data) {
-      // Profile missing — create it from auth metadata
+    profiles.value = data || []
+
+    if (profiles.value.length === 0) {
+      // No profile — create default from auth metadata
       const meta = user.value.user_metadata || {}
       const username = meta.username || user.value.email.split('@')[0]
       const displayName = meta.display_name || username
       const { data: created } = await supabase
         .from('profiles')
-        .insert({ id: user.value.id, username, display_name: displayName })
+        .insert({ owner_id: user.value.id, username, display_name: displayName })
         .select()
         .maybeSingle()
-      profile.value = created
-      return
+      if (created) {
+        profiles.value = [created]
+      }
     }
 
-    profile.value = data
+    // Restore last active profile from localStorage, or use first
+    const savedProfileId = localStorage.getItem('ican_active_profile')
+    const saved = profiles.value.find((p) => p.id === savedProfileId)
+    activeProfile.value = saved || profiles.value[0] || null
+  }
+
+  function switchProfile(profileId) {
+    const found = profiles.value.find((p) => p.id === profileId)
+    if (found) {
+      activeProfile.value = found
+      localStorage.setItem('ican_active_profile', profileId)
+    }
+  }
+
+  async function createProfile(username, displayName) {
+    if (!user.value) return
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({
+        owner_id: user.value.id,
+        username,
+        display_name: displayName || username,
+      })
+      .select()
+      .single()
+    if (error) throw error
+    profiles.value.push(data)
+    return data
+  }
+
+  async function deleteProfile(profileId) {
+    if (profiles.value.length <= 1) {
+      throw new Error('Tu dois garder au moins un profil')
+    }
+    const { error } = await supabase.from('profiles').delete().eq('id', profileId)
+    if (error) throw error
+    profiles.value = profiles.value.filter((p) => p.id !== profileId)
+    if (activeProfile.value?.id === profileId) {
+      activeProfile.value = profiles.value[0]
+      localStorage.setItem('ican_active_profile', activeProfile.value.id)
+    }
+  }
+
+  async function updateProfile(profileId, { username, displayName, avatarUrl }) {
+    const updates = {}
+    if (username !== undefined) updates.username = username
+    if (displayName !== undefined) updates.display_name = displayName
+    if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(updates)
+      .eq('id', profileId)
+      .select()
+      .single()
+    if (error) throw error
+
+    // Update in local list
+    const idx = profiles.value.findIndex((p) => p.id === profileId)
+    if (idx !== -1) profiles.value[idx] = data
+    if (activeProfile.value?.id === profileId) activeProfile.value = data
+    return data
+  }
+
+  async function uploadAvatar(profileId, file) {
+    if (!user.value) return
+    const ext = file.name.split('.').pop()
+    const path = `${profileId}/avatar.${ext}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('avatars')
+      .upload(path, file, { upsert: true })
+    if (uploadError) throw uploadError
+
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
+    const publicUrl = data.publicUrl + '?t=' + Date.now()
+
+    await updateProfile(profileId, { avatarUrl: publicUrl })
+    return publicUrl
   }
 
   async function signUp(email, password, username, displayName) {
@@ -65,62 +149,28 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
-  async function updateProfile({ username, displayName, avatarUrl }) {
-    if (!user.value) return
-    const updates = {}
-    if (username !== undefined) updates.username = username
-    if (displayName !== undefined) updates.display_name = displayName
-    if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .update(updates)
-      .eq('id', user.value.id)
-      .select()
-      .single()
-    if (error) throw error
-    profile.value = data
-  }
-
-  async function uploadAvatar(file) {
-    if (!user.value) return
-    const ext = file.name.split('.').pop()
-    const path = `${user.value.id}/avatar.${ext}`
-
-    const { error: uploadError } = await supabase.storage
-      .from('avatars')
-      .upload(path, file, { upsert: true })
-    if (uploadError) throw uploadError
-
-    const { data } = supabase.storage.from('avatars').getPublicUrl(path)
-    const publicUrl = data.publicUrl + '?t=' + Date.now()
-
-    await updateProfile({ avatarUrl: publicUrl })
-    return publicUrl
-  }
-
   async function signOut() {
     const { error } = await supabase.auth.signOut()
     if (error) throw error
     user.value = null
-    profile.value = null
+    profiles.value = []
+    activeProfile.value = null
+    localStorage.removeItem('ican_active_profile')
   }
 
   async function init() {
     try {
-      // getSession returns cached session — may be expired
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
-        // Validate the session by refreshing it
         const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
         if (refreshError || !refreshed.session) {
-          // Refresh token expired — force logout
           user.value = null
-          profile.value = null
+          profiles.value = []
+          activeProfile.value = null
         } else {
           user.value = refreshed.session.user
-          await fetchProfile()
+          await fetchProfiles()
         }
       }
     } finally {
@@ -130,23 +180,29 @@ export const useAuthStore = defineStore('auth', () => {
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
         user.value = session?.user ?? null
-        if (user.value && !profile.value) {
-          try { await fetchProfile() } catch (e) { console.error('fetchProfile error:', e) }
+        if (user.value && profiles.value.length === 0) {
+          try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
         }
       } else if (event === 'SIGNED_OUT') {
         user.value = null
-        profile.value = null
+        profiles.value = []
+        activeProfile.value = null
       }
     })
   }
 
   return {
     user,
+    profiles,
+    activeProfile,
     profile,
     loading,
     isAdmin,
     isAuthenticated,
-    fetchProfile,
+    fetchProfiles,
+    switchProfile,
+    createProfile,
+    deleteProfile,
     updateProfile,
     uploadAvatar,
     signUp,

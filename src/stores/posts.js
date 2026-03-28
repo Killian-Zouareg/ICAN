@@ -25,13 +25,13 @@ export const usePostsStore = defineStore('posts', () => {
     }
   }
 
-  async function fetchUserPosts(userId) {
+  async function fetchUserPosts(profileId) {
     loading.value = true
     try {
       const { data, error } = await supabase
         .from('posts_with_stats')
         .select('*')
-        .eq('author_id', userId)
+        .eq('author_id', profileId)
         .order('created_at', { ascending: false })
       if (!error) {
         posts.value = data || []
@@ -44,13 +44,15 @@ export const usePostsStore = defineStore('posts', () => {
 
   async function fetchUserLikes() {
     const auth = useAuthStore()
-    if (!auth.user) return
+    if (!auth.activeProfile) return
     const postIds = posts.value.map((p) => p.id)
     if (postIds.length === 0) return
+    // Fetch likes from ALL profiles owned by this user
+    const profileIds = auth.profiles.map((p) => p.id)
     const { data } = await supabase
       .from('likes')
       .select('post_id')
-      .eq('user_id', auth.user.id)
+      .in('user_id', profileIds)
       .in('post_id', postIds)
     userLikes.value = new Set((data || []).map((l) => l.post_id))
   }
@@ -58,7 +60,7 @@ export const usePostsStore = defineStore('posts', () => {
   async function createPost(content) {
     const auth = useAuthStore()
     const { error } = await supabase.from('posts').insert({
-      author_id: auth.user.id,
+      author_id: auth.activeProfile.id,
       content,
     })
     if (error) throw error
@@ -73,18 +75,19 @@ export const usePostsStore = defineStore('posts', () => {
 
   async function toggleLike(postId) {
     const auth = useAuthStore()
+    const profileId = auth.activeProfile.id
     if (userLikes.value.has(postId)) {
       await supabase
         .from('likes')
         .delete()
-        .eq('user_id', auth.user.id)
+        .eq('user_id', profileId)
         .eq('post_id', postId)
       userLikes.value.delete(postId)
       const post = posts.value.find((p) => p.id === postId)
       if (post) post.like_count--
     } else {
       await supabase.from('likes').insert({
-        user_id: auth.user.id,
+        user_id: profileId,
         post_id: postId,
       })
       userLikes.value.add(postId)
@@ -96,7 +99,7 @@ export const usePostsStore = defineStore('posts', () => {
   async function repost(postId) {
     const auth = useAuthStore()
     const { error } = await supabase.from('posts').insert({
-      author_id: auth.user.id,
+      author_id: auth.activeProfile.id,
       content: '',
       repost_of: postId,
     })
@@ -116,7 +119,7 @@ export const usePostsStore = defineStore('posts', () => {
   async function addComment(postId, content) {
     const auth = useAuthStore()
     const { error } = await supabase.from('comments').insert({
-      author_id: auth.user.id,
+      author_id: auth.activeProfile.id,
       post_id: postId,
       content,
     })

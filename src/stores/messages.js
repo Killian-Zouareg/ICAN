@@ -10,7 +10,8 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function fetchConversations() {
     const auth = useAuthStore()
-    if (!auth.user) return
+    if (!auth.activeProfile) return
+    const profileId = auth.activeProfile.id
     loading.value = true
 
     const { data } = await supabase
@@ -20,11 +21,11 @@ export const useMessagesStore = defineStore('messages', () => {
         user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
         user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
       `)
-      .or(`user1_id.eq.${auth.user.id},user2_id.eq.${auth.user.id}`)
+      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
       .order('updated_at', { ascending: false })
 
     conversations.value = (data || []).map((conv) => {
-      const otherUser = conv.user1.id === auth.user.id ? conv.user2 : conv.user1
+      const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
       return { ...conv, otherUser }
     })
 
@@ -46,7 +47,7 @@ export const useMessagesStore = defineStore('messages', () => {
     const auth = useAuthStore()
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
-      sender_id: auth.user.id,
+      sender_id: auth.activeProfile.id,
       content,
     })
     if (error) throw error
@@ -57,11 +58,12 @@ export const useMessagesStore = defineStore('messages', () => {
       .eq('id', conversationId)
   }
 
-  async function getOrCreateConversation(otherUserId) {
+  async function getOrCreateConversation(otherProfileId) {
     const auth = useAuthStore()
-    const [user1, user2] = auth.user.id < otherUserId
-      ? [auth.user.id, otherUserId]
-      : [otherUserId, auth.user.id]
+    const myId = auth.activeProfile.id
+    const [user1, user2] = myId < otherProfileId
+      ? [myId, otherProfileId]
+      : [otherProfileId, myId]
 
     const { data: existing } = await supabase
       .from('conversations')
@@ -88,7 +90,7 @@ export const useMessagesStore = defineStore('messages', () => {
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', conversationId)
-      .neq('sender_id', auth.user.id)
+      .neq('sender_id', auth.activeProfile.id)
       .eq('read', false)
   }
 

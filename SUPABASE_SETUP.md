@@ -39,15 +39,19 @@ Va dans **SQL Editor** (menu de gauche) et exécute le SQL suivant en une seule 
 ```sql
 -- =============================================
 -- TABLE: profiles
+-- Un compte (auth.users) peut avoir plusieurs profils (alias)
 -- =============================================
 CREATE TABLE profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   username TEXT UNIQUE NOT NULL,
   display_name TEXT NOT NULL,
   avatar_url TEXT,
   is_admin BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE INDEX idx_profiles_owner_id ON profiles(owner_id);
 
 -- =============================================
 -- TABLE: posts
@@ -140,11 +144,11 @@ JOIN profiles pr ON p.author_id = pr.id;
 Toujours dans le **SQL Editor**, exécute ce SQL :
 
 ```sql
--- Crée automatiquement un profil quand un utilisateur s'inscrit
+-- Crée automatiquement un premier profil quand un utilisateur s'inscrit
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, username, display_name)
+  INSERT INTO public.profiles (owner_id, username, display_name)
   VALUES (
     NEW.id,
     NEW.raw_user_meta_data->>'username',
@@ -167,6 +171,14 @@ Exécute ce SQL dans le **SQL Editor** :
 
 ```sql
 -- =============================================
+-- Helper: fonction pour récupérer les IDs des profils de l'utilisateur
+-- =============================================
+CREATE OR REPLACE FUNCTION my_profile_ids()
+RETURNS SETOF UUID AS $$
+  SELECT id FROM profiles WHERE owner_id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- =============================================
 -- RLS: profiles
 -- =============================================
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
@@ -174,11 +186,17 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Profiles viewable by authenticated users"
   ON profiles FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Users can update own profile"
-  ON profiles FOR UPDATE TO authenticated USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profiles"
+  ON profiles FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = owner_id);
 
-CREATE POLICY "Users can insert own profile"
-  ON profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profiles"
+  ON profiles FOR UPDATE TO authenticated
+  USING (auth.uid() = owner_id);
+
+CREATE POLICY "Users can delete own profiles"
+  ON profiles FOR DELETE TO authenticated
+  USING (auth.uid() = owner_id);
 
 -- =============================================
 -- RLS: posts
@@ -188,15 +206,15 @@ ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Posts viewable by authenticated users"
   ON posts FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Authenticated users can create posts"
+CREATE POLICY "Users can create posts with their profiles"
   ON posts FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = author_id);
+  WITH CHECK (author_id IN (SELECT my_profile_ids()));
 
 CREATE POLICY "Authors and admins can delete posts"
   ON posts FOR DELETE TO authenticated
   USING (
-    auth.uid() = author_id
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+    author_id IN (SELECT my_profile_ids())
+    OR EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true)
   );
 
 -- =============================================
@@ -207,13 +225,13 @@ ALTER TABLE likes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Likes viewable by authenticated users"
   ON likes FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Authenticated users can like"
+CREATE POLICY "Users can like with their profiles"
   ON likes FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK (user_id IN (SELECT my_profile_ids()));
 
 CREATE POLICY "Users can remove own likes"
   ON likes FOR DELETE TO authenticated
-  USING (auth.uid() = user_id);
+  USING (user_id IN (SELECT my_profile_ids()));
 
 -- =============================================
 -- RLS: comments
@@ -223,15 +241,15 @@ ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Comments viewable by authenticated users"
   ON comments FOR SELECT TO authenticated USING (true);
 
-CREATE POLICY "Authenticated users can comment"
+CREATE POLICY "Users can comment with their profiles"
   ON comments FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = author_id);
+  WITH CHECK (author_id IN (SELECT my_profile_ids()));
 
 CREATE POLICY "Authors and admins can delete comments"
   ON comments FOR DELETE TO authenticated
   USING (
-    auth.uid() = author_id
-    OR EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND is_admin = true)
+    author_id IN (SELECT my_profile_ids())
+    OR EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true)
   );
 
 -- =============================================
@@ -241,11 +259,24 @@ ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Participants can view their conversations"
   ON conversations FOR SELECT TO authenticated
-  USING (auth.uid() = user1_id OR auth.uid() = user2_id);
+  USING (
+    user1_id IN (SELECT my_profile_ids())
+    OR user2_id IN (SELECT my_profile_ids())
+  );
 
-CREATE POLICY "Authenticated users can create conversations"
+CREATE POLICY "Users can create conversations with their profiles"
   ON conversations FOR INSERT TO authenticated
-  WITH CHECK (auth.uid() = user1_id OR auth.uid() = user2_id);
+  WITH CHECK (
+    user1_id IN (SELECT my_profile_ids())
+    OR user2_id IN (SELECT my_profile_ids())
+  );
+
+CREATE POLICY "Participants can update conversation timestamp"
+  ON conversations FOR UPDATE TO authenticated
+  USING (
+    user1_id IN (SELECT my_profile_ids())
+    OR user2_id IN (SELECT my_profile_ids())
+  );
 
 -- =============================================
 -- RLS: messages
@@ -258,18 +289,18 @@ CREATE POLICY "Participants can view conversation messages"
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
     )
   );
 
 CREATE POLICY "Participants can send messages"
   ON messages FOR INSERT TO authenticated
   WITH CHECK (
-    auth.uid() = sender_id
+    sender_id IN (SELECT my_profile_ids())
     AND EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
     )
   );
 
@@ -279,23 +310,16 @@ CREATE POLICY "Recipients can mark messages as read"
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id = auth.uid() OR c.user2_id = auth.uid())
+      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
     )
   );
-
--- =============================================
--- RLS: conversations (UPDATE pour updated_at)
--- =============================================
-CREATE POLICY "Participants can update conversation timestamp"
-  ON conversations FOR UPDATE TO authenticated
-  USING (auth.uid() = user1_id OR auth.uid() = user2_id);
 ```
 
 ---
@@ -416,7 +440,139 @@ git push -u origin main
 
 ---
 
-## 10. Désactiver les inscriptions (optionnel)
+## 10. Migration multi-profils (bases existantes uniquement)
+
+**Si tu avais déjà Ican en production avant la mise à jour multi-profils**, exécute ce script dans le **SQL Editor** pour migrer ta base. Si c'est une installation fraîche, ignore cette section.
+
+```sql
+-- =============================================
+-- MIGRATION: profiles.id → profiles.id (UUID propre) + owner_id
+-- =============================================
+
+-- 1. Supprimer la vue qui dépend de profiles
+DROP VIEW IF EXISTS posts_with_stats;
+
+-- 2. Supprimer toutes les policies RLS existantes
+DROP POLICY IF EXISTS "Profiles viewable by authenticated users" ON profiles;
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+DROP POLICY IF EXISTS "Posts viewable by authenticated users" ON posts;
+DROP POLICY IF EXISTS "Authenticated users can create posts" ON posts;
+DROP POLICY IF EXISTS "Authors and admins can delete posts" ON posts;
+DROP POLICY IF EXISTS "Likes viewable by authenticated users" ON likes;
+DROP POLICY IF EXISTS "Authenticated users can like" ON likes;
+DROP POLICY IF EXISTS "Users can remove own likes" ON likes;
+DROP POLICY IF EXISTS "Comments viewable by authenticated users" ON comments;
+DROP POLICY IF EXISTS "Authenticated users can comment" ON comments;
+DROP POLICY IF EXISTS "Authors and admins can delete comments" ON comments;
+DROP POLICY IF EXISTS "Participants can view their conversations" ON conversations;
+DROP POLICY IF EXISTS "Authenticated users can create conversations" ON conversations;
+DROP POLICY IF EXISTS "Participants can update conversation timestamp" ON conversations;
+DROP POLICY IF EXISTS "Participants can view conversation messages" ON messages;
+DROP POLICY IF EXISTS "Participants can send messages" ON messages;
+DROP POLICY IF EXISTS "Recipients can mark messages as read" ON messages;
+
+-- 3. Supprimer l'ancien trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+DROP FUNCTION IF EXISTS public.handle_new_user();
+
+-- 4. Ajouter la colonne owner_id
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS owner_id UUID;
+
+-- 5. Remplir owner_id avec l'ancien id (qui était = auth.users.id)
+UPDATE profiles SET owner_id = id WHERE owner_id IS NULL;
+
+-- 6. Rendre owner_id NOT NULL + FK
+ALTER TABLE profiles ALTER COLUMN owner_id SET NOT NULL;
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_owner_id_fkey;
+ALTER TABLE profiles ADD CONSTRAINT profiles_owner_id_fkey
+  FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+
+-- 7. Supprimer TOUTES les FK et CHECK constraints qui référencent profiles.id
+ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_author_id_fkey;
+ALTER TABLE likes DROP CONSTRAINT IF EXISTS likes_user_id_fkey;
+ALTER TABLE comments DROP CONSTRAINT IF EXISTS comments_author_id_fkey;
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_user1_id_fkey;
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_user2_id_fkey;
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS conversations_check;
+ALTER TABLE messages DROP CONSTRAINT IF EXISTS messages_sender_id_fkey;
+
+-- 8. Supprimer l'ancienne FK profiles.id → auth.users et la PK
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+ALTER TABLE profiles DROP CONSTRAINT profiles_pkey;
+
+-- 9. Donner un nouvel UUID à chaque profil et mettre à jour les références
+CREATE TEMP TABLE profile_id_map AS
+SELECT id AS old_id, gen_random_uuid() AS new_id FROM profiles;
+
+-- Mettre à jour les IDs
+UPDATE profiles SET id = m.new_id FROM profile_id_map m WHERE profiles.id = m.old_id;
+UPDATE posts SET author_id = m.new_id FROM profile_id_map m WHERE posts.author_id = m.old_id;
+UPDATE likes SET user_id = m.new_id FROM profile_id_map m WHERE likes.user_id = m.old_id;
+UPDATE comments SET author_id = m.new_id FROM profile_id_map m WHERE comments.author_id = m.old_id;
+UPDATE conversations SET user1_id = m.new_id FROM profile_id_map m WHERE conversations.user1_id = m.old_id;
+UPDATE conversations SET user2_id = m.new_id FROM profile_id_map m WHERE conversations.user2_id = m.old_id;
+UPDATE messages SET sender_id = m.new_id FROM profile_id_map m WHERE messages.sender_id = m.old_id;
+
+-- Réordonner user1_id/user2_id pour respecter la contrainte user1_id < user2_id
+UPDATE conversations
+SET user1_id = LEAST(user1_id, user2_id),
+    user2_id = GREATEST(user1_id, user2_id)
+WHERE user1_id > user2_id;
+
+-- Recréer la PK, les FK et la contrainte CHECK
+ALTER TABLE profiles ADD PRIMARY KEY (id);
+ALTER TABLE posts ADD CONSTRAINT posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE likes ADD CONSTRAINT likes_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE comments ADD CONSTRAINT comments_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE conversations ADD CONSTRAINT conversations_user1_id_fkey FOREIGN KEY (user1_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE conversations ADD CONSTRAINT conversations_user2_id_fkey FOREIGN KEY (user2_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE messages ADD CONSTRAINT messages_sender_id_fkey FOREIGN KEY (sender_id) REFERENCES profiles(id) ON DELETE CASCADE;
+ALTER TABLE conversations ADD CONSTRAINT conversations_check CHECK (user1_id < user2_id);
+
+-- 10. Ajouter l'index
+CREATE INDEX IF NOT EXISTS idx_profiles_owner_id ON profiles(owner_id);
+
+-- 11. Recréer la vue
+CREATE VIEW posts_with_stats AS
+SELECT
+  p.*,
+  pr.username,
+  pr.display_name,
+  pr.avatar_url,
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id) AS repost_count
+FROM posts p
+JOIN profiles pr ON p.author_id = pr.id;
+
+-- 12. Recréer le trigger
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (owner_id, username, display_name)
+  VALUES (
+    NEW.id,
+    NEW.raw_user_meta_data->>'username',
+    COALESCE(NEW.raw_user_meta_data->>'display_name', NEW.raw_user_meta_data->>'username')
+  );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 13. Recréer la fonction helper et toutes les policies RLS
+-- (Copie-colle le SQL de la section 4 du setup)
+```
+
+**Après la migration**, copie-colle et exécute le SQL de la **section 4** (RLS) pour recréer toutes les policies.
+
+---
+
+## 11. Désactiver les inscriptions (optionnel)
 
 Une fois que tous tes amis se sont inscrits :
 

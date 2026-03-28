@@ -53,7 +53,8 @@ async function loadConversation() {
     .single()
 
   if (data) {
-    otherUser.value = data.user1.id === auth.user.id ? data.user2 : data.user1
+    const myProfileIds = auth.profiles.map((p) => p.id)
+    otherUser.value = myProfileIds.includes(data.user1.id) ? data.user2 : data.user1
   }
 }
 
