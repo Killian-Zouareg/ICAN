@@ -658,33 +658,17 @@ function searchGroupMembers() {
 async function createGroup() {
   if (!auth.activeProfile || selectedMembers.value.length < 2 || !groupName.value.trim()) return
 
-  // Create the group conversation
-  const { data: conv, error } = await supabase
-    .from('conversations')
-    .insert({
-      is_group: true,
-      group_name: groupName.value.trim(),
-    })
-    .select('id')
-    .single()
+  const memberIds = [auth.activeProfile.id, ...selectedMembers.value.map((m) => m.id)]
+  const { data: convId, error } = await supabase.rpc('create_group_conversation', {
+    p_group_name: groupName.value.trim(),
+    p_member_ids: memberIds,
+  })
 
-  if (error) { alert('Erreur lors de la cr\u00e9ation du groupe'); return }
-
-  // Add all members (including self)
-  const memberInserts = [
-    { conversation_id: conv.id, profile_id: auth.activeProfile.id },
-    ...selectedMembers.value.map((m) => ({
-      conversation_id: conv.id,
-      profile_id: m.id,
-    })),
-  ]
-
-  const { error: memberError } = await supabase.from('conversation_members').insert(memberInserts)
-  if (memberError) { alert('Erreur lors de l\'ajout des membres'); return }
+  if (error) { alert('Erreur lors de la création du groupe'); console.error(error); return }
 
   showCreateGroup.value = false
   await fetchConversations()
-  const created = conversations.value.find((c) => c.id === conv.id)
+  const created = conversations.value.find((c) => c.id === convId)
   if (created) openConversation(created)
 }
 

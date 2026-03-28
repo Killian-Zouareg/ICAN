@@ -10,8 +10,7 @@ const pinia = createPinia()
 
 app.use(pinia)
 app.use(router)
+app.mount('#app')
 
 const auth = useAuthStore()
-auth.init().then(() => {
-  app.mount('#app')
-})
+auth.init()

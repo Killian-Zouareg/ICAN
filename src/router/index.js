@@ -50,8 +50,20 @@ const router = createRouter({
   routes,
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   const auth = useAuthStore()
+
+  // Wait for auth init to complete before making routing decisions
+  if (auth.loading) {
+    await new Promise((resolve) => {
+      const stop = setInterval(() => {
+        if (!auth.loading) { clearInterval(stop); resolve() }
+      }, 50)
+      // Safety timeout — don't block forever
+      setTimeout(() => { clearInterval(stop); resolve() }, 5000)
+    })
+  }
+
   if (!to.meta.public && !auth.isAuthenticated) {
     return '/login'
   }

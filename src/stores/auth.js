@@ -202,6 +202,14 @@ export const useAuthStore = defineStore('auth', () => {
       }
     })
 
+    // Safety timeout — never block the app forever
+    const safetyTimeout = setTimeout(() => {
+      if (loading.value) {
+        console.warn('[AUTH] Init timeout — unblocking app')
+        loading.value = false
+      }
+    }, 5000)
+
     try {
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -212,6 +220,7 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (e) {
       console.error('Init error:', e)
     } finally {
+      clearTimeout(safetyTimeout)
       loading.value = false
     }
   }

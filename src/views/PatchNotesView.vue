@@ -44,11 +44,14 @@ const patches = [
   {
     version: '1.6.4',
     date: '28 mars 2026',
-    title: 'Fix cache & création de groupe',
+    title: 'Fix écran bleu, cache & création de groupe',
     tag: 'hotfix',
     changes: [
-      { type: 'fixed', text: 'Ajout de meta tags anti-cache pour éviter que le navigateur serve une ancienne version du site après un déploiement' },
-      { type: 'fixed', text: 'Correction de l\'erreur 403 lors de la création d\'un groupe de discussion (policy INSERT mise à jour)' },
+      { type: 'fixed', text: 'L\'application se monte immédiatement au lieu d\'attendre la fin de l\'initialisation auth — plus d\'écran bleu vide au refresh' },
+      { type: 'fixed', text: 'Timeout de sécurité de 5s sur l\'init auth pour débloquer l\'app si Supabase ne répond pas' },
+      { type: 'fixed', text: 'Le router attend la fin de l\'init auth avant de décider de rediriger vers le login' },
+      { type: 'fixed', text: 'Correction de l\'erreur 403 lors de la création d\'un groupe — utilisation d\'une fonction RPC atomique (create_group_conversation)' },
+      { type: 'improved', text: 'Meta tags anti-cache pour éviter les versions périmées après déploiement' },
       { type: 'improved', text: 'Protection contre les déconnexions fantômes : vérification de la session avant logout automatique' },
     ],
   },
