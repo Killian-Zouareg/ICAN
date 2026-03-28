@@ -42,6 +42,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '1.5.1',
+    date: '28 mars 2026',
+    title: 'Switcher profils amélioré',
+    tag: 'minor',
+    changes: [
+      { type: 'improved', text: 'Ajout d’un scroll interne à la liste des profils dans le switcher lorsque la hauteur dépasse 700px.' },
+      { type: 'new', text: 'Ajout d’une barre de recherche dynamique pour filtrer les profils par identifiant ou username dans le switcher.' },
+      { type: 'improved', text: 'Scrollbar interne du switcher stylisée pour correspondre à l’identité visuelle du site.' },
+    ],
+  },
+  {
     version: '1.5.0',
     date: '28 mars 2026',
     title: 'Images en DM & Patch Notes',
