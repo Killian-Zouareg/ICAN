@@ -100,16 +100,32 @@ CREATE TABLE comment_likes (
 );
 
 -- =============================================
--- TABLE: conversations
+-- TABLE: conversations (1-on-1 et groupes)
 -- =============================================
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user1_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  user2_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user1_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  user2_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  is_group BOOLEAN DEFAULT false,
+  group_name TEXT,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user1_id, user2_id),
-  CHECK (user1_id < user2_id)
+  CHECK (
+    (is_group = true AND user1_id IS NULL AND user2_id IS NULL)
+    OR (is_group = false AND user1_id IS NOT NULL AND user2_id IS NOT NULL AND user1_id < user2_id)
+  )
+);
+
+-- =============================================
+-- TABLE: conversation_members (membres des groupes)
+-- =============================================
+CREATE TABLE conversation_members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(conversation_id, profile_id)
 );
 
 -- =============================================
@@ -135,6 +151,8 @@ CREATE INDEX idx_comments_parent_id ON comments(parent_id);
 CREATE INDEX idx_comment_likes_comment_id ON comment_likes(comment_id);
 CREATE INDEX idx_messages_conversation ON messages(conversation_id);
 CREATE INDEX idx_messages_read ON messages(read) WHERE read = false;
+CREATE INDEX idx_conversation_members_conv ON conversation_members(conversation_id);
+CREATE INDEX idx_conversation_members_profile ON conversation_members(profile_id);
 
 -- =============================================
 -- VUE: posts_with_stats
@@ -284,7 +302,7 @@ CREATE POLICY "Users can remove own comment likes"
   USING (user_id IN (SELECT my_profile_ids()));
 
 -- =============================================
--- RLS: conversations
+-- RLS: conversations (1-on-1 + groupes)
 -- =============================================
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 
@@ -293,6 +311,9 @@ CREATE POLICY "Participants can view their conversations"
   USING (
     user1_id IN (SELECT my_profile_ids())
     OR user2_id IN (SELECT my_profile_ids())
+    OR (is_group = true AND id IN (
+      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+    ))
   );
 
 CREATE POLICY "Users can create conversations with their profiles"
@@ -300,6 +321,7 @@ CREATE POLICY "Users can create conversations with their profiles"
   WITH CHECK (
     user1_id IN (SELECT my_profile_ids())
     OR user2_id IN (SELECT my_profile_ids())
+    OR is_group = true
   );
 
 CREATE POLICY "Participants can update conversation timestamp"
@@ -307,6 +329,35 @@ CREATE POLICY "Participants can update conversation timestamp"
   USING (
     user1_id IN (SELECT my_profile_ids())
     OR user2_id IN (SELECT my_profile_ids())
+    OR (is_group = true AND id IN (
+      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+    ))
+  );
+
+-- =============================================
+-- RLS: conversation_members
+-- =============================================
+ALTER TABLE conversation_members ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Members can view their group memberships"
+  ON conversation_members FOR SELECT TO authenticated
+  USING (profile_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Members can view co-members"
+  ON conversation_members FOR SELECT TO authenticated
+  USING (
+    conversation_id IN (
+      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+    )
+  );
+
+CREATE POLICY "Users can add members to their groups"
+  ON conversation_members FOR INSERT TO authenticated
+  WITH CHECK (
+    profile_id IN (SELECT my_profile_ids())
+    OR conversation_id IN (
+      SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+    )
   );
 
 -- =============================================
@@ -320,7 +371,13 @@ CREATE POLICY "Participants can view conversation messages"
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+      AND (
+        c.user1_id IN (SELECT my_profile_ids())
+        OR c.user2_id IN (SELECT my_profile_ids())
+        OR (c.is_group = true AND c.id IN (
+          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+        ))
+      )
     )
   );
 
@@ -331,7 +388,13 @@ CREATE POLICY "Participants can send messages"
     AND EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+      AND (
+        c.user1_id IN (SELECT my_profile_ids())
+        OR c.user2_id IN (SELECT my_profile_ids())
+        OR (c.is_group = true AND c.id IN (
+          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+        ))
+      )
     )
   );
 
@@ -341,14 +404,26 @@ CREATE POLICY "Recipients can mark messages as read"
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+      AND (
+        c.user1_id IN (SELECT my_profile_ids())
+        OR c.user2_id IN (SELECT my_profile_ids())
+        OR (c.is_group = true AND c.id IN (
+          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+        ))
+      )
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM conversations c
       WHERE c.id = conversation_id
-      AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+      AND (
+        c.user1_id IN (SELECT my_profile_ids())
+        OR c.user2_id IN (SELECT my_profile_ids())
+        OR (c.is_group = true AND c.id IN (
+          SELECT conversation_id FROM conversation_members WHERE profile_id IN (SELECT my_profile_ids())
+        ))
+      )
     )
   );
 ```

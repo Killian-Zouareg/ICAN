@@ -42,6 +42,31 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '1.6.0',
+    date: '28 mars 2026',
+    title: 'Groupes de discussion',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Conversations de groupe dans le widget DM — discutez à plusieurs en temps réel' },
+      { type: 'new', text: 'Création de groupe : nom personnalisé, recherche et ajout de membres (minimum 2)' },
+      { type: 'new', text: 'Affichage du nom de l\'expéditeur dans les bulles de messages de groupe' },
+      { type: 'new', text: 'Badge compteur de membres dans l\'en-tête des conversations de groupe' },
+      { type: 'improved', text: 'Liste de conversations unifiée : DMs et groupes triés par dernière activité' },
+      { type: 'improved', text: 'Avatars de groupe distincts pour différencier les conversations 1-à-1 des groupes' },
+    ],
+  },
+  {
+    version: '1.5.1',
+    date: '28 mars 2026',
+    title: 'Fix chargement infini',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'Correction du chargement infini apr\u00e8s une longue p\u00e9riode d\'inactivit\u00e9 \u2014 la session expir\u00e9e est maintenant d\u00e9tect\u00e9e et l\'utilisateur est redirig\u00e9 vers la page de connexion' },
+      { type: 'improved', text: 'V\u00e9rification du token d\'acc\u00e8s (expires_at) avant de r\u00e9utiliser une session cach\u00e9e' },
+      { type: 'improved', text: 'Nettoyage centralis\u00e9 de l\'\u00e9tat d\'authentification (clearState)' },
+    ],
+  },
+  {
     version: '1.5.0',
     date: '28 mars 2026',
     title: 'Images en DM & Patch Notes',
