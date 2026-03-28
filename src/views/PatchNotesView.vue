@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '1.9.0',
+    date: '28 mars 2026',
+    icon: '\u{1F3A8}',
+    color: '#1da1f2',
+    title: 'Profil inspir\u00e9 de Twitter',
+    description: 'Page de profil enti\u00e8rement redesign\u00e9e : banni\u00e8re gradient, avatar en overlay, statistiques, 4 onglets (Posts, Reposts, J\'aime, M\u00e9dias) et grille m\u00e9dia d\u00e9di\u00e9e.',
+    tags: ['Redesign profil', 'Grille m\u00e9dias', 'Onglets', 'Twitter-style'],
+  },
+  {
     version: '1.8.0',
     date: '28 mars 2026',
     icon: '\u{1F514}',
@@ -172,6 +181,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '1.9.0',
+    date: '28 mars 2026',
+    title: 'Profil redesign\u00e9 style Twitter',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Banni\u00e8re gradient en haut du profil avec avatar 120px en overlay' },
+      { type: 'new', text: '4 onglets de contenu : Posts, Reposts, J\'aime, M\u00e9dias avec lazy-loading' },
+      { type: 'new', text: 'Grille m\u00e9dia (3 colonnes) affichant toutes les images post\u00e9es par l\'utilisateur' },
+      { type: 'new', text: 'Statistiques du profil : nombre de posts et de likes re\u00e7us' },
+      { type: 'improved', text: 'Bouton DM int\u00e9gr\u00e9 directement sur le profil des autres utilisateurs' },
+      { type: 'improved', text: 'Design responsive adapt\u00e9 mobile et desktop' },
+    ],
+  },
   {
     version: '1.8.0',
     date: '28 mars 2026',
