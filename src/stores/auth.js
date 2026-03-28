@@ -163,30 +163,35 @@ export const useAuthStore = defineStore('auth', () => {
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session) {
+        // Try to refresh, but fall back to the cached session if refresh fails
+        // (e.g. temporary network issue — don't log out the user)
         const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
-        if (refreshError || !refreshed.session) {
-          user.value = null
-          profiles.value = []
-          activeProfile.value = null
-        } else {
+        if (!refreshError && refreshed.session) {
           user.value = refreshed.session.user
-          await fetchProfiles()
+        } else {
+          // Use the cached session — it may still be valid
+          user.value = session.user
         }
+        await fetchProfiles()
       }
     } finally {
       loading.value = false
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN') {
         user.value = session?.user ?? null
-        if (user.value && profiles.value.length === 0) {
+        if (user.value) {
           try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
         }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Just update the user object, profiles are already loaded
+        user.value = session?.user ?? null
       } else if (event === 'SIGNED_OUT') {
         user.value = null
         profiles.value = []
         activeProfile.value = null
+        localStorage.removeItem('ican_active_profile')
       }
     })
   }
