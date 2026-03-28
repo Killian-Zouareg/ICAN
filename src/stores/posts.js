@@ -19,7 +19,9 @@ export const usePostsStore = defineStore('posts', () => {
         .order('created_at', { ascending: false })
         .limit(50)
       if (!error) {
-        posts.value = await enrichReposts(data || [])
+        let enriched = await enrichReposts(data || [])
+        enriched = await enrichAdminStatus(enriched)
+        posts.value = enriched
         await fetchUserLikes()
         await fetchUserReposts()
       }
@@ -37,13 +39,36 @@ export const usePostsStore = defineStore('posts', () => {
         .eq('author_id', profileId)
         .order('created_at', { ascending: false })
       if (!error) {
-        posts.value = await enrichReposts(data || [])
+        let enriched = await enrichReposts(data || [])
+        enriched = await enrichAdminStatus(enriched)
+        posts.value = enriched
         await fetchUserLikes()
         await fetchUserReposts()
       }
     } finally {
       loading.value = false
     }
+  }
+
+  // Fetch is_admin flag for all authors and attach it to posts
+  async function enrichAdminStatus(postsList) {
+    const authorIds = [...new Set(postsList.map((p) => p.author_id).filter(Boolean))]
+    if (authorIds.length === 0) return postsList
+
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, is_admin')
+      .in('id', authorIds)
+
+    const adminMap = {}
+    ;(profiles || []).forEach((p) => {
+      adminMap[p.id] = p.is_admin === true
+    })
+
+    return postsList.map((p) => ({
+      ...p,
+      is_admin: adminMap[p.author_id] || false,
+    }))
   }
 
   // Fetch original posts for any reposts in the list
@@ -60,9 +85,22 @@ export const usePostsStore = defineStore('posts', () => {
       .select('*')
       .in('id', uniqueIds)
 
+    // Fetch admin status for original post authors too
+    const originalAuthorIds = [...new Set((originals || []).map((p) => p.author_id).filter(Boolean))]
+    let adminMap = {}
+    if (originalAuthorIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, is_admin')
+        .in('id', originalAuthorIds)
+      ;(profiles || []).forEach((p) => {
+        adminMap[p.id] = p.is_admin === true
+      })
+    }
+
     const originalsMap = {}
     ;(originals || []).forEach((p) => {
-      originalsMap[p.id] = p
+      originalsMap[p.id] = { ...p, is_admin: adminMap[p.author_id] || false }
     })
 
     return postsList.map((p) => {
