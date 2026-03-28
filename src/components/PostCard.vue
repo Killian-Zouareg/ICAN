@@ -35,7 +35,16 @@
           <span class="timestamp">{{ timeAgo(displayPost.created_at) }}</span>
         </div>
 
-        <p class="post-text">{{ displayPost.content }}</p>
+        <p v-if="displayPost.content" class="post-text">{{ displayPost.content }}</p>
+
+        <div v-if="displayPost.image_url" class="post-image-wrapper" @click.stop>
+          <img
+            :src="displayPost.image_url"
+            alt="Image du post"
+            class="post-image"
+            @click="openImage"
+          />
+        </div>
 
         <div class="actions">
           <button
@@ -128,6 +137,10 @@ async function handleRepost() {
   await postsStore.toggleRepost(originalPostId.value)
 }
 
+function openImage() {
+  window.open(displayPost.value.image_url, '_blank')
+}
+
 async function handleDelete() {
   if (confirm('Supprimer ce post ?')) {
     await postsStore.deletePost(props.post.id)
@@ -217,6 +230,27 @@ async function handleDelete() {
   margin: 0.3rem 0 0.5rem;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.post-image-wrapper {
+  margin: 0.4rem 0 0.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-height: 400px;
+}
+
+.post-image {
+  width: 100%;
+  max-height: 400px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.post-image:hover {
+  opacity: 0.9;
 }
 
 .actions {

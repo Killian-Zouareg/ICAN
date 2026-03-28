@@ -98,12 +98,33 @@ export const usePostsStore = defineStore('posts', () => {
     userReposts.value = new Set((data || []).map((r) => r.repost_of))
   }
 
-  async function createPost(content) {
+  async function createPost(content, imageFile = null) {
     const auth = useAuthStore()
-    const { error } = await supabase.from('posts').insert({
+    let imageUrl = null
+
+    // Upload image if provided
+    if (imageFile) {
+      const ext = imageFile.name.split('.').pop()
+      const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, imageFile)
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(fileName)
+      imageUrl = urlData.publicUrl
+    }
+
+    const insertData = {
       author_id: auth.activeProfile.id,
       content,
-    })
+    }
+    if (imageUrl) {
+      insertData.image_url = imageUrl
+    }
+
+    const { error } = await supabase.from('posts').insert(insertData)
     if (error) throw error
     await fetchFeed()
   }

@@ -60,6 +60,7 @@ CREATE TABLE posts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   author_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   content TEXT NOT NULL DEFAULT '' CHECK (char_length(content) <= 500),
+  image_url TEXT,
   repost_of UUID REFERENCES posts(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -389,6 +390,34 @@ Les photos de profil sont stockées dans Supabase Storage.
 - Policy definition : `(bucket_id = 'avatars') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
 
 Ces policies font en sorte que chaque utilisateur ne peut uploader/modifier que dans les dossiers correspondant à ses profils.
+
+### Bucket pour les images de posts
+
+9. Clique sur **"New bucket"** (retour à la liste des buckets)
+10. Nom du bucket : `post-images`
+11. Coche **"Public bucket"**
+12. Clique **"Create bucket"**
+13. Clique sur le bucket `post-images`, va dans **"Policies"** et crée ces 3 policies :
+
+**Policy 1 — Lecture publique :**
+- Name : `Public read`
+- Allowed operation : `SELECT`
+- Target roles : laisser vide (public)
+- Policy definition : `true`
+
+**Policy 2 — Upload par l'utilisateur :**
+- Name : `Users can upload post images`
+- Allowed operation : `INSERT`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'post-images') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
+
+**Policy 3 — Suppression par l'utilisateur :**
+- Name : `Users can delete their post images`
+- Allowed operation : `DELETE`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'post-images') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
+
+Les images sont stockées dans un dossier nommé avec l'ID du profil, comme pour les avatars.
 
 ---
 
