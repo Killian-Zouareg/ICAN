@@ -512,10 +512,10 @@ async function confirmBan() {
   const p = banModal.value.profile
   if (!p || !banModal.value.minutes) return
   const bannedUntil = new Date(Date.now() + banModal.value.minutes * 60000).toISOString()
-  const { error } = await supabase
-    .from('profiles')
-    .update({ banned_until: bannedUntil })
-    .eq('id', p.id)
+  const { error } = await supabase.rpc('admin_ban_profile', {
+    p_profile_id: p.id,
+    p_banned_until: bannedUntil,
+  })
   if (error) {
     alert('Erreur: ' + error.message)
     return
@@ -525,10 +525,10 @@ async function confirmBan() {
 }
 
 async function unbanProfile(profile) {
-  const { error } = await supabase
-    .from('profiles')
-    .update({ banned_until: null })
-    .eq('id', profile.id)
+  const { error } = await supabase.rpc('admin_ban_profile', {
+    p_profile_id: profile.id,
+    p_banned_until: null,
+  })
   if (error) {
     alert('Erreur: ' + error.message)
     return
@@ -540,10 +540,10 @@ async function unbanProfile(profile) {
 
 async function toggleAdmin(profile) {
   const newVal = !profile.is_admin
-  const { error } = await supabase
-    .from('profiles')
-    .update({ is_admin: newVal })
-    .eq('id', profile.id)
+  const { error } = await supabase.rpc('admin_toggle_admin', {
+    p_profile_id: profile.id,
+    p_is_admin: newVal,
+  })
   if (error) {
     alert('Erreur: ' + error.message)
     return
