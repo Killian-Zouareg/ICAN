@@ -42,6 +42,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '1.6.3',
+    date: '28 mars 2026',
+    title: 'Fix persistance de session',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'La session n\'est plus détruite après une période d\'inactivité — le refresh token est préservé même si le token d\'accès expire' },
+      { type: 'improved', text: 'Supabase gère maintenant le renouvellement automatique des tokens en arrière-plan via onAuthStateChange' },
+      { type: 'fixed', text: 'Suppression de l\'appel signOut() agressif qui détruisait les sessions récupérables lors d\'un échec de refresh temporaire' },
+    ],
+  },
+  {
     version: '1.6.2',
     date: '28 mars 2026',
     title: 'Fix erreurs 500 RLS groupes',

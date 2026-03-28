@@ -162,50 +162,58 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('ican_active_profile')
   }
 
-  function isTokenExpired(session) {
-    if (!session?.expires_at) return true
-    // expires_at is in seconds since epoch
-    return session.expires_at * 1000 < Date.now()
-  }
-
   async function init() {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
+    let manualSignOut = false
 
-      if (session) {
-        // Try to refresh the session
-        const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession()
-        if (!refreshError && refreshed.session) {
-          // Refresh succeeded — use the new session
-          user.value = refreshed.session.user
-          await fetchProfiles()
-        } else if (!isTokenExpired(session)) {
-          // Refresh failed but the access token is still valid (temporary network issue?)
-          user.value = session.user
-          await fetchProfiles()
-        } else {
-          // Both refresh failed AND token is expired — session is dead, clean logout
-          console.warn('Session expir\u00e9e, d\u00e9connexion')
-          clearState()
-          await supabase.auth.signOut().catch(() => {})
-        }
-      }
-    } finally {
-      loading.value = false
+    // Flag real sign outs (user-initiated)
+    const origSignOut = signOut
+    signOut = async function () {
+      manualSignOut = true
+      return origSignOut()
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
-        user.value = session?.user ?? null
-        if (user.value) {
-          try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
+      console.log('[AUTH]', event, session ? 'session exists' : 'no session')
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user) {
+          user.value = session.user
+          if (profiles.value.length === 0) {
+            try { await fetchProfiles() } catch (e) { console.error('fetchProfiles error:', e) }
+          }
         }
-      } else if (event === 'TOKEN_REFRESHED') {
-        user.value = session?.user ?? null
       } else if (event === 'SIGNED_OUT') {
-        clearState()
+        if (manualSignOut) {
+          // User actually clicked sign out
+          clearState()
+          manualSignOut = false
+        } else {
+          // Supabase fired SIGNED_OUT on its own (lock timeout, auto-refresh failure, etc.)
+          // Verify the session is truly gone before logging the user out
+          console.warn('[AUTH] Unexpected SIGNED_OUT — verifying session...')
+          const { data: { session: check } } = await supabase.auth.getSession()
+          if (!check) {
+            console.warn('[AUTH] Session confirmed gone — logging out')
+            clearState()
+          } else {
+            console.log('[AUTH] Session still in storage — ignoring spurious SIGNED_OUT')
+          }
+        }
       }
     })
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        user.value = session.user
+        await fetchProfiles()
+      }
+    } catch (e) {
+      console.error('Init error:', e)
+    } finally {
+      loading.value = false
+    }
   }
 
   return {
