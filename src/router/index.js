@@ -38,6 +38,11 @@ const routes = [
     name: 'Settings',
     component: () => import('../views/SettingsView.vue'),
   },
+  {
+    path: '/patch-notes',
+    name: 'PatchNotes',
+    component: () => import('../views/PatchNotesView.vue'),
+  },
 ]
 
 const router = createRouter({

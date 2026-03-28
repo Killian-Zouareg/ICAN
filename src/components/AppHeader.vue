@@ -33,6 +33,7 @@
         </div>
       </div>
 
+      <router-link to="/patch-notes" class="nav-link patchnotes-link" title="Patch Notes">&#x1F4CB;</router-link>
       <router-link to="/settings" class="nav-link settings-link" title="Param&egrave;tres">&#x2699;</router-link>
       <button class="logout-btn" @click="handleLogout">Quitter</button>
     </nav>
@@ -208,6 +209,10 @@ onUnmounted(() => {
   font-size: 0.85rem;
   color: var(--accent);
   justify-content: center;
+}
+
+.patchnotes-link {
+  font-size: 1.1rem;
 }
 
 .settings-link {

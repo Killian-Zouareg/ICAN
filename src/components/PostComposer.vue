@@ -84,6 +84,8 @@ async function submit() {
     await postsStore.createPost(content.value.trim(), imageFile.value)
     content.value = ''
     removeImage()
+  } catch (e) {
+    alert(e.message || 'Erreur lors de la publication')
   } finally {
     submitting.value = false
   }

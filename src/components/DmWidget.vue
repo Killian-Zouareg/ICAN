@@ -34,20 +34,41 @@
               class="dm-bubble"
               :class="{ mine: isMine(msg) }"
             >
-              <p class="dm-bubble-text">{{ msg.content }}</p>
+              <img
+                v-if="msg.image_url"
+                :src="msg.image_url"
+                alt="Image"
+                class="dm-bubble-image"
+                @click="openImageUrl(msg.image_url)"
+              />
+              <p v-if="msg.content" class="dm-bubble-text">{{ msg.content }}</p>
               <span class="dm-bubble-time">{{ timeAgo(msg.created_at) }}</span>
             </div>
           </template>
         </div>
+        <div v-if="imagePreview" class="dm-image-preview">
+          <img :src="imagePreview" alt="Preview" />
+          <button class="dm-remove-image" @click="removeImage">&times;</button>
+        </div>
         <form class="dm-input" @submit.prevent="handleSend">
+          <button type="button" class="dm-img-btn" @click="triggerFileInput" title="Envoyer une image">
+            &#x1F5BC;
+          </button>
           <input
             v-model="msgContent"
             type="text"
             placeholder="&Eacute;crire un message..."
             maxlength="1000"
           />
-          <button type="submit" :disabled="!msgContent.trim()">&#x27A4;</button>
+          <button type="submit" :disabled="!msgContent.trim() && !imageFile" class="dm-send-btn">&#x27A4;</button>
         </form>
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          style="display: none"
+          @change="handleFileChange"
+        />
       </template>
 
       <!-- Conversation list -->
@@ -121,6 +142,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
+import { checkRateLimit } from '../lib/rateLimit'
 import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
@@ -132,6 +154,11 @@ const msgContent = ref('')
 const messagesContainer = ref(null)
 const loadingMessages = ref(false)
 const loadingConvs = ref(false)
+
+// Image upload
+const imageFile = ref(null)
+const imagePreview = ref(null)
+const fileInputRef = ref(null)
 
 const conversations = ref([])
 const unreadCount = ref(0)
@@ -204,7 +231,7 @@ async function fetchConversations() {
     // Get last message per conversation
     const { data: msgs } = await supabase
       .from('messages')
-      .select('conversation_id, content, created_at')
+      .select('conversation_id, content, image_url, created_at')
       .in('conversation_id', convIds)
       .order('created_at', { ascending: false })
 
@@ -238,7 +265,7 @@ async function fetchConversations() {
     return {
       ...conv,
       otherUser,
-      lastMessage: last ? (last.content.length > 40 ? last.content.slice(0, 40) + '...' : last.content) : null,
+      lastMessage: last ? (last.content ? (last.content.length > 40 ? last.content.slice(0, 40) + '...' : last.content) : (last.image_url ? '\ud83d\uddbc\ufe0f Image' : null)) : null,
       lastMessageTime: last?.created_at || null,
       hasUnread: unreadSet.has(conv.id),
     }
@@ -273,6 +300,7 @@ function closeConversation() {
   activeConv.value = null
   messages.value = []
   msgContent.value = ''
+  removeImage()
   stopMsgPolling()
   fetchConversations()
 }
@@ -309,16 +337,78 @@ function scrollToBottom() {
   })
 }
 
+function openImageUrl(url) {
+  window.open(url, '_blank')
+}
+
+function triggerFileInput() {
+  fileInputRef.value?.click()
+}
+
+function handleFileChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (file.size > 5 * 1024 * 1024) {
+    alert('Image trop lourde (max 5 Mo)')
+    return
+  }
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+  if (!allowedTypes.includes(file.type)) {
+    alert('Type de fichier non autoris\u00e9. Utilise JPG, PNG, GIF ou WebP.')
+    return
+  }
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+  e.target.value = ''
+}
+
+function removeImage() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value)
+  imageFile.value = null
+  imagePreview.value = null
+}
+
 async function handleSend() {
-  if (!msgContent.value.trim() || !activeConv.value) return
+  if (!msgContent.value.trim() && !imageFile.value) return
+  if (!activeConv.value) return
+  const rateLimitMsg = checkRateLimit('message')
+  if (rateLimitMsg) {
+    alert(rateLimitMsg)
+    return
+  }
+
+  let imageUrl = null
+  if (imageFile.value) {
+    const uploadLimit = checkRateLimit('upload')
+    if (uploadLimit) {
+      alert(uploadLimit)
+      return
+    }
+    const ext = imageFile.value.name.split('.').pop()
+    const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('dm-images')
+      .upload(fileName, imageFile.value)
+    if (uploadError) {
+      alert('Erreur lors de l\'upload de l\'image')
+      return
+    }
+    const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
+    imageUrl = urlData.publicUrl
+    removeImage()
+  }
+
   const content = msgContent.value.trim()
   msgContent.value = ''
 
-  await supabase.from('messages').insert({
+  const insertData = {
     conversation_id: activeConv.value.id,
     sender_id: auth.activeProfile.id,
-    content,
-  })
+    content: content || '',
+  }
+  if (imageUrl) insertData.image_url = imageUrl
+
+  await supabase.from('messages').insert(insertData)
   await supabase
     .from('conversations')
     .update({ updated_at: new Date().toISOString() })
@@ -664,6 +754,19 @@ onUnmounted(() => {
   color: white;
 }
 
+.dm-bubble-image {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.dm-bubble-image:hover {
+  opacity: 0.9;
+}
+
 .dm-bubble-text {
   font-size: 0.85rem;
   white-space: pre-wrap;
@@ -676,6 +779,45 @@ onUnmounted(() => {
   opacity: 0.6;
   display: block;
   margin-top: 0.1rem;
+}
+
+/* Image preview */
+.dm-image-preview {
+  position: relative;
+  margin: 0 0.6rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-height: 150px;
+}
+
+.dm-image-preview img {
+  width: 100%;
+  max-height: 150px;
+  object-fit: cover;
+  display: block;
+}
+
+.dm-remove-image {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.dm-remove-image:hover {
+  background: rgba(0, 0, 0, 0.9);
 }
 
 /* Message input */
@@ -702,7 +844,21 @@ onUnmounted(() => {
   border-color: var(--accent);
 }
 
-.dm-input button {
+.dm-img-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem;
+  flex-shrink: 0;
+  filter: grayscale(0.3);
+}
+
+.dm-img-btn:hover {
+  filter: grayscale(0);
+}
+
+.dm-send-btn {
   background: var(--accent);
   color: white;
   border: none;
@@ -717,7 +873,7 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-.dm-input button:disabled {
+.dm-send-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
+import { checkRateLimit } from '../lib/rateLimit'
 
 export const usePostsStore = defineStore('posts', () => {
   const posts = ref([])
@@ -99,11 +100,27 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function createPost(content, imageFile = null) {
+    const rateLimitMsg = checkRateLimit('post')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
+
     const auth = useAuthStore()
     let imageUrl = null
 
     // Upload image if provided
     if (imageFile) {
+      const uploadLimit = checkRateLimit('upload')
+      if (uploadLimit) throw new Error(uploadLimit)
+
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(imageFile.type)) {
+        throw new Error('Type de fichier non autoris\u00e9. Utilise JPG, PNG, GIF ou WebP.')
+      }
+      // Validate file size (5 MB)
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error('Image trop lourde (max 5 Mo)')
+      }
+
       const ext = imageFile.name.split('.').pop()
       const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
@@ -136,6 +153,8 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function toggleLike(postId) {
+    const rateLimitMsg = checkRateLimit('like')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
     const auth = useAuthStore()
     const profileId = auth.activeProfile.id
     if (userLikes.value.has(postId)) {
@@ -159,6 +178,8 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function toggleRepost(originalPostId) {
+    const rateLimitMsg = checkRateLimit('repost')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
     const auth = useAuthStore()
     const profileId = auth.activeProfile.id
 
@@ -273,6 +294,8 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   async function addComment(postId, content, parentId = null) {
+    const rateLimitMsg = checkRateLimit('comment')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
     const auth = useAuthStore()
     const insertData = {
       author_id: auth.activeProfile.id,
