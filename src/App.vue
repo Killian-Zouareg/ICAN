@@ -13,6 +13,7 @@
           <router-view />
         </main>
       </div>
+      <TrendingPanel />
       <DmWidget />
     </template>
     <template v-else>
@@ -29,6 +30,7 @@ import AppHeader from './components/AppHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import MobileNav from './components/MobileNav.vue'
 import DmWidget from './components/DmWidget.vue'
+import TrendingPanel from './components/TrendingPanel.vue'
 
 const auth = useAuthStore()
 
@@ -51,11 +53,19 @@ function formatBanDate(date) {
 
 .app-layout {
   margin-left: 220px;
+  margin-right: 280px;
+}
+
+@media (max-width: 1100px) {
+  .app-layout {
+    margin-right: 0;
+  }
 }
 
 @media (max-width: 768px) {
   .app-layout {
     margin-left: 0;
+    margin-right: 0;
     padding-bottom: 56px;
   }
 }

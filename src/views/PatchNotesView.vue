@@ -12,7 +12,7 @@
     <div v-if="tab === 'highlights'" class="hl-container">
       <div class="hl-intro">
         <h2 class="hl-intro-title">L'histoire d'iCAN</h2>
-        <p class="hl-intro-sub">Chaque grande fonctionnalit&eacute; qui a faonn&eacute; le r&eacute;seau, du premier post aux groupes DM.</p>
+        <p class="hl-intro-sub">Chaque grande fonctionnalit&eacute; qui a façonn&eacute; le r&eacute;seau, du premier post aux groupes DM.</p>
       </div>
 
       <div class="hl-timeline">
@@ -81,6 +81,15 @@ const tab = ref('highlights')
 
 // ============ HIGHLIGHTS ============
 const highlights = [
+  {
+    version: '2.2.0',
+    date: '28 mars 2026',
+    icon: '\u{1F50D}',
+    color: '#3498db',
+    title: 'Recherche & Tendances',
+    description: 'Nouvelle page de recherche pour trouver des profils et des posts. Panneau lat\u00e9ral droit avec les mots-cl\u00e9s tendances et les utilisateurs les plus actifs de la semaine.',
+    tags: ['Recherche', 'Tendances', 'Utilisateurs actifs', 'Panneau lat\u00e9ral'],
+  },
   {
     version: '2.1.0',
     date: '28 mars 2026',
@@ -199,6 +208,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.2.0',
+    date: '28 mars 2026',
+    title: 'Recherche & Tendances',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Page de recherche avec onglets Tout / Profils / Posts et recherche d\u00e9bounc\u00e9e' },
+      { type: 'new', text: 'Mise en surbrillance des termes recherch\u00e9s dans les r\u00e9sultats' },
+      { type: 'new', text: 'Panneau lat\u00e9ral droit : mots-cl\u00e9s tendances extraits des posts r\u00e9cents (7 jours)' },
+      { type: 'new', text: 'Section utilisateurs les plus actifs de la semaine' },
+      { type: 'new', text: 'Lien Recherche ajout\u00e9 dans la sidebar et la navigation mobile' },
+      { type: 'improved', text: 'Layout 3 colonnes sur grand \u00e9cran : sidebar + contenu + tendances' },
+    ],
+  },
   {
     version: '2.1.0',
     date: '28 mars 2026',

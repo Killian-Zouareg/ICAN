@@ -5,7 +5,8 @@
       "Bash(npm install:*)",
       "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js \\\\\\))",
       "Bash(find C:UserskilliDesktopICAN -name .env* -o -name *.env*)",
-      "Bash(git -C \"C:\\\\Users\\\\killi\\\\Desktop\\\\ICAN\" log --oneline)"
+      "Bash(git -C \"C:\\\\Users\\\\killi\\\\Desktop\\\\ICAN\" log --oneline)",
+      "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js -o -name *.css \\\\\\))"
     ]
   }
 }

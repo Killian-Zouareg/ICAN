@@ -13,6 +13,10 @@
           <span class="sidebar-icon">&#x1F3E0;</span>
           <span class="sidebar-label">Feed</span>
         </router-link>
+        <router-link to="/search" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F50D;</span>
+          <span class="sidebar-label">Recherche</span>
+        </router-link>
         <router-link to="/messages" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2709;</span>
           <span class="sidebar-label">Messages</span>

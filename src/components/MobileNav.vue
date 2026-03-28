@@ -4,6 +4,10 @@
       <span class="mobile-nav-icon">&#x1F3E0;</span>
       <span class="mobile-nav-label">Feed</span>
     </router-link>
+    <router-link to="/search" class="mobile-nav-item" active-class="active">
+      <span class="mobile-nav-icon">&#x1F50D;</span>
+      <span class="mobile-nav-label">Recherche</span>
+    </router-link>
     <router-link to="/messages" class="mobile-nav-item" active-class="active">
       <span class="mobile-nav-icon">&#x2709;</span>
       <span class="mobile-nav-label">Messages</span>
