@@ -16,23 +16,34 @@
           <span class="switcher-arrow">{{ showSwitcher ? '&#9650;' : '&#9660;' }}</span>
         </button>
         <div v-if="showSwitcher" class="switcher-dropdown">
-          <div
-            v-for="p in auth.profiles"
-            :key="p.id"
-            class="switcher-option"
-            :class="{ active: p.id === auth.activeProfile?.id }"
-            @click="selectProfile(p.id)"
-          >
-            <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="28" />
-            <div class="switcher-option-info">
-              <span class="switcher-option-name">{{ p.display_name }}</span>
-              <span class="switcher-option-handle">@{{ p.username }}</span>
+            <div class="switcher-search-container">
+              <input
+                v-model="searchQuery"
+                class="switcher-search"
+                type="text"
+                placeholder="Rechercher un identifiant..."
+                @click.stop
+              />
             </div>
-            <span v-if="p.id === auth.activeProfile?.id" class="check">&#x2713;</span>
-          </div>
-          <router-link to="/settings" class="switcher-option manage-link" @click="showSwitcher = false">
-            G&eacute;rer les profils
-          </router-link>
+            <div class="switcher-options-list">
+              <div
+                v-for="p in filteredProfiles"
+                :key="p.id"
+                class="switcher-option"
+                :class="{ active: p.id === auth.activeProfile?.id }"
+                @click="selectProfile(p.id)"
+              >
+                <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="28" />
+                <div class="switcher-option-info">
+                  <span class="switcher-option-name">{{ p.display_name }}</span>
+                  <span class="switcher-option-handle">@{{ p.username }}</span>
+                </div>
+                <span v-if="p.id === auth.activeProfile?.id" class="check">&#x2713;</span>
+              </div>
+            </div>
+            <router-link to="/settings" class="switcher-option manage-link" @click="showSwitcher = false">
+              G&eacute;rer les profils
+            </router-link>
         </div>
       </div>
 
@@ -44,7 +55,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
@@ -52,6 +63,15 @@ import UserAvatar from './UserAvatar.vue'
 const auth = useAuthStore()
 const router = useRouter()
 const showSwitcher = ref(false)
+
+const searchQuery = ref('')
+const filteredProfiles = computed(() => {
+  if (!searchQuery.value) return auth.profiles
+  const q = searchQuery.value.toLowerCase()
+  return auth.profiles.filter(
+    p => (p.id && p.id.toLowerCase().includes(q)) || (p.username && p.username.toLowerCase().includes(q))
+  )
+})
 
 function selectProfile(profileId) {
   auth.switchProfile(profileId)
@@ -172,6 +192,57 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   overflow: hidden;
   z-index: 200;
+  max-height: 700px;
+  display: flex;
+  flex-direction: column;
+}
+
+.switcher-search-container {
+  padding: 0.5rem 0.75rem 0.25rem 0.75rem;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.switcher-search {
+  width: 100%;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  outline: none;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.switcher-search:focus {
+  border-color: var(--accent);
+}
+
+.switcher-options-list {
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.switcher-options-list {
+  overflow-y: auto;
+  max-height: 500px;
+  /* Scrollbar styles */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent) var(--bg-secondary);
+}
+
+/* Webkit scrollbar styles */
+.switcher-options-list::-webkit-scrollbar {
+  width: 8px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+}
+.switcher-options-list::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 8px;
+}
+.switcher-options-list::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dark, #2a6fa1);
 }
 
 .switcher-option {
