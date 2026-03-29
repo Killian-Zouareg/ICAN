@@ -2,7 +2,10 @@
   <div class="post-card" :class="{ 'admin-post': displayPost.is_admin }" @click="goToPost">
     <!-- Repost badge -->
     <div v-if="isRepost" class="repost-badge">
-      <span class="repost-icon">&#x21BB;</span>
+      <span class="repost-icon">
+        <!-- Modern repost SVG -->
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+      </span>
       <router-link
         :to="`/user/${post.username}`"
         class="repost-author"
@@ -51,11 +54,16 @@
         </div>
 
         <div class="actions">
+
           <button
             class="action-btn comment-btn"
             @click.stop="$emit('comment', originalPostId)"
+            @mousedown="animateClick($event)"
           >
-            <span class="icon">&#x1F4AC;</span>
+            <span class="icon">
+              <!-- Modern comment SVG -->
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
             <span v-if="displayPost.comment_count > 0">{{ displayPost.comment_count }}</span>
           </button>
 
@@ -63,8 +71,12 @@
             class="action-btn repost-btn"
             :class="{ active: postsStore.hasReposted(originalPostId) }"
             @click.stop="handleRepost"
+            @mousedown="animateClick($event)"
           >
-            <span class="icon">&#x21BB;</span>
+            <span class="icon">
+              <!-- Modern repost SVG -->
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            </span>
             <span v-if="displayPost.repost_count > 0">{{ displayPost.repost_count }}</span>
           </button>
 
@@ -72,8 +84,17 @@
             class="action-btn like-btn"
             :class="{ active: postsStore.hasLiked(originalPostId) }"
             @click.stop="handleLike"
+            @mousedown="animateClick($event)"
           >
-            <span class="icon">{{ postsStore.hasLiked(originalPostId) ? '&#x2764;' : '&#x2661;' }}</span>
+            <span class="icon">
+              <!-- Modern like SVG (filled if liked) - viewBox 0 0 24 24, dimensions 16x16, path centré -->
+              <svg v-if="postsStore.hasLiked(originalPostId)" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <path d="M12 21s-5.05-4.36-7.07-7.07C2.4 11.13 2 9.6 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 1.1-.4 2.63-2.93 5.43C17.05 16.64 12 21 12 21z"/>
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <path d="M12 21s-5.05-4.36-7.07-7.07C2.4 11.13 2 9.6 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 1.1-.4 2.63-2.93 5.43C17.05 16.64 12 21 12 21z"/>
+              </svg>
+            </span>
             <span v-if="displayPost.like_count > 0">{{ displayPost.like_count }}</span>
           </button>
 
@@ -149,6 +170,15 @@ async function handleDelete() {
   if (confirm('Supprimer ce post ?')) {
     await postsStore.deletePost(props.post.id)
   }
+}
+
+// Animation de clic sur les boutons d'action
+function animateClick(event) {
+  const btn = event.currentTarget
+  btn.classList.remove('clicked')
+  // Force reflow to restart animation
+  void btn.offsetWidth
+  btn.classList.add('clicked')
 }
 </script>
 
@@ -298,8 +328,22 @@ async function handleDelete() {
   padding: 0.2rem;
 }
 
-.action-btn:hover {
-  color: var(--accent);
+
+/* Animation scale sur clic (pas de hover) */
+.action-btn.clicked {
+  animation: btn-pop 0.18s cubic-bezier(.4,2,.6,1) 1;
+}
+
+@keyframes btn-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .like-btn.active {
@@ -316,5 +360,8 @@ async function handleDelete() {
 
 .icon {
   font-size: 1.1rem;
+  display: flex;
+  align-items: center;
 }
+
 </style>

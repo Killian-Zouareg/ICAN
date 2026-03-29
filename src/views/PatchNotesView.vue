@@ -227,6 +227,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.4.1',
+    date: '29 mars 2026',
+    title: 'Boutons d\'action modernisés',
+    tag: 'patch',
+    changes: [
+      { type: 'improve', text: 'Nouveaux pictogrammes SVG pour les boutons Commenter, Repost et Like, avec animation de clic.' },
+      { type: 'fix', text: 'Correction de l\'alignement de l\'icône cœur (like) pour éviter qu\'elle soit coupée à droite.' },
+      { type: 'improve', text: 'Icône Repost du badge harmonisée avec celle du bouton.' },
+    ],
+  },
+  {
     version: '2.4.0',
     date: '28 mars 2026',
     title: 'Certification Admin & Posts highlight\u00e9s',
