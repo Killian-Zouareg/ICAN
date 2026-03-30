@@ -236,17 +236,14 @@ const changeBadges = {
 
 const patches = [
   {
-    version: '2.5.0',
-    date: '28 mars 2026',
-    title: 'Audit de s\u00e9curit\u00e9 & corrections',
-    tag: 'major',
+    version: '2.4.1',
+    date: '29 mars 2026',
+    title: 'Boutons d\'action modernisés',
+    tag: 'patch',
     changes: [
-      { type: 'security', text: 'Suppression des cl\u00e9s API expos\u00e9es dans .env.example et SUPABASE_SETUP.md' },
-      { type: 'security', text: 'Correction de la vuln\u00e9rabilit\u00e9 XSS dans la recherche \u2014 \u00e9chappement HTML avant v-html' },
-      { type: 'security', text: 'Ajout d\'une Content Security Policy (CSP) dans index.html' },
-      { type: 'security', text: 'Validation UUID avant injection dans les filtres de requ\u00eate (.or())' },
-      { type: 'improved', text: 'Validation stricte c\u00f4t\u00e9 JS : username (3-30 chars), bio (160 max), posts (2000 max), commentaires (1000 max), messages (2000 max)' },
-      { type: 'improved', text: 'V\u00e9rification qu\'aucune cl\u00e9 API Claude/Anthropic n\'est pr\u00e9sente dans le code' },
+      { type: 'improve', text: 'Nouveaux pictogrammes SVG pour les boutons Commenter, Repost et Like, avec animation de clic.' },
+      { type: 'fix', text: 'Correction de l\'alignement de l\'icône cœur (like) pour éviter qu\'elle soit coupée à droite.' },
+      { type: 'improve', text: 'Icône Repost du badge harmonisée avec celle du bouton.' },
     ],
   },
   {
