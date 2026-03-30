@@ -282,7 +282,7 @@ async function doSearch() {
       .limit(20),
     supabase
       .from('posts_with_stats')
-      .select('*, author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url)')
+      .select('*, author:profiles!posts_author_id_fkey(id, username, display_name, avatar_url, is_admin)')
       .ilike('content', `%${q}%`)
       .order('created_at', { ascending: false })
       .limit(30),
@@ -296,10 +296,21 @@ async function doSearch() {
   searching.value = false
 }
 
+function escapeHtml(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 function highlightQuery(text) {
-  if (!text || !query.value.trim()) return text || ''
+  if (!text || !query.value.trim()) return escapeHtml(text || '')
+  const safe = escapeHtml(text)
   const q = query.value.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return text.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>')
+  const escaped = escapeHtml(query.value.trim())
+  return safe.replace(new RegExp(`(${q})`, 'gi'), '<mark>$1</mark>')
 }
 
 // Watch route.query.q for changes (clicking trending links)

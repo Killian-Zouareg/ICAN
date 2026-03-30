@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.5.0',
+    date: '28 mars 2026',
+    icon: '\u{1F6E1}',
+    color: '#e74c3c',
+    title: 'Audit de s\u00e9curit\u00e9',
+    description: 'Corrections majeures : suppression des cl\u00e9s expos\u00e9es, protection XSS, validation des entr\u00e9es, politique CSP, et s\u00e9curisation des requ\u00eates.',
+    tags: ['S\u00e9curit\u00e9', 'XSS', 'CSP', 'Validation'],
+  },
+  {
     version: '2.4.0',
     date: '28 mars 2026',
     icon: '\u{2705}',
@@ -226,6 +235,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.5.0',
+    date: '28 mars 2026',
+    title: 'Audit de s\u00e9curit\u00e9 & corrections',
+    tag: 'major',
+    changes: [
+      { type: 'security', text: 'Suppression des cl\u00e9s API expos\u00e9es dans .env.example et SUPABASE_SETUP.md' },
+      { type: 'security', text: 'Correction de la vuln\u00e9rabilit\u00e9 XSS dans la recherche \u2014 \u00e9chappement HTML avant v-html' },
+      { type: 'security', text: 'Ajout d\'une Content Security Policy (CSP) dans index.html' },
+      { type: 'security', text: 'Validation UUID avant injection dans les filtres de requ\u00eate (.or())' },
+      { type: 'improved', text: 'Validation stricte c\u00f4t\u00e9 JS : username (3-30 chars), bio (160 max), posts (2000 max), commentaires (1000 max), messages (2000 max)' },
+      { type: 'improved', text: 'V\u00e9rification qu\'aucune cl\u00e9 API Claude/Anthropic n\'est pr\u00e9sente dans le code' },
+    ],
+  },
   {
     version: '2.4.0',
     date: '28 mars 2026',

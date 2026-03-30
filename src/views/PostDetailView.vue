@@ -126,15 +126,28 @@ async function fetchPost() {
     .eq('id', route.params.id)
     .single()
 
-  if (data && data.repost_of) {
-    const { data: original } = await supabase
-      .from('posts_with_stats')
-      .select('*')
-      .eq('id', data.repost_of)
-      .single()
-    if (original) {
-      data._original = original
+  if (data) {
+    // Enrich with admin status
+    const authorIds = [data.author_id]
+    if (data.repost_of) {
+      const { data: original } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .eq('id', data.repost_of)
+        .single()
+      if (original) {
+        data._original = original
+        authorIds.push(original.author_id)
+      }
     }
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, is_admin')
+      .in('id', [...new Set(authorIds)])
+    const adminMap = {}
+    ;(profiles || []).forEach((p) => { adminMap[p.id] = p.is_admin === true })
+    data.is_admin = adminMap[data.author_id] || false
+    if (data._original) data._original.is_admin = adminMap[data._original.author_id] || false
   }
 
   post.value = data

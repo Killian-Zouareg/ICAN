@@ -140,6 +140,8 @@ export const usePostsStore = defineStore('posts', () => {
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('post')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
+    if (content && content.length > 2000) throw new Error('Le post ne doit pas dépasser 2000 caractères')
+    if (!content?.trim() && !imageFile) throw new Error('Le post ne peut pas être vide')
     let imageUrl = null
 
     // Upload image if provided
@@ -335,6 +337,8 @@ export const usePostsStore = defineStore('posts', () => {
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('comment')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
+    if (!content?.trim()) throw new Error('Le commentaire ne peut pas être vide')
+    if (content.length > 1000) throw new Error('Le commentaire ne doit pas dépasser 1000 caractères')
     const insertData = {
       author_id: auth.activeProfile.id,
       post_id: postId,

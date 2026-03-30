@@ -3,6 +3,14 @@ import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function assertUUID(value, label) {
+  if (!value || !UUID_RE.test(value)) {
+    throw new Error(`Invalid UUID for ${label}`)
+  }
+}
+
 export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
   const currentMessages = ref([])
@@ -12,6 +20,7 @@ export const useMessagesStore = defineStore('messages', () => {
     const auth = useAuthStore()
     if (!auth.activeProfile) return
     const profileId = auth.activeProfile.id
+    assertUUID(profileId, 'profileId')
     loading.value = true
 
     const { data } = await supabase
@@ -46,6 +55,8 @@ export const useMessagesStore = defineStore('messages', () => {
   async function sendMessage(conversationId, content) {
     const auth = useAuthStore()
     await auth.checkBan()
+    if (!content?.trim()) throw new Error('Le message ne peut pas être vide')
+    if (content.length > 2000) throw new Error('Le message ne doit pas dépasser 2000 caractères')
     const { error } = await supabase.from('messages').insert({
       conversation_id: conversationId,
       sender_id: auth.activeProfile.id,

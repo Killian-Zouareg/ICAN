@@ -218,6 +218,18 @@ async function handleSave() {
     editError.value = "Lettres, chiffres et underscores uniquement"
     return
   }
+  if (editUsername.value.trim().length < 3 || editUsername.value.trim().length > 30) {
+    editError.value = "Le nom d'utilisateur doit faire entre 3 et 30 caractères"
+    return
+  }
+  if (editDisplayName.value.trim().length > 50) {
+    editError.value = "Le nom affiché ne doit pas dépasser 50 caractères"
+    return
+  }
+  if (editBio.value.length > 160) {
+    editError.value = "La bio ne doit pas dépasser 160 caractères"
+    return
+  }
 
   saving.value = true
   try {
@@ -253,6 +265,10 @@ async function handleCreateProfile() {
   }
   if (!/^[a-zA-Z0-9_]+$/.test(newUsername.value)) {
     newError.value = "Lettres, chiffres et underscores uniquement"
+    return
+  }
+  if (newUsername.value.trim().length < 3 || newUsername.value.trim().length > 30) {
+    newError.value = "Le nom d'utilisateur doit faire entre 3 et 30 caractères"
     return
   }
 
