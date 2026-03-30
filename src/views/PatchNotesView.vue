@@ -82,6 +82,24 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.7.0',
+    date: '30 mars 2026',
+    icon: '#\uFE0F\u20E3',
+    color: '#3498db',
+    title: 'Tendances par hashtags',
+    description: 'Les tendances fonctionnent d\u00e9sormais avec des #hashtags. Le panneau lat\u00e9ral est scrollable et le widget DM repositionn\u00e9 pour ne plus g\u00eaner les utilisateurs actifs.',
+    tags: ['Hashtags', 'Tendances', 'UI', 'Scroll'],
+  },
+  {
+    version: '2.6.0',
+    date: '30 mars 2026',
+    icon: '\u{1F514}',
+    color: '#e74c3c',
+    title: 'Notifications redesign\u00e9es',
+    description: 'Syst\u00e8me de notifications enti\u00e8rement repens\u00e9 : onglets par profil avec badge individuel, filtres par type (likes, commentaires, reposts), indicateur de profil destinataire, et design am\u00e9lior\u00e9.',
+    tags: ['Multi-profils', 'Filtres', 'Notifications', 'Redesign'],
+  },
+  {
     version: '2.5.0',
     date: '28 mars 2026',
     icon: '\u{1F6E1}',
@@ -235,6 +253,35 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.7.0',
+    date: '30 mars 2026',
+    title: 'Tendances par hashtags & ajustements UI',
+    tag: 'minor',
+    changes: [
+      { type: 'changed', text: 'Les tendances sont d\u00e9sormais bas\u00e9es sur les #hashtags au lieu de la fr\u00e9quence de mots' },
+      { type: 'new', text: 'Liste des hashtags scrollable dans le panneau lat\u00e9ral (max 15 tendances)' },
+      { type: 'improved', text: 'Hashtags affich\u00e9s en bleu accent avec compteur de posts' },
+      { type: 'fixed', text: 'Widget DM repositionn\u00e9 pour ne plus chevaucher le panneau utilisateurs actifs' },
+      { type: 'improved', text: 'Tendances inline sur mobile mises \u00e0 jour avec le syst\u00e8me hashtag' },
+    ],
+  },
+  {
+    version: '2.6.0',
+    date: '30 mars 2026',
+    title: 'Notifications multi-profils & filtres',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Onglets par profil dans le panneau de notifications avec badge non-lus individuel' },
+      { type: 'new', text: 'Filtres par type : Tout / Likes / Commentaires / Reposts' },
+      { type: 'new', text: 'Indicateur du profil destinataire sur chaque notification (multi-comptes)' },
+      { type: 'new', text: 'Ic\u00f4nes color\u00e9es par type : rouge (like), bleu (commentaire), vert (reply/repost)' },
+      { type: 'new', text: 'Point bleu non-lu \u00e0 droite de chaque notification' },
+      { type: 'improved', text: '"Tout lire" marque uniquement les notifications du profil s\u00e9lectionn\u00e9' },
+      { type: 'improved', text: 'Design SVG pour la cloche + panneau \u00e9largi (400px) avec meilleur responsive mobile' },
+      { type: 'new', text: 'Switcher de comptes ajout\u00e9 sur la navigation mobile' },
+    ],
+  },
   {
     version: '2.4.1',
     date: '29 mars 2026',

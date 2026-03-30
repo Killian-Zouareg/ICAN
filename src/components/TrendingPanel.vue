@@ -6,27 +6,29 @@
       <span class="trending-search-text">Rechercher</span>
     </router-link>
 
-    <!-- Trending -->
+    <!-- Trending hashtags -->
     <div class="trending-section">
       <h3 class="trending-title">Tendances</h3>
       <div v-if="loading" class="trending-loading">
         <div class="spinner"></div>
       </div>
       <div v-else-if="trends.length === 0" class="trending-empty">
-        Pas assez de posts pour afficher les tendances
+        Utilisez des #hashtags dans vos posts pour lancer des tendances
       </div>
-      <router-link
-        v-for="(trend, i) in trends"
-        :key="i"
-        :to="`/search?q=${encodeURIComponent(trend.word)}`"
-        class="trending-item"
-      >
-        <span class="trending-rank">{{ i + 1 }}</span>
-        <div class="trending-info">
-          <span class="trending-word">{{ trend.word }}</span>
-          <span class="trending-count">{{ trend.count }} post{{ trend.count > 1 ? 's' : '' }}</span>
-        </div>
-      </router-link>
+      <div v-else class="trending-list">
+        <router-link
+          v-for="(trend, i) in trends"
+          :key="i"
+          :to="`/search?q=${encodeURIComponent(trend.tag)}`"
+          class="trending-item"
+        >
+          <span class="trending-rank">{{ i + 1 }}</span>
+          <div class="trending-info">
+            <span class="trending-word">{{ trend.tag }}</span>
+            <span class="trending-count">{{ trend.count }} post{{ trend.count > 1 ? 's' : '' }}</span>
+          </div>
+        </router-link>
+      </div>
     </div>
 
     <!-- Active users -->
@@ -58,25 +60,9 @@ const loading = ref(true)
 const trends = ref([])
 const activeUsers = ref([])
 
-// Common French stop words to filter out
-const stopWords = new Set([
-  'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'au', 'aux',
-  'et', 'ou', 'mais', 'donc', 'car', 'ni', 'que', 'qui', 'quoi',
-  'ce', 'se', 'sa', 'son', 'ses', 'ma', 'mon', 'mes', 'ta', 'ton', 'tes',
-  'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles',
-  'ne', 'pas', 'plus', 'en', 'dans', 'sur', 'par', 'pour', 'avec', 'sans',
-  'est', 'sont', 'suis', 'es', 'ai', 'as', 'a', 'ont', 'avons', 'avez',
-  'fait', 'faire', 'dit', 'dire', 'etre', 'avoir',
-  'bien', 'tout', 'tous', 'toute', 'toutes', 'trop', 'tres', 'si',
-  'the', 'is', 'are', 'was', 'and', 'or', 'but', 'not', 'this', 'that',
-  'it', 'to', 'of', 'in', 'for', 'with', 'at', 'by', 'from', 'be',
-  'moi', 'toi', 'lui', 'eux', 'y', 'ca', 'comme', 'quand',
-])
-
 async function fetchTrends() {
   loading.value = true
 
-  // Get posts from last 7 days
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data: posts } = await supabase
@@ -85,7 +71,7 @@ async function fetchTrends() {
     .gte('created_at', since)
     .not('content', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(200)
+    .limit(500)
 
   if (!posts || posts.length === 0) {
     trends.value = []
@@ -93,31 +79,26 @@ async function fetchTrends() {
     return
   }
 
-  // Extract word frequencies
-  const wordCount = {}
+  // Extract #hashtags only
+  const tagCount = {}
+  const hashtagRe = /#([a-zA-Z\u00C0-\u024F0-9_]{2,})/g
 
   for (const post of posts) {
     if (!post.content) continue
-    const words = post.content
-      .toLowerCase()
-      .replace(/https?:\/\/\S+/g, '') // remove URLs
-      .replace(/[^a-zA-Z\u00C0-\u024F\s#@]/g, '') // keep letters, accented chars, # @
-      .split(/\s+/)
-      .filter(w => w.length >= 3 && !stopWords.has(w) && !w.startsWith('@'))
-
-    // Deduplicate words per post (count once per post)
-    const uniqueWords = [...new Set(words)]
-    for (const word of uniqueWords) {
-      wordCount[word] = (wordCount[word] || 0) + 1
+    const found = new Set()
+    let match
+    while ((match = hashtagRe.exec(post.content)) !== null) {
+      found.add('#' + match[1].toLowerCase())
+    }
+    for (const tag of found) {
+      tagCount[tag] = (tagCount[tag] || 0) + 1
     }
   }
 
-  // Sort by frequency, take top 8
-  trends.value = Object.entries(wordCount)
-    .filter(([, count]) => count >= 2) // at least 2 posts
+  trends.value = Object.entries(tagCount)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([word, count]) => ({ word, count }))
+    .slice(0, 15)
+    .map(([tag, count]) => ({ tag, count }))
 
   loading.value = false
 }
@@ -136,13 +117,11 @@ async function fetchActiveUsers() {
     return
   }
 
-  // Count posts per author
   const authorCount = {}
   for (const p of posts) {
     authorCount[p.author_id] = (authorCount[p.author_id] || 0) + 1
   }
 
-  // Top 5 most active
   const topIds = Object.entries(authorCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
@@ -207,6 +186,7 @@ onMounted(() => {
   text-decoration: none;
   font-size: 0.9rem;
   transition: all 0.15s;
+  flex-shrink: 0;
 }
 
 .trending-search:hover {
@@ -224,6 +204,7 @@ onMounted(() => {
   background: var(--bg-secondary);
   border-radius: 16px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .trending-title {
@@ -232,6 +213,10 @@ onMounted(() => {
   font-size: 1.05rem;
   font-weight: 700;
   border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
 }
 
 .trending-loading {
@@ -261,12 +246,31 @@ onMounted(() => {
   text-align: center;
 }
 
+/* Scrollable trending list */
+.trending-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.trending-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.trending-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.trending-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
 /* Trend items */
 .trending-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.6rem 1rem;
+  padding: 0.55rem 1rem;
   text-decoration: none;
   color: var(--text-primary);
   transition: background 0.15s;
@@ -278,10 +282,10 @@ onMounted(() => {
 }
 
 .trending-rank {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--text-secondary);
-  width: 20px;
+  width: 18px;
   text-align: center;
   flex-shrink: 0;
 }
@@ -295,13 +299,14 @@ onMounted(() => {
 .trending-word {
   font-weight: 600;
   font-size: 0.9rem;
+  color: var(--accent);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .trending-count {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-secondary);
 }
 

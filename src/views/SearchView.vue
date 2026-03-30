@@ -39,7 +39,7 @@
             <div class="spinner"></div>
           </div>
           <div v-else-if="trends.length === 0" class="inline-empty">
-            Pas assez de posts pour afficher les tendances
+            Utilisez des #hashtags dans vos posts pour lancer des tendances
           </div>
           <div v-else class="inline-trends-grid">
             <button
@@ -161,20 +161,6 @@ const trendingLoading = ref(true)
 const trends = ref([])
 const activeUsers = ref([])
 
-const stopWords = new Set([
-  'le', 'la', 'les', 'un', 'une', 'des', 'de', 'du', 'au', 'aux',
-  'et', 'ou', 'mais', 'donc', 'car', 'ni', 'que', 'qui', 'quoi',
-  'ce', 'se', 'sa', 'son', 'ses', 'ma', 'mon', 'mes', 'ta', 'ton', 'tes',
-  'je', 'tu', 'il', 'elle', 'on', 'nous', 'vous', 'ils', 'elles',
-  'ne', 'pas', 'plus', 'en', 'dans', 'sur', 'par', 'pour', 'avec', 'sans',
-  'est', 'sont', 'suis', 'es', 'ai', 'as', 'a', 'ont', 'avons', 'avez',
-  'fait', 'faire', 'dit', 'dire', 'etre', 'avoir',
-  'bien', 'tout', 'tous', 'toute', 'toutes', 'trop', 'tres', 'si',
-  'the', 'is', 'are', 'was', 'and', 'or', 'but', 'not', 'this', 'that',
-  'it', 'to', 'of', 'in', 'for', 'with', 'at', 'by', 'from', 'be',
-  'moi', 'toi', 'lui', 'eux', 'y', 'ca', 'comme', 'quand',
-])
-
 async function fetchInlineTrends() {
   trendingLoading.value = true
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
@@ -185,7 +171,7 @@ async function fetchInlineTrends() {
     .gte('created_at', since)
     .not('content', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(200)
+    .limit(500)
 
   if (!posts || posts.length === 0) {
     trends.value = []
@@ -194,27 +180,26 @@ async function fetchInlineTrends() {
     return
   }
 
-  // Word frequencies
-  const wordCount = {}
+  // Extract #hashtags only
+  const tagCount = {}
+  const hashtagRe = /#([a-zA-Z\u00C0-\u024F0-9_]{2,})/g
+
   for (const post of posts) {
     if (!post.content) continue
-    const words = post.content
-      .toLowerCase()
-      .replace(/https?:\/\/\S+/g, '')
-      .replace(/[^a-zA-Z\u00C0-\u024F\s#@]/g, '')
-      .split(/\s+/)
-      .filter(w => w.length >= 3 && !stopWords.has(w) && !w.startsWith('@'))
-    const uniqueWords = [...new Set(words)]
-    for (const word of uniqueWords) {
-      wordCount[word] = (wordCount[word] || 0) + 1
+    const found = new Set()
+    let match
+    while ((match = hashtagRe.exec(post.content)) !== null) {
+      found.add('#' + match[1].toLowerCase())
+    }
+    for (const tag of found) {
+      tagCount[tag] = (tagCount[tag] || 0) + 1
     }
   }
 
-  trends.value = Object.entries(wordCount)
-    .filter(([, count]) => count >= 2)
+  trends.value = Object.entries(tagCount)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([word, count]) => ({ word, count }))
+    .slice(0, 10)
+    .map(([tag, count]) => ({ word: tag, count }))
 
   // Active users
   const authorCount = {}
