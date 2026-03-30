@@ -29,11 +29,16 @@
         <p class="comment-text">{{ comment.content }}</p>
 
         <div class="comment-actions">
+
           <button
             class="action-btn reply-btn"
             @click="$emit('reply', comment)"
+            @mousedown="animateClick($event)"
           >
-            <span class="icon">&#x1F4AC;</span>
+            <span class="icon">
+              <!-- Modern comment SVG -->
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
             <span v-if="replies.length > 0">{{ replies.length }}</span>
           </button>
 
@@ -41,8 +46,17 @@
             class="action-btn like-btn"
             :class="{ active: hasLiked }"
             @click="$emit('toggle-like', comment.id)"
+            @mousedown="animateClick($event)"
           >
-            <span class="icon">{{ hasLiked ? '&#x2764;' : '&#x2661;' }}</span>
+            <span class="icon">
+              <!-- Modern like SVG (filled if liked) -->
+              <svg v-if="hasLiked" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <path d="M12 21s-5.05-4.36-7.07-7.07C2.4 11.13 2 9.6 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 1.1-.4 2.63-2.93 5.43C17.05 16.64 12 21 12 21z"/>
+              </svg>
+              <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:block;">
+                <path d="M12 21s-5.05-4.36-7.07-7.07C2.4 11.13 2 9.6 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41 1.01 4.5 2.09C13.09 4.01 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 1.1-.4 2.63-2.93 5.43C17.05 16.64 12 21 12 21z"/>
+              </svg>
+            </span>
             <span v-if="likeCount > 0">{{ likeCount }}</span>
           </button>
 
@@ -106,6 +120,15 @@ const canDelete = computed(() => {
 
 function getReplies(commentId) {
   return props.allComments.filter((c) => c.parent_id === commentId)
+}
+
+// Animation de clic sur les boutons d'action
+function animateClick(event) {
+  const btn = event.currentTarget
+  btn.classList.remove('clicked')
+  // Force reflow to restart animation
+  void btn.offsetWidth
+  btn.classList.add('clicked')
 }
 </script>
 
@@ -197,8 +220,22 @@ function getReplies(commentId) {
   padding: 0.15rem;
 }
 
-.action-btn:hover {
-  color: var(--accent);
+
+/* Animation scale sur clic (pas de hover) */
+.action-btn.clicked {
+  animation: btn-pop 0.18s cubic-bezier(.4,2,.6,1) 1;
+}
+
+@keyframes btn-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .like-btn.active {

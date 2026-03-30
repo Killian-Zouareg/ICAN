@@ -81,6 +81,16 @@ const tab = ref('highlights')
 
 // ============ HIGHLIGHTS ============
 const highlights = [
+    {
+    version: '2.7.1',
+    date: '30 mars 2026',
+    title: 'Pictogrammes & animations des commentaires',
+    tag: 'patch',
+    changes: [
+      { type: 'improved', text: 'Nouveaux pictogrammes SVG pour les boutons Répondre et Like dans les commentaires, avec animation de clic.' },
+      { type: 'fixed', text: 'Alignement et rendu parfaits des icônes dans CommentCard.' },
+    ],
+  },
   {
     version: '2.7.0',
     date: '30 mars 2026',
