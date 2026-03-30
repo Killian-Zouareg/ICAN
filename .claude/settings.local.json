@@ -6,7 +6,12 @@
       "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js \\\\\\))",
       "Bash(find C:UserskilliDesktopICAN -name .env* -o -name *.env*)",
       "Bash(git -C \"C:\\\\Users\\\\killi\\\\Desktop\\\\ICAN\" log --oneline)",
-      "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js -o -name *.css \\\\\\))"
+      "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js -o -name *.css \\\\\\))",
+      "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.ts -o -name *.tsx -o -name *.js -o -name *.jsx \\\\\\))",
+      "Bash(find /c/Users/killi/Desktop/ICAN -path /c/Users/killi/Desktop/ICAN/node_modules -prune -o -type f -name *.vue -print)",
+      "Bash(xargs grep:*)",
+      "Bash(find /c/Users/killi/Desktop/ICAN -name *.sql -o -name *migration* -o -name *schema*)",
+      "Bash(grep -r notifications /c/Users/killi/Desktop/ICAN/src --include=*.js --include=*.vue)"
     ]
   }
 }

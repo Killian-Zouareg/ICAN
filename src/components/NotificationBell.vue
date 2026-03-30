@@ -1,39 +1,93 @@
 <template>
   <div class="notif-wrapper" ref="wrapperRef">
     <button class="notif-btn" @click="togglePanel" title="Notifications">
-      <span class="notif-icon">&#x1F514;</span>
-      <span v-if="unreadCount > 0" class="notif-badge">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
+      <svg class="notif-bell-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span v-if="totalUnread > 0" class="notif-badge">{{ totalUnread > 99 ? '99+' : totalUnread }}</span>
     </button>
 
     <div v-if="showPanel" class="notif-panel">
+      <!-- Header -->
       <div class="notif-header">
         <span class="notif-title">Notifications</span>
-        <button v-if="unreadCount > 0" class="notif-mark-all" @click="markAllRead">Tout lire</button>
+        <button
+          v-if="currentUnread > 0"
+          class="notif-mark-all"
+          @click="markAllReadForProfile"
+        >
+          Tout lire
+        </button>
       </div>
 
+      <!-- Profile tabs (only if multiple profiles) -->
+      <div v-if="auth.profiles.length > 1" class="notif-profile-tabs">
+        <button
+          v-for="p in auth.profiles"
+          :key="p.id"
+          class="notif-profile-tab"
+          :class="{ active: selectedProfileId === p.id }"
+          @click="selectProfile(p.id)"
+        >
+          <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="20" />
+          <span class="notif-profile-tab-name">{{ p.display_name }}</span>
+          <span v-if="unreadByProfile[p.id] > 0" class="notif-profile-tab-badge">{{ unreadByProfile[p.id] }}</span>
+        </button>
+      </div>
+
+      <!-- Type filters -->
+      <div class="notif-filters">
+        <button
+          v-for="f in filters"
+          :key="f.value"
+          class="notif-filter"
+          :class="{ active: activeFilter === f.value }"
+          @click="activeFilter = f.value"
+        >
+          {{ f.label }}
+        </button>
+      </div>
+
+      <!-- Notification list -->
       <div class="notif-list">
-        <div v-if="loading" class="notif-empty">Chargement...</div>
-        <div v-else-if="notifications.length === 0" class="notif-empty">Aucune notification</div>
+        <div v-if="loading" class="notif-empty">
+          <div class="notif-spinner"></div>
+        </div>
+        <div v-else-if="filteredNotifications.length === 0" class="notif-empty">
+          Aucune notification
+        </div>
         <div
-          v-for="n in notifications"
+          v-for="n in filteredNotifications"
           :key="n.id"
           class="notif-item"
           :class="{ unread: !n.read }"
           @click="handleClick(n)"
         >
+          <div class="notif-item-icon" :class="n.type">
+            <span v-if="n.type === 'like'">&#x2764;</span>
+            <span v-else-if="n.type === 'comment'">&#x1F4AC;</span>
+            <span v-else-if="n.type === 'reply'">&#x21A9;</span>
+            <span v-else-if="n.type === 'repost'">&#x1F501;</span>
+          </div>
           <UserAvatar
             :url="n.actor?.avatar_url"
             :name="n.actor?.display_name || '?'"
-            :size="32"
+            :size="36"
           />
           <div class="notif-content">
             <p class="notif-text">
               <strong>{{ n.actor?.display_name || 'Quelqu\'un' }}</strong>
               {{ actionText(n.type) }}
             </p>
-            <span class="notif-time">{{ timeAgo(n.created_at) }}</span>
+            <div class="notif-meta">
+              <span class="notif-time">{{ timeAgo(n.created_at) }}</span>
+              <span v-if="auth.profiles.length > 1" class="notif-recipient">
+                &rarr; @{{ getProfileUsername(n.recipient_id) }}
+              </span>
+            </div>
           </div>
-          <span class="notif-type-icon">{{ typeIcon(n.type) }}</span>
+          <div v-if="!n.read" class="notif-unread-dot"></div>
         </div>
       </div>
     </div>
@@ -41,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
@@ -53,9 +107,17 @@ const router = useRouter()
 
 const showPanel = ref(false)
 const notifications = ref([])
-const unreadCount = ref(0)
 const loading = ref(false)
 const wrapperRef = ref(null)
+const selectedProfileId = ref(null)
+const activeFilter = ref('all')
+
+const filters = [
+  { label: 'Tout', value: 'all' },
+  { label: 'Likes', value: 'like' },
+  { label: 'Commentaires', value: 'comment' },
+  { label: 'Reposts', value: 'repost' },
+]
 
 let pollInterval = null
 
@@ -69,18 +131,54 @@ function actionText(type) {
   }
 }
 
-function typeIcon(type) {
-  switch (type) {
-    case 'like': return '\u2764\ufe0f'
-    case 'comment': return '\ud83d\udcac'
-    case 'reply': return '\u21a9\ufe0f'
-    case 'repost': return '\ud83d\udd01'
-    default: return ''
-  }
+function getProfileUsername(profileId) {
+  const p = auth.profiles.find((pr) => pr.id === profileId)
+  return p?.username || '?'
 }
+
+// Unread count per profile
+const unreadByProfile = computed(() => {
+  const map = {}
+  for (const p of auth.profiles) map[p.id] = 0
+  for (const n of notifications.value) {
+    if (!n.read && map[n.recipient_id] !== undefined) {
+      map[n.recipient_id]++
+    }
+  }
+  return map
+})
+
+// Total unread across all profiles
+const totalUnread = computed(() => {
+  return notifications.value.filter((n) => !n.read).length
+})
+
+// Unread for currently selected profile tab
+const currentUnread = computed(() => {
+  if (!selectedProfileId.value) return totalUnread.value
+  return unreadByProfile.value[selectedProfileId.value] || 0
+})
+
+// Filtered notifications by profile + type
+const filteredNotifications = computed(() => {
+  let list = notifications.value
+
+  // Filter by selected profile
+  if (selectedProfileId.value) {
+    list = list.filter((n) => n.recipient_id === selectedProfileId.value)
+  }
+
+  // Filter by type
+  if (activeFilter.value !== 'all') {
+    list = list.filter((n) => n.type === activeFilter.value)
+  }
+
+  return list
+})
 
 async function fetchNotifications() {
   if (!auth.activeProfile) return
+  loading.value = true
   try {
     const profileIds = auth.profiles.map((p) => p.id)
     const { data, error } = await supabase
@@ -88,13 +186,15 @@ async function fetchNotifications() {
       .select('*, actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url)')
       .in('recipient_id', profileIds)
       .order('created_at', { ascending: false })
-      .limit(50)
+      .limit(80)
 
     if (!error) {
       notifications.value = data || []
     }
   } catch {
     // Silently ignore
+  } finally {
+    loading.value = false
   }
 }
 
@@ -102,13 +202,27 @@ async function fetchUnreadCount() {
   if (!auth.activeProfile) return
   try {
     const profileIds = auth.profiles.map((p) => p.id)
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
-      .select('*', { count: 'exact', head: true })
+      .select('id, recipient_id, read')
       .in('recipient_id', profileIds)
       .eq('read', false)
+      .limit(200)
 
-    if (!error) unreadCount.value = count || 0
+    if (!error) {
+      // Update only unread in existing list
+      const unreadIds = new Set((data || []).map((n) => n.id))
+      // If panel is open, we already have full data; just update read status
+      if (notifications.value.length > 0) {
+        for (const n of notifications.value) {
+          if (unreadIds.has(n.id)) n.read = false
+        }
+      }
+      // Keep a lightweight copy for badge count
+      if (notifications.value.length === 0) {
+        notifications.value = data || []
+      }
+    }
   } catch {
     // Silently ignore
   }
@@ -117,34 +231,41 @@ async function fetchUnreadCount() {
 function togglePanel() {
   showPanel.value = !showPanel.value
   if (showPanel.value) {
+    // Default to active profile tab
+    selectedProfileId.value = auth.profiles.length > 1 ? auth.activeProfile?.id : null
+    activeFilter.value = 'all'
     fetchNotifications()
   }
 }
 
-async function markAllRead() {
+async function markAllReadForProfile() {
   if (!auth.activeProfile) return
-  const profileIds = auth.profiles.map((p) => p.id)
+
+  const targetIds = selectedProfileId.value
+    ? [selectedProfileId.value]
+    : auth.profiles.map((p) => p.id)
+
   await supabase
     .from('notifications')
     .update({ read: true })
-    .in('recipient_id', profileIds)
+    .in('recipient_id', targetIds)
     .eq('read', false)
 
-  notifications.value.forEach((n) => { n.read = true })
-  unreadCount.value = 0
+  for (const n of notifications.value) {
+    if (targetIds.includes(n.recipient_id)) {
+      n.read = true
+    }
+  }
 }
 
 async function handleClick(n) {
-  // Mark as read
   if (!n.read) {
     await supabase.from('notifications').update({ read: true }).eq('id', n.id)
     n.read = true
-    unreadCount.value = Math.max(0, unreadCount.value - 1)
   }
 
   showPanel.value = false
 
-  // Navigate to relevant post
   if (n.post_id) {
     router.push(`/post/${n.post_id}`)
   }
@@ -155,6 +276,16 @@ function handleClickOutside(e) {
     showPanel.value = false
   }
 }
+
+// Refresh notifications when switching profile
+watch(() => auth.activeProfile?.id, () => {
+  if (showPanel.value) {
+    selectedProfileId.value = auth.activeProfile?.id || null
+    fetchNotifications()
+  } else {
+    fetchUnreadCount()
+  }
+})
 
 onMounted(() => {
   fetchUnreadCount()
@@ -178,24 +309,29 @@ onUnmounted(() => {
   border: none;
   cursor: pointer;
   position: relative;
-  font-size: 1.15rem;
-  padding: 0.2rem;
+  padding: 0.3rem;
   line-height: 1;
+  color: var(--text-secondary);
+  transition: color 0.15s;
+  display: flex;
+  align-items: center;
 }
 
-.notif-icon {
-  filter: grayscale(0.3);
-  transition: filter 0.15s;
+.notif-btn:hover {
+  color: var(--text-primary);
 }
-.notif-btn:hover .notif-icon { filter: grayscale(0); }
+
+.notif-bell-svg {
+  display: block;
+}
 
 .notif-badge {
   position: absolute;
-  top: -4px;
-  right: -6px;
+  top: -2px;
+  right: -4px;
   background: var(--danger);
   color: white;
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   font-weight: 700;
   min-width: 16px;
   height: 16px;
@@ -205,18 +341,20 @@ onUnmounted(() => {
   justify-content: center;
   padding: 0 3px;
   line-height: 1;
+  border: 2px solid var(--bg-secondary);
 }
 
+/* ---- Panel ---- */
 .notif-panel {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 360px;
-  max-height: 480px;
+  width: 400px;
+  max-height: 520px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   z-index: 300;
   display: flex;
   flex-direction: column;
@@ -233,7 +371,7 @@ onUnmounted(() => {
 
 .notif-title {
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .notif-mark-all {
@@ -243,26 +381,183 @@ onUnmounted(() => {
   font-size: 0.8rem;
   cursor: pointer;
   font-weight: 600;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  transition: background 0.15s;
 }
-.notif-mark-all:hover { text-decoration: underline; }
 
+.notif-mark-all:hover {
+  background: rgba(29, 161, 242, 0.1);
+}
+
+/* ---- Profile tabs ---- */
+.notif-profile-tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.notif-profile-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.notif-profile-tab:hover {
+  background: var(--bg-hover);
+}
+
+.notif-profile-tab.active {
+  background: rgba(29, 161, 242, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.notif-profile-tab-name {
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notif-profile-tab-badge {
+  background: var(--danger);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 14px;
+  height: 14px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+}
+
+/* ---- Type filters ---- */
+.notif-filters {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.notif-filter {
+  padding: 0.25rem 0.6rem;
+  border-radius: 16px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.notif-filter:hover {
+  background: var(--bg-hover);
+}
+
+.notif-filter.active {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* ---- List ---- */
 .notif-list {
   flex: 1;
   overflow-y: auto;
 }
 
+.notif-empty {
+  padding: 2.5rem 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notif-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---- Notification item ---- */
 .notif-item {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
-  padding: 0.7rem 1rem;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
   cursor: pointer;
   transition: background 0.12s;
-  border-bottom: 1px solid rgba(56, 68, 77, 0.3);
+  position: relative;
 }
-.notif-item:last-child { border-bottom: none; }
-.notif-item:hover { background: var(--bg-hover); }
-.notif-item.unread { background: rgba(29, 161, 242, 0.06); }
+
+.notif-item:hover {
+  background: var(--bg-hover);
+}
+
+.notif-item.unread {
+  background: rgba(29, 161, 242, 0.05);
+}
+
+.notif-item.unread:hover {
+  background: rgba(29, 161, 242, 0.1);
+}
+
+.notif-item-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.notif-item-icon.like {
+  background: rgba(224, 36, 94, 0.12);
+  color: var(--danger);
+}
+
+.notif-item-icon.comment {
+  background: rgba(29, 161, 242, 0.12);
+  color: var(--accent);
+}
+
+.notif-item-icon.reply {
+  background: rgba(23, 191, 99, 0.12);
+  color: var(--success);
+}
+
+.notif-item-icon.repost {
+  background: rgba(23, 191, 99, 0.12);
+  color: var(--repost);
+}
 
 .notif-content {
   flex: 1;
@@ -275,31 +570,53 @@ onUnmounted(() => {
   margin: 0;
   color: var(--text-primary);
 }
-.notif-text strong { color: var(--text-primary); }
-.notif-item:not(.unread) .notif-text { color: var(--text-secondary); }
-.notif-item:not(.unread) .notif-text strong { color: var(--text-secondary); }
+
+.notif-text strong {
+  font-weight: 700;
+}
+
+.notif-item:not(.unread) .notif-text {
+  color: var(--text-secondary);
+}
+
+.notif-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
 
 .notif-time {
   font-size: 0.72rem;
   color: var(--text-secondary);
 }
 
-.notif-type-icon {
-  font-size: 1rem;
+.notif-recipient {
+  font-size: 0.68rem;
+  color: var(--accent);
+  opacity: 0.7;
+}
+
+.notif-unread-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
   flex-shrink: 0;
 }
 
-.notif-empty {
-  padding: 2rem 1rem;
-  text-align: center;
-  color: var(--text-secondary);
-  font-size: 0.88rem;
-}
-
+/* ---- Mobile ---- */
 @media (max-width: 600px) {
   .notif-panel {
-    width: calc(100vw - 20px);
-    right: -60px;
+    position: fixed;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    width: 100%;
+    max-height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
   }
 }
 </style>
