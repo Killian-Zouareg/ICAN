@@ -273,6 +273,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.11.0',
+    date: '1 avril 2026',
+    title: 'Suppression de messages DM',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Bouton supprimer visible au survol de ses propres messages' },
+      { type: 'new', text: 'Les admins peuvent supprimer n\'importe quel message' },
+      { type: 'improved', text: 'Suppression instantanée sans rechargement de la conversation' },
+    ],
+  },
+  {
     version: '2.10.0',
     date: '1 avril 2026',
     title: 'Citations de posts et commentaires',

@@ -106,6 +106,12 @@ export const useMessagesStore = defineStore('messages', () => {
       .eq('read', false)
   }
 
+  async function deleteMessage(messageId) {
+    const { error } = await supabase.from('messages').delete().eq('id', messageId)
+    if (error) throw error
+    currentMessages.value = currentMessages.value.filter((m) => m.id !== messageId)
+  }
+
   return {
     conversations,
     currentMessages,
@@ -115,5 +121,6 @@ export const useMessagesStore = defineStore('messages', () => {
     sendMessage,
     getOrCreateConversation,
     markAsRead,
+    deleteMessage,
   }
 })

@@ -15,6 +15,7 @@
           v-for="msg in messagesStore.currentMessages"
           :key="msg.id"
           :message="msg"
+          @delete="handleDeleteMessage"
         />
       </template>
     </div>
@@ -75,6 +76,10 @@ function scrollToBottom() {
 async function handleSend(content) {
   await messagesStore.sendMessage(conversationId, content)
   await loadMessages()
+}
+
+async function handleDeleteMessage(messageId) {
+  await messagesStore.deleteMessage(messageId)
 }
 
 onMounted(async () => {

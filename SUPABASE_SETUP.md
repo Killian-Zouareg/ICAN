@@ -117,7 +117,9 @@ ALTER TABLE posts ADD COLUMN ghost_repost_count INT DEFAULT 0;
 ALTER TABLE posts ADD COLUMN quote_of UUID REFERENCES posts(id) ON DELETE SET NULL;
 ALTER TABLE posts ADD COLUMN quote_comment_id UUID REFERENCES comments(id) ON DELETE SET NULL;
 
--- Mettre à jour la vue pour inclure les ghost counts
+-- ⚠️ IMPORTANT : après chaque ALTER TABLE, il faut recréer la vue posts_with_stats
+-- car PostgreSQL résout p.* à la création de la vue (les nouvelles colonnes ne sont pas incluses automatiquement).
+-- Relancer ce bloc à chaque fois qu'une colonne est ajoutée à posts.
 DROP VIEW IF EXISTS posts_with_stats;
 CREATE VIEW posts_with_stats AS
 SELECT
@@ -497,6 +499,13 @@ CREATE POLICY "Recipients can mark messages as read"
         OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
       )
     )
+  );
+
+CREATE POLICY "Senders and admins can delete messages"
+  ON messages FOR DELETE TO authenticated
+  USING (
+    sender_id IN (SELECT my_profile_ids())
+    OR EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true)
   );
 ```
 
