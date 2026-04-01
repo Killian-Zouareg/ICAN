@@ -23,20 +23,30 @@ export const useMessagesStore = defineStore('messages', () => {
     assertUUID(profileId, 'profileId')
     loading.value = true
 
-    const { data } = await supabase
-      .from('conversations')
-      .select(`
-        *,
-        user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
-        user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
-      `)
-      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
-      .order('updated_at', { ascending: false })
+    const [{ data }, { data: hiddenData }] = await Promise.all([
+      supabase
+        .from('conversations')
+        .select(`
+          *,
+          user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
+          user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
+        `)
+        .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
+        .order('updated_at', { ascending: false }),
+      supabase
+        .from('conversation_hidden')
+        .select('conversation_id')
+        .eq('profile_id', profileId),
+    ])
 
-    conversations.value = (data || []).map((conv) => {
-      const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
-      return { ...conv, otherUser }
-    })
+    const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+
+    conversations.value = (data || [])
+      .filter((conv) => !hiddenIds.has(conv.id))
+      .map((conv) => {
+        const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
+        return { ...conv, otherUser }
+      })
 
     loading.value = false
   }
@@ -112,6 +122,16 @@ export const useMessagesStore = defineStore('messages', () => {
     currentMessages.value = currentMessages.value.filter((m) => m.id !== messageId)
   }
 
+  async function hideConversation(conversationId) {
+    const auth = useAuthStore()
+    if (!auth.activeProfile) return
+    await supabase.from('conversation_hidden').upsert({
+      profile_id: auth.activeProfile.id,
+      conversation_id: conversationId,
+    })
+    conversations.value = conversations.value.filter((c) => c.id !== conversationId)
+  }
+
   return {
     conversations,
     currentMessages,
@@ -122,5 +142,6 @@ export const useMessagesStore = defineStore('messages', () => {
     getOrCreateConversation,
     markAsRead,
     deleteMessage,
+    hideConversation,
   }
 })

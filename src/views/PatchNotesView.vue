@@ -273,6 +273,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.12.0',
+    date: '1 avril 2026',
+    title: 'Masquage de conversations + images DM widget',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Bouton × au survol de chaque conversation pour la masquer (page Messages et widget flottant)' },
+      { type: 'new', text: 'La conversation masquée disparaît de l\'interface sans être supprimée pour l\'autre personne' },
+      { type: 'improved', text: 'Les images étaient déjà envoyables depuis le widget flottant — le bucket dm-images est maintenant documenté' },
+    ],
+  },
+  {
     version: '2.11.0',
     date: '1 avril 2026',
     title: 'Suppression de messages DM',

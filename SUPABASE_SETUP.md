@@ -603,6 +603,34 @@ Les images sont stockées dans un dossier nommé avec l'ID du profil, comme pour
 
 Les images sont stockées dans un dossier nommé avec l'ID du profil, comme pour les autres buckets.
 
+### Bucket pour les images de DMs (`dm-images`)
+
+Même configuration que `comment-images` : bucket public, policies identiques (remplace `comment-images` par `dm-images`).
+
+```sql
+-- TABLE: conversation_hidden
+CREATE TABLE conversation_hidden (
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  PRIMARY KEY (profile_id, conversation_id)
+);
+
+ALTER TABLE conversation_hidden ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their hidden conversations"
+  ON conversation_hidden FOR SELECT TO authenticated
+  USING (profile_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Users can hide conversations"
+  ON conversation_hidden FOR INSERT TO authenticated
+  WITH CHECK (profile_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Users can unhide conversations"
+  ON conversation_hidden FOR DELETE TO authenticated
+  USING (profile_id IN (SELECT my_profile_ids()));
+```
+
 ---
 
 ## 6. Configurer l'authentification

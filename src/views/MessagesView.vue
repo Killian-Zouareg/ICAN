@@ -7,7 +7,11 @@
     <NewConversation />
 
     <div v-if="messagesStore.loading" class="loading">Chargement...</div>
-    <ConversationList v-else :conversations="messagesStore.conversations" />
+    <ConversationList
+      v-else
+      :conversations="messagesStore.conversations"
+      @hide="messagesStore.hideConversation"
+    />
   </div>
 </template>
 

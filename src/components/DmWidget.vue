@@ -213,6 +213,11 @@
               <span class="dm-conv-item-preview">{{ conv.lastMessage || 'Nouvelle conversation' }}</span>
             </div>
             <span v-if="conv.hasUnread" class="dm-unread-dot"></span>
+            <button
+              class="dm-hide-btn"
+              @click.stop="hideConv(conv.id)"
+              title="Masquer"
+            >&times;</button>
           </div>
         </div>
       </template>
@@ -223,12 +228,19 @@
 <script setup>
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useMessagesStore } from '../stores/messages'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
 import { checkRateLimit } from '../lib/rateLimit'
 import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
+const messagesStore = useMessagesStore()
+
+async function hideConv(convId) {
+  await messagesStore.hideConversation(convId)
+  conversations.value = conversations.value.filter((c) => c.id !== convId)
+}
 
 const isExpanded = ref(false)
 const activeConv = ref(null)
@@ -790,6 +802,21 @@ onUnmounted(() => {
 .dm-conv-item-time { font-size: 0.72rem; color: var(--text-secondary); flex-shrink: 0; }
 .dm-conv-item-preview { font-size: 0.8rem; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dm-unread-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+
+.dm-hide-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: 0.1rem 0.3rem;
+  line-height: 1;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+.dm-conv-item:hover .dm-hide-btn { display: block; }
+.dm-hide-btn:hover { color: var(--danger); background: var(--bg-hover); }
 
 /* Group avatar */
 .dm-group-avatar {
