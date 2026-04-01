@@ -254,6 +254,33 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.9.0',
+    date: '1 avril 2026',
+    title: 'Engagement Ghost (Admin)',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Les admins peuvent booster artificiellement les likes, reposts et commentaires d\'un post (bouton ⚡)' },
+      { type: 'new', text: 'Génération de faux profils américains aléatoires avec noms réalistes' },
+      { type: 'new', text: '7 humeurs disponibles pour les faux commentaires : joyeux, en colère, triste, excité, choqué, indifférent, amoureux' },
+      { type: 'new', text: 'Dataset de phrases authentiques par humeur en français' },
+      { type: 'new', text: 'Les faux profils sont consultables via leur page profil dédiée' },
+      { type: 'new', text: 'Bouton "Tout effacer" pour réinitialiser l\'engagement ghost d\'un post' },
+      { type: 'improved', text: 'Les faux comptes apparaissent dans la liste des likes et les commentaires de façon indiscernable' },
+    ],
+  },
+  {
+    version: '2.8.0',
+    date: '1 avril 2026',
+    title: 'Images dans les commentaires',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Possibilité d\'ajouter une image (JPG, PNG, GIF, WebP) à un commentaire ou une réponse' },
+      { type: 'new', text: 'Prévisualisation de l\'image avant envoi avec suppression possible' },
+      { type: 'new', text: 'Affichage de l\'image dans le commentaire, cliquable pour ouvrir en grand' },
+      { type: 'improved', text: 'Les commentaires peuvent désormais contenir uniquement une image (sans texte obligatoire)' },
+    ],
+  },
+  {
     version: '2.7.0',
     date: '30 mars 2026',
     title: 'Tendances par hashtags & ajustements UI',

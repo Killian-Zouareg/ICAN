@@ -1,6 +1,6 @@
 <template>
   <div class="comments">
-    <div v-if="comments.length === 0" class="empty">Aucun commentaire</div>
+    <div v-if="comments.length === 0 && ghostComments.length === 0" class="empty">Aucun commentaire</div>
     <template v-else>
       <CommentCard
         v-for="comment in topLevelComments"
@@ -13,6 +13,15 @@
         @toggle-like="(id) => $emit('toggle-like', id)"
         @delete="(id) => $emit('delete', id)"
       />
+      <CommentCard
+        v-for="comment in ghostComments"
+        :key="`ghost-${comment.id}`"
+        :comment="comment"
+        :replies="[]"
+        :all-comments="[]"
+        :comment-likes="new Set()"
+        :ghost="true"
+      />
     </template>
   </div>
 </template>
@@ -23,6 +32,7 @@ import CommentCard from './CommentCard.vue'
 
 const props = defineProps({
   comments: { type: Array, required: true },
+  ghostComments: { type: Array, default: () => [] },
   commentLikes: { type: Set, default: () => new Set() },
 })
 

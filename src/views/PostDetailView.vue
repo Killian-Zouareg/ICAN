@@ -23,8 +23,8 @@
           <div v-else-if="likedByUsers.length === 0" class="empty-small">Aucun like</div>
           <router-link
             v-for="u in likedByUsers"
-            :key="u.id"
-            :to="`/user/${u.username}`"
+            :key="u.isGhost ? `ghost-${u.ghost_id}` : u.id"
+            :to="u.isGhost ? `/ghost/${u.ghost_id}` : `/user/${u.username}`"
             class="liked-user"
           >
             <UserAvatar :url="u.avatar_url" :name="u.display_name || u.username || '?'" :size="32" />
@@ -39,7 +39,7 @@
       <div class="comments-section">
         <div class="comments-header">
           <span class="comments-title">Commentaires</span>
-          <span v-if="comments.length > 0" class="comments-count">{{ comments.length }}</span>
+          <span v-if="comments.length + ghostComments.length > 0" class="comments-count">{{ comments.length + ghostComments.length }}</span>
         </div>
 
         <CommentForm
@@ -50,6 +50,7 @@
 
         <CommentList
           :comments="comments"
+          :ghost-comments="ghostComments"
           :comment-likes="commentLikes"
           @reply="handleReply"
           @toggle-like="handleToggleCommentLike"
@@ -66,6 +67,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { usePostsStore } from '../stores/posts'
+import { useGhostEngagementStore } from '../stores/ghostEngagement'
 import PostCard from '../components/PostCard.vue'
 import CommentList from '../components/CommentList.vue'
 import CommentForm from '../components/CommentForm.vue'
@@ -73,9 +75,11 @@ import UserAvatar from '../components/UserAvatar.vue'
 
 const route = useRoute()
 const postsStore = usePostsStore()
+const ghostStore = useGhostEngagementStore()
 
 const post = ref(null)
 const comments = ref([])
+const ghostComments = ref([])
 const commentLikes = ref(new Set())
 const loading = ref(true)
 const replyingTo = ref(null)
@@ -113,7 +117,9 @@ async function fetchLikedBy() {
       .select('*, profiles(id, username, display_name, avatar_url)')
       .eq('post_id', targetPostId.value)
       .order('created_at', { ascending: false })
-    likedByUsers.value = (data || []).map((l) => l.profiles)
+    const realLikes = (data || []).map((l) => l.profiles)
+    const ghostLikes = await ghostStore.fetchGhostLikes(targetPostId.value)
+    likedByUsers.value = [...realLikes, ...ghostLikes]
   } finally {
     loadingLikes.value = false
   }
@@ -157,18 +163,23 @@ async function fetchComments() {
   comments.value = await postsStore.fetchComments(route.params.id)
   const commentIds = comments.value.map((c) => c.id)
   commentLikes.value = await postsStore.fetchCommentLikes(commentIds)
+  ghostComments.value = await ghostStore.fetchGhostComments(route.params.id)
 }
 
 function handleReply(comment) {
   replyingTo.value = comment
 }
 
-async function handleAddComment(content) {
-  const parentId = replyingTo.value ? replyingTo.value.id : null
-  await postsStore.addComment(route.params.id, content, parentId)
-  replyingTo.value = null
-  await fetchComments()
-  if (post.value) post.value.comment_count++
+async function handleAddComment(content, imageFile) {
+  try {
+    const parentId = replyingTo.value ? replyingTo.value.id : null
+    await postsStore.addComment(route.params.id, content, parentId, imageFile)
+    replyingTo.value = null
+    await fetchComments()
+    if (post.value) post.value.comment_count++
+  } catch (e) {
+    alert(e.message || 'Erreur lors de l\'envoi du commentaire')
+  }
 }
 
 async function handleToggleCommentLike(commentId) {

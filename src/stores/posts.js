@@ -332,20 +332,49 @@ export const usePostsStore = defineStore('posts', () => {
     }
   }
 
-  async function addComment(postId, content, parentId = null) {
+  async function addComment(postId, content, parentId = null, imageFile = null) {
     const auth = useAuthStore()
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('comment')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
-    if (!content?.trim()) throw new Error('Le commentaire ne peut pas être vide')
-    if (content.length > 1000) throw new Error('Le commentaire ne doit pas dépasser 1000 caractères')
+    if (!content?.trim() && !imageFile) throw new Error('Le commentaire ne peut pas être vide')
+    if (content && content.length > 1000) throw new Error('Le commentaire ne doit pas dépasser 1000 caractères')
+
+    let imageUrl = null
+    if (imageFile) {
+      const uploadLimit = checkRateLimit('upload')
+      if (uploadLimit) throw new Error(uploadLimit)
+
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(imageFile.type)) {
+        throw new Error('Type de fichier non autorisé. Utilise JPG, PNG, GIF ou WebP.')
+      }
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error('Image trop lourde (max 5 Mo)')
+      }
+
+      const ext = imageFile.name.split('.').pop()
+      const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('comment-images')
+        .upload(fileName, imageFile)
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage
+        .from('comment-images')
+        .getPublicUrl(fileName)
+      imageUrl = urlData.publicUrl
+    }
+
     const insertData = {
       author_id: auth.activeProfile.id,
       post_id: postId,
-      content,
+      content: content || '',
     }
     if (parentId) {
       insertData.parent_id = parentId
+    }
+    if (imageUrl) {
+      insertData.image_url = imageUrl
     }
     const { error } = await supabase.from('comments').insert(insertData)
     if (error) throw error

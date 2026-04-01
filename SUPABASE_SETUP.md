@@ -83,8 +83,79 @@ CREATE TABLE comments (
   post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
   parent_id UUID REFERENCES comments(id) ON DELETE CASCADE,
   content TEXT NOT NULL CHECK (char_length(content) <= 300),
+  image_url TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- =============================================
+-- GHOST ENGAGEMENT (admin roleplay feature)
+-- =============================================
+CREATE TABLE ghost_profiles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  display_name TEXT NOT NULL,
+  username TEXT NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE ghost_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  ghost_profile_id UUID NOT NULL REFERENCES ghost_profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE ghost_comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+  ghost_profile_id UUID NOT NULL REFERENCES ghost_profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  mood TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE posts ADD COLUMN ghost_repost_count INT DEFAULT 0;
+
+-- Mettre à jour la vue pour inclure les ghost counts
+DROP VIEW IF EXISTS posts_with_stats;
+CREATE VIEW posts_with_stats AS
+SELECT
+  p.*,
+  pr.username,
+  pr.display_name,
+  pr.avatar_url,
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)
+    + (SELECT COUNT(*) FROM ghost_likes gl WHERE gl.post_id = p.id) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
+    + (SELECT COUNT(*) FROM ghost_comments gc WHERE gc.post_id = p.id) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id)
+    + COALESCE(p.ghost_repost_count, 0) AS repost_count
+FROM posts p
+JOIN profiles pr ON p.author_id = pr.id;
+
+-- RLS pour ghost_profiles
+CREATE POLICY "Authenticated can view ghost profiles" ON ghost_profiles FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can insert ghost profiles" ON ghost_profiles FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can delete ghost profiles" ON ghost_profiles FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- RLS pour ghost_likes
+CREATE POLICY "Authenticated can view ghost likes" ON ghost_likes FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can insert ghost likes" ON ghost_likes FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can delete ghost likes" ON ghost_likes FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- RLS pour ghost_comments
+CREATE POLICY "Authenticated can view ghost comments" ON ghost_comments FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admins can insert ghost comments" ON ghost_comments FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+CREATE POLICY "Admins can delete ghost comments" ON ghost_comments FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+ALTER TABLE ghost_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ghost_likes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE ghost_comments ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- TABLE: comment_likes
@@ -492,6 +563,34 @@ Ces policies font en sorte que chaque utilisateur ne peut uploader/modifier que 
 - Policy definition : `(bucket_id = 'post-images') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
 
 Les images sont stockées dans un dossier nommé avec l'ID du profil, comme pour les avatars.
+
+### Bucket pour les images de commentaires
+
+14. Clique sur **"New bucket"** (retour à la liste des buckets)
+15. Nom du bucket : `comment-images`
+16. Coche **"Public bucket"**
+17. Clique **"Create bucket"**
+18. Clique sur le bucket `comment-images`, va dans **"Policies"** et crée ces 3 policies :
+
+**Policy 1 — Lecture publique :**
+- Name : `Public read`
+- Allowed operation : `SELECT`
+- Target roles : laisser vide (public)
+- Policy definition : `true`
+
+**Policy 2 — Upload par l'utilisateur :**
+- Name : `Users can upload comment images`
+- Allowed operation : `INSERT`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'comment-images') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
+
+**Policy 3 — Suppression par l'utilisateur :**
+- Name : `Users can delete their comment images`
+- Allowed operation : `DELETE`
+- Target roles : `authenticated`
+- Policy definition : `(bucket_id = 'comment-images') AND ((storage.foldername(name))[1] IN (SELECT p.id::text FROM profiles p WHERE p.owner_id = auth.uid()))`
+
+Les images sont stockées dans un dossier nommé avec l'ID du profil, comme pour les autres buckets.
 
 ---
 

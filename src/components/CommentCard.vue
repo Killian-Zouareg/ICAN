@@ -1,7 +1,7 @@
 <template>
   <div class="comment-card" :class="{ 'is-reply': isReply }">
     <div class="comment-body">
-      <router-link :to="`/user/${comment.profiles.username}`" @click.stop>
+      <router-link :to="ghost ? `/ghost/${comment.ghost_profile_id}` : `/user/${comment.profiles.username}`" @click.stop>
         <UserAvatar
           :url="comment.profiles.avatar_url"
           :name="comment.profiles.display_name || comment.profiles.username || '?'"
@@ -11,7 +11,7 @@
       <div class="comment-content">
         <div class="comment-header">
           <router-link
-            :to="`/user/${comment.profiles.username}`"
+            :to="ghost ? `/ghost/${comment.ghost_profile_id}` : `/user/${comment.profiles.username}`"
             class="author-name"
             @click.stop
           >
@@ -28,7 +28,16 @@
 
         <p class="comment-text">{{ comment.content }}</p>
 
-        <div class="comment-actions">
+        <div v-if="comment.image_url" class="comment-image-wrapper" @click.stop>
+          <img
+            :src="comment.image_url"
+            alt="Image du commentaire"
+            class="comment-image"
+            @click="openImage"
+          />
+        </div>
+
+        <div v-if="!ghost" class="comment-actions">
           <button
             class="action-btn reply-btn"
             @click="$emit('reply', comment)"
@@ -89,11 +98,16 @@ const props = defineProps({
   commentLikes: { type: Set, default: () => new Set() },
   parentAuthor: { type: String, default: null },
   isReply: { type: Boolean, default: false },
+  ghost: { type: Boolean, default: false },
 })
 
 defineEmits(['reply', 'toggle-like', 'delete'])
 
 const auth = useAuthStore()
+
+function openImage() {
+  window.open(props.comment.image_url, '_blank')
+}
 
 const hasLiked = computed(() => props.commentLikes.has(props.comment.id))
 
@@ -221,5 +235,25 @@ function getReplies(commentId) {
 
 .is-reply .replies {
   margin-left: 2rem;
+}
+
+.comment-image-wrapper {
+  margin: 0.3rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-width: 100%;
+}
+
+.comment-image {
+  width: 100%;
+  max-height: 250px;
+  object-fit: cover;
+  display: block;
+  cursor: pointer;
+}
+
+.comment-image:hover {
+  opacity: 0.92;
 }
 </style>

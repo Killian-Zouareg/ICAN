@@ -105,19 +105,36 @@
           >
             <span class="icon">&#x1F5D1;</span>
           </button>
+
+          <button
+            v-if="auth.isAdmin"
+            class="action-btn ghost-btn"
+            @click.stop="showGhostModal = true"
+            title="Engagement Ghost"
+          >
+            <span class="icon">&#x26A1;</span>
+          </button>
         </div>
       </div>
     </div>
   </div>
+
+  <GhostEngagementModal
+    v-if="showGhostModal"
+    :post-id="originalPostId"
+    @close="showGhostModal = false"
+    @applied="onGhostApplied"
+  />
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { timeAgo } from '../lib/time'
 import UserAvatar from './UserAvatar.vue'
+import GhostEngagementModal from './GhostEngagementModal.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -128,6 +145,7 @@ defineEmits(['comment'])
 const auth = useAuthStore()
 const postsStore = usePostsStore()
 const router = useRouter()
+const showGhostModal = ref(false)
 
 const isRepost = computed(() => !!props.post.repost_of)
 
@@ -170,6 +188,10 @@ async function handleDelete() {
   if (confirm('Supprimer ce post ?')) {
     await postsStore.deletePost(props.post.id)
   }
+}
+
+async function onGhostApplied() {
+  await postsStore.fetchFeed()
 }
 
 // Animation de clic sur les boutons d'action
@@ -356,6 +378,16 @@ function animateClick(event) {
 
 .delete-btn:hover {
   color: var(--danger);
+}
+
+.ghost-btn {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.ghost-btn:hover {
+  color: var(--accent);
+  opacity: 1;
 }
 
 .icon {

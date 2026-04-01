@@ -54,6 +54,11 @@ const routes = [
     component: () => import('../views/AdminView.vue'),
     meta: { admin: true },
   },
+  {
+    path: '/ghost/:id',
+    name: 'GhostProfile',
+    component: () => import('../views/GhostProfileView.vue'),
+  },
 ]
 
 const router = createRouter({
