@@ -23,7 +23,7 @@ export const useMessagesStore = defineStore('messages', () => {
     assertUUID(profileId, 'profileId')
     loading.value = true
 
-    const [{ data }, { data: hiddenData }] = await Promise.all([
+    const [{ data }, hiddenResult] = await Promise.all([
       supabase
         .from('conversations')
         .select(`
@@ -36,8 +36,10 @@ export const useMessagesStore = defineStore('messages', () => {
       supabase
         .from('conversation_hidden')
         .select('conversation_id')
-        .eq('profile_id', profileId),
+        .eq('profile_id', profileId)
+        .catch(() => ({ data: [] })),
     ])
+    const hiddenData = hiddenResult?.data
 
     const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
 

@@ -381,7 +381,15 @@ async function fetchConversations() {
     }
   }
 
-  // Merge all conversations
+  // Fetch hidden conversation IDs (graceful fallback if table doesn't exist yet)
+  const { data: hiddenData } = await supabase
+    .from('conversation_hidden')
+    .select('conversation_id')
+    .eq('profile_id', profileId)
+    .catch(() => ({ data: [] }))
+  const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+
+  // Merge all conversations (excluding hidden)
   const allConvs = [
     ...(dmData || []).map((conv) => ({
       ...conv,
@@ -392,7 +400,9 @@ async function fetchConversations() {
       ...conv,
       displayName: conv.group_name || 'Groupe',
     })),
-  ].sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+  ]
+    .filter((c) => !hiddenIds.has(c.id))
+    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
   // Fetch last messages + unread
   const convIds = allConvs.map((c) => c.id)
