@@ -12,6 +12,7 @@
         @reply="(c) => $emit('reply', c)"
         @toggle-like="(id) => $emit('toggle-like', id)"
         @delete="(id) => $emit('delete', id)"
+        @quote="(c) => $emit('quote', c)"
       />
       <CommentCard
         v-for="comment in ghostComments"
@@ -36,7 +37,7 @@ const props = defineProps({
   commentLikes: { type: Set, default: () => new Set() },
 })
 
-defineEmits(['reply', 'toggle-like', 'delete'])
+defineEmits(['reply', 'toggle-like', 'delete', 'quote'])
 
 const topLevelComments = computed(() =>
   props.comments.filter((c) => !c.parent_id)

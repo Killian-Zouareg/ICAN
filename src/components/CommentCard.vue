@@ -28,7 +28,16 @@
 
         <p class="comment-text">{{ comment.content }}</p>
 
-        <div class="comment-actions">
+        <div v-if="comment.image_url" class="comment-image-wrapper" @click.stop>
+          <img
+            :src="comment.image_url"
+            alt="Image du commentaire"
+            class="comment-image"
+            @click="openImage"
+          />
+        </div>
+
+        <div v-if="!ghost" class="comment-actions">
 
           <button
             class="action-btn reply-btn"
@@ -61,6 +70,17 @@
           </button>
 
           <button
+            class="action-btn quote-btn"
+            @click="$emit('quote', comment)"
+            @mousedown="animateClick($event)"
+            title="Citer"
+          >
+            <span class="icon">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </span>
+          </button>
+
+          <button
             v-if="canDelete"
             class="action-btn delete-btn"
             @click="$emit('delete', comment.id)"
@@ -85,6 +105,7 @@
         @reply="(c) => $emit('reply', c)"
         @toggle-like="(id) => $emit('toggle-like', id)"
         @delete="(id) => $emit('delete', id)"
+        @quote="(c) => $emit('quote', c)"
       />
     </div>
   </div>
@@ -106,7 +127,7 @@ const props = defineProps({
   ghost: { type: Boolean, default: false },
 })
 
-defineEmits(['reply', 'toggle-like', 'delete'])
+defineEmits(['reply', 'toggle-like', 'delete', 'quote'])
 
 const auth = useAuthStore()
 

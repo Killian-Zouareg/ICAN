@@ -55,10 +55,18 @@
           @reply="handleReply"
           @toggle-like="handleToggleCommentLike"
           @delete="handleDeleteComment"
+          @quote="handleQuoteComment"
         />
       </div>
     </template>
     <div v-else class="empty">Post introuvable</div>
+
+    <QuoteComposer
+      v-if="quotingComment"
+      :quoted-comment="quotingComment"
+      @close="quotingComment = null"
+      @published="quotingComment = null"
+    />
   </div>
 </template>
 
@@ -72,6 +80,7 @@ import PostCard from '../components/PostCard.vue'
 import CommentList from '../components/CommentList.vue'
 import CommentForm from '../components/CommentForm.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import QuoteComposer from '../components/QuoteComposer.vue'
 
 const route = useRoute()
 const postsStore = usePostsStore()
@@ -83,6 +92,7 @@ const ghostComments = ref([])
 const commentLikes = ref(new Set())
 const loading = ref(true)
 const replyingTo = ref(null)
+const quotingComment = ref(null)
 
 // Likes list
 const showLikes = ref(false)
@@ -168,6 +178,10 @@ async function fetchComments() {
 
 function handleReply(comment) {
   replyingTo.value = comment
+}
+
+function handleQuoteComment(comment) {
+  quotingComment.value = comment
 }
 
 async function handleAddComment(content, imageFile) {

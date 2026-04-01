@@ -81,7 +81,16 @@ const tab = ref('highlights')
 
 // ============ HIGHLIGHTS ============
 const highlights = [
-    {
+  {
+    version: '2.10.0',
+    date: '1 avril 2026',
+    icon: '✏️',
+    color: '#9b59b6',
+    title: 'Citations (Quote Tweets)',
+    description: 'Citez n\'importe quel post ou commentaire avec votre propre texte, comme sur Twitter. Le contenu original s\'affiche en embed dans votre publication.',
+    tags: ['Citations', 'Reposts', 'Commentaires', 'Embed'],
+  },
+  {
     version: '2.7.1',
     date: '30 mars 2026',
     title: 'Pictogrammes & animations des commentaires',
@@ -263,6 +272,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.10.0',
+    date: '1 avril 2026',
+    title: 'Citations de posts et commentaires',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Le bouton Repost est désormais un menu déroulant avec "Repost" et "Citer"' },
+      { type: 'new', text: 'Citer un post ouvre un compositeur avec aperçu du post original intégré' },
+      { type: 'new', text: 'Citer un commentaire depuis sa page de post intègre le commentaire dans un nouveau post' },
+      { type: 'new', text: 'Les posts cités affichent un embed du post ou commentaire original, cliquable' },
+      { type: 'new', text: 'Support des images dans les posts de citation' },
+    ],
+  },
   {
     version: '2.9.0',
     date: '1 avril 2026',

@@ -114,6 +114,8 @@ CREATE TABLE ghost_comments (
 );
 
 ALTER TABLE posts ADD COLUMN ghost_repost_count INT DEFAULT 0;
+ALTER TABLE posts ADD COLUMN quote_of UUID REFERENCES posts(id) ON DELETE SET NULL;
+ALTER TABLE posts ADD COLUMN quote_comment_id UUID REFERENCES comments(id) ON DELETE SET NULL;
 
 -- Mettre à jour la vue pour inclure les ghost counts
 DROP VIEW IF EXISTS posts_with_stats;

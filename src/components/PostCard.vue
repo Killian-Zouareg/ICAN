@@ -53,6 +53,18 @@
           />
         </div>
 
+        <!-- Quote embeds -->
+        <div @click.stop>
+          <QuotedPostEmbed
+            v-if="displayPost.quote_of && displayPost._quoted"
+            :post="displayPost._quoted"
+          />
+          <QuotedCommentEmbed
+            v-else-if="displayPost.quote_comment_id && displayPost._quoted_comment"
+            :comment="displayPost._quoted_comment"
+          />
+        </div>
+
         <div class="actions">
 
           <button
@@ -67,18 +79,29 @@
             <span v-if="displayPost.comment_count > 0">{{ displayPost.comment_count }}</span>
           </button>
 
-          <button
-            class="action-btn repost-btn"
-            :class="{ active: postsStore.hasReposted(originalPostId) }"
-            @click.stop="handleRepost"
-            @mousedown="animateClick($event)"
-          >
-            <span class="icon">
-              <!-- Modern repost SVG -->
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
-            </span>
-            <span v-if="displayPost.repost_count > 0">{{ displayPost.repost_count }}</span>
-          </button>
+          <div class="repost-wrapper" @click.stop>
+            <button
+              class="action-btn repost-btn"
+              :class="{ active: postsStore.hasReposted(originalPostId) }"
+              @click="showRepostMenu = !showRepostMenu"
+              @mousedown="animateClick($event)"
+            >
+              <span class="icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+              </span>
+              <span v-if="displayPost.repost_count > 0">{{ displayPost.repost_count }}</span>
+            </button>
+            <div v-if="showRepostMenu" class="repost-menu">
+              <button class="repost-menu-item" @click="doRepost">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                Repost
+              </button>
+              <button class="repost-menu-item" @click="openQuoteComposer">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Citer
+              </button>
+            </div>
+          </div>
 
           <button
             class="action-btn like-btn"
@@ -125,6 +148,13 @@
     @close="showGhostModal = false"
     @applied="onGhostApplied"
   />
+
+  <QuoteComposer
+    v-if="showQuoteComposer"
+    :quoted-post="displayPost"
+    @close="showQuoteComposer = false"
+    @published="showQuoteComposer = false"
+  />
 </template>
 
 <script setup>
@@ -135,6 +165,9 @@ import { usePostsStore } from '../stores/posts'
 import { timeAgo } from '../lib/time'
 import UserAvatar from './UserAvatar.vue'
 import GhostEngagementModal from './GhostEngagementModal.vue'
+import QuotedPostEmbed from './QuotedPostEmbed.vue'
+import QuotedCommentEmbed from './QuotedCommentEmbed.vue'
+import QuoteComposer from './QuoteComposer.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -146,6 +179,8 @@ const auth = useAuthStore()
 const postsStore = usePostsStore()
 const router = useRouter()
 const showGhostModal = ref(false)
+const showRepostMenu = ref(false)
+const showQuoteComposer = ref(false)
 
 const isRepost = computed(() => !!props.post.repost_of)
 
@@ -173,11 +208,16 @@ async function handleLike() {
   await postsStore.toggleLike(originalPostId.value)
 }
 
-async function handleRepost() {
-  // Don't allow reposting your own post
+async function doRepost() {
+  showRepostMenu.value = false
   const myProfileIds = auth.profiles.map((p) => p.id)
   if (myProfileIds.includes(displayPost.value.author_id)) return
   await postsStore.toggleRepost(originalPostId.value)
+}
+
+function openQuoteComposer() {
+  showRepostMenu.value = false
+  showQuoteComposer.value = true
 }
 
 function openImage() {
@@ -388,6 +428,41 @@ function animateClick(event) {
 .ghost-btn:hover {
   color: var(--accent);
   opacity: 1;
+}
+
+.repost-wrapper {
+  position: relative;
+}
+
+.repost-menu {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 100;
+  min-width: 130px;
+  overflow: hidden;
+}
+
+.repost-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.55rem 1rem;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.repost-menu-item:hover {
+  background: var(--bg-hover);
 }
 
 .icon {

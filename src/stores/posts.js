@@ -71,43 +71,61 @@ export const usePostsStore = defineStore('posts', () => {
     }))
   }
 
-  // Fetch original posts for any reposts in the list
+  // Fetch original posts for any reposts/quotes in the list
   async function enrichReposts(postsList) {
-    const repostIds = postsList
-      .filter((p) => p.repost_of)
-      .map((p) => p.repost_of)
+    const repostIds = postsList.filter((p) => p.repost_of).map((p) => p.repost_of)
+    const quoteIds = postsList.filter((p) => p.quote_of).map((p) => p.quote_of)
+    const quoteCommentIds = postsList.filter((p) => p.quote_comment_id).map((p) => p.quote_comment_id)
 
-    if (repostIds.length === 0) return postsList
+    const allPostIds = [...new Set([...repostIds, ...quoteIds])]
 
-    const uniqueIds = [...new Set(repostIds)]
-    const { data: originals } = await supabase
-      .from('posts_with_stats')
-      .select('*')
-      .in('id', uniqueIds)
+    let originalsMap = {}
+    if (allPostIds.length > 0) {
+      const { data: originals } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .in('id', allPostIds)
 
-    // Fetch admin status for original post authors too
-    const originalAuthorIds = [...new Set((originals || []).map((p) => p.author_id).filter(Boolean))]
-    let adminMap = {}
-    if (originalAuthorIds.length > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, is_admin')
-        .in('id', originalAuthorIds)
-      ;(profiles || []).forEach((p) => {
-        adminMap[p.id] = p.is_admin === true
+      const originalAuthorIds = [...new Set((originals || []).map((p) => p.author_id).filter(Boolean))]
+      let adminMap = {}
+      if (originalAuthorIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, is_admin')
+          .in('id', originalAuthorIds)
+        ;(profiles || []).forEach((p) => {
+          adminMap[p.id] = p.is_admin === true
+        })
+      }
+      ;(originals || []).forEach((p) => {
+        originalsMap[p.id] = { ...p, is_admin: adminMap[p.author_id] || false }
       })
     }
 
-    const originalsMap = {}
-    ;(originals || []).forEach((p) => {
-      originalsMap[p.id] = { ...p, is_admin: adminMap[p.author_id] || false }
-    })
+    let quotedCommentsMap = {}
+    if (quoteCommentIds.length > 0) {
+      const uniqueCommentIds = [...new Set(quoteCommentIds)]
+      const { data: quotedComments } = await supabase
+        .from('comments')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .in('id', uniqueCommentIds)
+      ;(quotedComments || []).forEach((c) => {
+        quotedCommentsMap[c.id] = c
+      })
+    }
 
     return postsList.map((p) => {
+      let enriched = { ...p }
       if (p.repost_of && originalsMap[p.repost_of]) {
-        return { ...p, _original: originalsMap[p.repost_of] }
+        enriched._original = originalsMap[p.repost_of]
       }
-      return p
+      if (p.quote_of && originalsMap[p.quote_of]) {
+        enriched._quoted = originalsMap[p.quote_of]
+      }
+      if (p.quote_comment_id && quotedCommentsMap[p.quote_comment_id]) {
+        enriched._quoted_comment = quotedCommentsMap[p.quote_comment_id]
+      }
+      return enriched
     })
   }
 
@@ -385,6 +403,50 @@ export const usePostsStore = defineStore('posts', () => {
     if (error) throw error
   }
 
+  async function createQuotePost(content, quoteOfId, quoteCommentId, imageFile = null) {
+    const auth = useAuthStore()
+    await auth.checkBan()
+    const rateLimitMsg = checkRateLimit('post')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
+    if (!content?.trim() && !imageFile) throw new Error('Le post ne peut pas être vide')
+    if (content && content.length > 2000) throw new Error('Le post ne doit pas dépasser 2000 caractères')
+
+    let imageUrl = null
+    if (imageFile) {
+      const uploadLimit = checkRateLimit('upload')
+      if (uploadLimit) throw new Error(uploadLimit)
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+      if (!allowedTypes.includes(imageFile.type)) {
+        throw new Error('Type de fichier non autorisé. Utilise JPG, PNG, GIF ou WebP.')
+      }
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error('Image trop lourde (max 5 Mo)')
+      }
+      const ext = imageFile.name.split('.').pop()
+      const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('post-images')
+        .upload(fileName, imageFile)
+      if (uploadError) throw uploadError
+      const { data: urlData } = supabase.storage
+        .from('post-images')
+        .getPublicUrl(fileName)
+      imageUrl = urlData.publicUrl
+    }
+
+    const insertData = {
+      author_id: auth.activeProfile.id,
+      content: content || '',
+    }
+    if (quoteOfId) insertData.quote_of = quoteOfId
+    if (quoteCommentId) insertData.quote_comment_id = quoteCommentId
+    if (imageUrl) insertData.image_url = imageUrl
+
+    const { error } = await supabase.from('posts').insert(insertData)
+    if (error) throw error
+    await fetchFeed()
+  }
+
   function hasLiked(postId) {
     return userLikes.value.has(postId)
   }
@@ -407,5 +469,6 @@ export const usePostsStore = defineStore('posts', () => {
     addComment,
     deleteComment,
     hasLiked,
+    createQuotePost,
   }
 })
