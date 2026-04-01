@@ -34,19 +34,21 @@
     <!-- Profile switcher popup -->
     <div v-if="showSwitcher" class="mobile-switcher-menu" @click.stop>
       <div class="switcher-header">Changer de compte</div>
-      <div
-        v-for="p in auth.profiles"
-        :key="p.id"
-        class="switcher-profile"
-        :class="{ active: p.id === auth.activeProfile?.id }"
-        @click="selectProfile(p.id)"
-      >
-        <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="36" />
-        <div class="switcher-info">
-          <span class="switcher-name">{{ p.display_name }}</span>
-          <span class="switcher-handle">@{{ p.username }}</span>
+      <div class="switcher-profiles-list">
+        <div
+          v-for="p in auth.profiles"
+          :key="p.id"
+          class="switcher-profile"
+          :class="{ active: p.id === auth.activeProfile?.id }"
+          @click="selectProfile(p.id)"
+        >
+          <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="36" />
+          <div class="switcher-info">
+            <span class="switcher-name">{{ p.display_name }}</span>
+            <span class="switcher-handle">@{{ p.username }}</span>
+          </div>
+          <span v-if="p.id === auth.activeProfile?.id" class="switcher-check">&#x2713;</span>
         </div>
-        <span v-if="p.id === auth.activeProfile?.id" class="switcher-check">&#x2713;</span>
       </div>
       <router-link to="/settings" class="switcher-manage" @click="showSwitcher = false">
         G&eacute;rer les profils
@@ -183,6 +185,9 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
     overflow: hidden;
     z-index: 200;
+    display: flex;
+    flex-direction: column;
+    max-height: 60vh;
   }
 
   .switcher-header {
@@ -190,6 +195,14 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     font-weight: 700;
     font-size: 0.95rem;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .switcher-profiles-list {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    flex: 1;
+    min-height: 0;
   }
 
   .switcher-profile {
@@ -244,6 +257,7 @@ onUnmounted(() => document.removeEventListener('click', handleClickOutside))
     font-size: 0.85rem;
     color: var(--accent);
     text-decoration: none;
+    flex-shrink: 0;
   }
 
   .switcher-manage:hover {
