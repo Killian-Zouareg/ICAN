@@ -36,8 +36,7 @@ export const useMessagesStore = defineStore('messages', () => {
       supabase
         .from('conversation_hidden')
         .select('conversation_id')
-        .eq('profile_id', profileId)
-        .catch(() => ({ data: [] })),
+        .eq('profile_id', profileId),
     ])
     const hiddenData = hiddenResult?.data
 

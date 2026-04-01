@@ -386,7 +386,6 @@ async function fetchConversations() {
     .from('conversation_hidden')
     .select('conversation_id')
     .eq('profile_id', profileId)
-    .catch(() => ({ data: [] }))
   const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
 
   // Merge all conversations (excluding hidden)
