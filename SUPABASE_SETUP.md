@@ -333,6 +333,11 @@ CREATE POLICY "Users can create posts with their profiles"
   ON posts FOR INSERT TO authenticated
   WITH CHECK (author_id IN (SELECT my_profile_ids()));
 
+CREATE POLICY "Admins can update posts"
+  ON posts FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
 CREATE POLICY "Authors and admins can delete posts"
   ON posts FOR DELETE TO authenticated
   USING (

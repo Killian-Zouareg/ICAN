@@ -156,6 +156,27 @@ async function fetchPost() {
         authorIds.push(original.author_id)
       }
     }
+    if (data.quote_of) {
+      const { data: quoted } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .eq('id', data.quote_of)
+        .single()
+      if (quoted) {
+        data._quoted = quoted
+        authorIds.push(quoted.author_id)
+      }
+    }
+    if (data.quote_comment_id) {
+      const { data: quotedComment } = await supabase
+        .from('comments')
+        .select('*, profiles(username, display_name, avatar_url)')
+        .eq('id', data.quote_comment_id)
+        .single()
+      if (quotedComment) {
+        data._quoted_comment = quotedComment
+      }
+    }
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, is_admin')
