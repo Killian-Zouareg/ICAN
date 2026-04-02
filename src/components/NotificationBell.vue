@@ -121,7 +121,7 @@ const filters = [
   { label: 'Mentions', value: 'mention' },
 ]
 
-let pollInterval = null
+let realtimeChannel = null
 
 function actionText(type) {
   switch (type) {
@@ -192,7 +192,13 @@ async function fetchNotifications() {
       .limit(80)
 
     if (!error) {
-      notifications.value = data || []
+      // Deduplicate by id
+      const seen = new Set()
+      notifications.value = (data || []).filter((n) => {
+        if (seen.has(n.id)) return false
+        seen.add(n.id)
+        return true
+      })
     }
   } catch {
     // Silently ignore
@@ -280,6 +286,47 @@ function handleClickOutside(e) {
   }
 }
 
+function subscribeRealtime() {
+  unsubscribeRealtime()
+  const profileIds = auth.profiles.map((p) => p.id)
+  if (profileIds.length === 0) return
+
+  realtimeChannel = supabase
+    .channel('notifications-realtime')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications' },
+      (payload) => {
+        if (profileIds.includes(payload.new.recipient_id)) {
+          // Fetch full notification with actor data
+          fetchNewNotification(payload.new.id)
+        }
+      }
+    )
+    .subscribe()
+}
+
+function unsubscribeRealtime() {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
+  }
+}
+
+async function fetchNewNotification(notifId) {
+  const { data } = await supabase
+    .from('notifications')
+    .select('*, actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url)')
+    .eq('id', notifId)
+    .single()
+  if (data) {
+    // Avoid duplicates
+    if (!notifications.value.find((n) => n.id === data.id)) {
+      notifications.value.unshift(data)
+    }
+  }
+}
+
 // Refresh notifications when switching profile
 watch(() => auth.activeProfile?.id, () => {
   if (showPanel.value) {
@@ -288,16 +335,17 @@ watch(() => auth.activeProfile?.id, () => {
   } else {
     fetchUnreadCount()
   }
+  subscribeRealtime()
 })
 
 onMounted(() => {
   fetchUnreadCount()
-  pollInterval = setInterval(fetchUnreadCount, 30000)
+  subscribeRealtime()
   document.addEventListener('click', handleClickOutside)
 })
 
 onUnmounted(() => {
-  clearInterval(pollInterval)
+  unsubscribeRealtime()
   document.removeEventListener('click', handleClickOutside)
 })
 </script>
@@ -560,6 +608,12 @@ onUnmounted(() => {
 .notif-item-icon.repost {
   background: rgba(23, 191, 99, 0.12);
   color: var(--repost);
+}
+
+.notif-item-icon.mention {
+  background: rgba(29, 161, 242, 0.12);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .notif-content {

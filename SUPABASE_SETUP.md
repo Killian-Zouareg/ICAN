@@ -297,16 +297,23 @@ CREATE TRIGGER trg_notify_repost
   FOR EACH ROW EXECUTE FUNCTION notify_on_repost();
 
 -- Trigger : notification sur @mention dans un post
+-- Exclut l'auteur du post et les profils déjà notifiés par repost
 CREATE OR REPLACE FUNCTION notify_on_mention_post()
 RETURNS TRIGGER AS $$
 DECLARE
   mentioned RECORD;
+  already_notified UUID;
 BEGIN
   IF NEW.content IS NULL OR NEW.content = '' THEN RETURN NEW; END IF;
+  -- Si c'est un repost, l'auteur original est déjà notifié par trg_notify_repost
+  IF NEW.repost_of IS NOT NULL THEN
+    SELECT author_id INTO already_notified FROM posts WHERE id = NEW.repost_of;
+  END IF;
   FOR mentioned IN
     SELECT DISTINCT p.id FROM profiles p
     WHERE NEW.content ~* ('(?:^|[^a-zA-Z0-9_])@' || p.username || '(?![a-zA-Z0-9_])')
       AND p.id != NEW.author_id
+      AND p.id IS DISTINCT FROM already_notified
   LOOP
     INSERT INTO notifications (recipient_id, actor_id, type, post_id)
     VALUES (mentioned.id, NEW.author_id, 'mention', NEW.id);
@@ -320,16 +327,25 @@ CREATE TRIGGER trg_notify_mention_post
   FOR EACH ROW EXECUTE FUNCTION notify_on_mention_post();
 
 -- Trigger : notification sur @mention dans un commentaire
+-- Exclut l'auteur du commentaire et les profils déjà notifiés par trg_notify_comment
 CREATE OR REPLACE FUNCTION notify_on_mention_comment()
 RETURNS TRIGGER AS $$
 DECLARE
   mentioned RECORD;
+  already_notified UUID;
 BEGIN
   IF NEW.content IS NULL OR NEW.content = '' THEN RETURN NEW; END IF;
+  -- Le trigger comment/reply notifie déjà l'auteur du post ou du commentaire parent
+  IF NEW.parent_id IS NOT NULL THEN
+    SELECT author_id INTO already_notified FROM comments WHERE id = NEW.parent_id;
+  ELSE
+    SELECT author_id INTO already_notified FROM posts WHERE id = NEW.post_id;
+  END IF;
   FOR mentioned IN
     SELECT DISTINCT p.id FROM profiles p
     WHERE NEW.content ~* ('(?:^|[^a-zA-Z0-9_])@' || p.username || '(?![a-zA-Z0-9_])')
       AND p.id != NEW.author_id
+      AND p.id IS DISTINCT FROM already_notified
   LOOP
     INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
     VALUES (mentioned.id, NEW.author_id, 'mention', NEW.post_id, NEW.id);
