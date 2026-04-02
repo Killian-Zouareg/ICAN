@@ -9,7 +9,14 @@
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
     </button>
     <div class="bubble" :class="{ mine: isMine }">
-      <p class="bubble-text">{{ message.content }}</p>
+      <img
+        v-if="message.image_url"
+        :src="message.image_url"
+        alt="Image"
+        class="bubble-image"
+        @click="openImage(message.image_url)"
+      />
+      <p v-if="message.content" class="bubble-text">{{ message.content }}</p>
       <span class="bubble-time">{{ timeAgo(message.created_at) }}</span>
     </div>
   </div>
@@ -31,6 +38,10 @@ const isMine = computed(() => {
   const myProfileIds = auth.profiles.map((p) => p.id)
   return myProfileIds.includes(props.message.sender_id)
 })
+
+function openImage(url) {
+  window.open(url, '_blank')
+}
 </script>
 
 <style scoped>
@@ -80,6 +91,15 @@ const isMine = computed(() => {
 .bubble.mine {
   background: var(--accent);
   color: white;
+}
+
+.bubble-image {
+  max-width: 100%;
+  max-height: 250px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .bubble-text {

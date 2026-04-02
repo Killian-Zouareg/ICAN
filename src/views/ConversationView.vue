@@ -73,8 +73,17 @@ function scrollToBottom() {
   })
 }
 
-async function handleSend(content) {
-  await messagesStore.sendMessage(conversationId, content)
+async function handleSend({ content, imageFile }) {
+  let imageUrl = null
+  if (imageFile) {
+    const ext = imageFile.name.split('.').pop()
+    const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage.from('dm-images').upload(fileName, imageFile)
+    if (uploadError) { alert('Erreur upload'); return }
+    const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
+    imageUrl = urlData.publicUrl
+  }
+  await messagesStore.sendMessage(conversationId, content, imageUrl)
   await loadMessages()
 }
 

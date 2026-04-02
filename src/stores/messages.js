@@ -61,16 +61,18 @@ export const useMessagesStore = defineStore('messages', () => {
     loading.value = false
   }
 
-  async function sendMessage(conversationId, content) {
+  async function sendMessage(conversationId, content, imageUrl = null) {
     const auth = useAuthStore()
     await auth.checkBan()
-    if (!content?.trim()) throw new Error('Le message ne peut pas être vide')
-    if (content.length > 2000) throw new Error('Le message ne doit pas dépasser 2000 caractères')
-    const { error } = await supabase.from('messages').insert({
+    if (!content?.trim() && !imageUrl) throw new Error('Le message ne peut pas être vide')
+    if (content && content.length > 2000) throw new Error('Le message ne doit pas dépasser 2000 caractères')
+    const insertData = {
       conversation_id: conversationId,
       sender_id: auth.activeProfile.id,
-      content,
-    })
+      content: content || '',
+    }
+    if (imageUrl) insertData.image_url = imageUrl
+    const { error } = await supabase.from('messages').insert(insertData)
     if (error) throw error
 
     // Unhide conversation if it was hidden (new message = reappear)

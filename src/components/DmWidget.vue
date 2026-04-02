@@ -497,6 +497,7 @@ function closeConversation() {
 async function fetchMessages() {
   if (!activeConv.value) return
   loadingMessages.value = messages.value.length === 0
+  const prevCount = messages.value.length
   const { data } = await supabase
     .from('messages')
     .select('*')
@@ -514,7 +515,10 @@ async function fetchMessages() {
       .eq('read', false)
   }
 
-  scrollToBottom()
+  // Scroll only on first load or when new messages arrive
+  if (prevCount === 0 || messages.value.length > prevCount) {
+    scrollToBottom()
+  }
 }
 
 function scrollToBottom() {
@@ -620,6 +624,9 @@ async function startNewConversation(user) {
       .from('conversations').insert({ user1_id: user1, user2_id: user2, is_group: false }).select('id').single()
     convId = created.id
   }
+
+  // Unhide in case conversation was previously hidden
+  await messagesStore.unhideConversation(convId)
 
   showNewConv.value = false
   searchQuery.value = ''
