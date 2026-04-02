@@ -42,7 +42,7 @@
           <span class="timestamp">{{ timeAgo(displayPost.created_at) }}</span>
         </div>
 
-        <p v-if="displayPost.content" class="post-text">{{ displayPost.content }}</p>
+        <p v-if="displayPost.content" class="post-text" v-html="renderMentions(displayPost.content)"></p>
 
         <div v-if="displayPost.image_url" class="post-image-wrapper" @click.stop>
           <img
@@ -164,6 +164,7 @@ import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import { timeAgo } from '../lib/time'
 import { formatCount } from '../lib/formatCount'
+import { renderMentions } from '../lib/mentionRenderer'
 import UserAvatar from './UserAvatar.vue'
 import GhostEngagementModal from './GhostEngagementModal.vue'
 import QuotedPostEmbed from './QuotedPostEmbed.vue'
@@ -351,6 +352,16 @@ function animateClick(event) {
   margin: 0.3rem 0 0.5rem;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.post-text :deep(.mention) {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.post-text :deep(.mention:hover) {
+  text-decoration: underline;
 }
 
 .post-image-wrapper {

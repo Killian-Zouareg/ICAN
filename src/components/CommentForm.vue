@@ -18,9 +18,10 @@
         :name="auth.activeProfile.display_name || auth.activeProfile.username || '?'"
         :size="32"
       />
-      <input
+      <MentionInput
         ref="inputRef"
         v-model="content"
+        tag="input"
         type="text"
         :placeholder="replyingTo ? `R\u00e9pondre \u00e0 @${replyingTo.profiles.username}...` : 'Ajouter un commentaire...'"
         maxlength="300"
@@ -47,6 +48,7 @@
 import { ref, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from './UserAvatar.vue'
+import MentionInput from './MentionInput.vue'
 
 const props = defineProps({
   replyingTo: { type: Object, default: null },

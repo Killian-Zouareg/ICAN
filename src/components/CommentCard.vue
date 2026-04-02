@@ -26,7 +26,7 @@
           En r&eacute;ponse &agrave; <span class="reply-target">@{{ parentAuthor }}</span>
         </div>
 
-        <p class="comment-text">{{ comment.content }}</p>
+        <p class="comment-text" v-html="renderMentions(comment.content)"></p>
 
         <div v-if="comment.image_url" class="comment-image-wrapper" @click.stop>
           <img
@@ -115,6 +115,7 @@
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { timeAgo } from '../lib/time'
+import { renderMentions } from '../lib/mentionRenderer'
 import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
@@ -227,6 +228,16 @@ function animateClick(event) {
   white-space: pre-wrap;
   word-break: break-word;
   line-height: 1.4;
+}
+
+.comment-text :deep(.mention) {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.comment-text :deep(.mention:hover) {
+  text-decoration: underline;
 }
 
 .comment-actions {

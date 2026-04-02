@@ -14,7 +14,10 @@
       "Bash(grep -r notifications /c/Users/killi/Desktop/ICAN/src --include=*.js --include=*.vue)",
       "mcp__Claude_Preview__preview_start",
       "Bash(find /c/Users/killi/Desktop/ICAN/src -type f \\\\\\(-name *.vue -o -name *.js -o -name *.md \\\\\\))",
-      "Bash(grep -r \"virtual_counter\\\\|fake_counter\\\\|boost\\\\|engagement_boost\" /c/Users/killi/Desktop/ICAN --include=*.vue --include=*.js --include=*.md)"
+      "Bash(grep -r \"virtual_counter\\\\|fake_counter\\\\|boost\\\\|engagement_boost\" /c/Users/killi/Desktop/ICAN --include=*.vue --include=*.js --include=*.md)",
+      "Bash(grep -r \"CREATE TRIGGER\\\\|CREATE FUNCTION\\\\|notification\" /c/Users/killi/Desktop/ICAN --include=*.md --include=*.sql)",
+      "Bash(grep -rn notification /c/Users/killi/Desktop/ICAN/src --include=*.vue --include=*.js)",
+      "Bash(ls -la /c/Users/killi/Desktop/ICAN/*.sql)"
     ]
   }
 }

@@ -69,6 +69,7 @@
             <span v-else-if="n.type === 'comment'">&#x1F4AC;</span>
             <span v-else-if="n.type === 'reply'">&#x21A9;</span>
             <span v-else-if="n.type === 'repost'">&#x1F501;</span>
+            <span v-else-if="n.type === 'mention'">@</span>
           </div>
           <UserAvatar
             :url="n.actor?.avatar_url"
@@ -117,6 +118,7 @@ const filters = [
   { label: 'Likes', value: 'like' },
   { label: 'Commentaires', value: 'comment' },
   { label: 'Reposts', value: 'repost' },
+  { label: 'Mentions', value: 'mention' },
 ]
 
 let pollInterval = null
@@ -127,6 +129,7 @@ function actionText(type) {
     case 'comment': return 'a comment\u00e9 ton post'
     case 'reply': return 'a r\u00e9pondu \u00e0 ton commentaire'
     case 'repost': return 'a repost\u00e9 ton post'
+    case 'mention': return 't\u0027a mentionn\u00e9'
     default: return ''
   }
 }

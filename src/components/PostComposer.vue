@@ -1,12 +1,13 @@
 <template>
   <div class="composer">
-    <textarea
+    <MentionInput
       v-model="content"
+      tag="textarea"
       placeholder="Quoi de neuf ?"
       maxlength="500"
       rows="3"
       @keydown.ctrl.enter="submit"
-    ></textarea>
+    />
 
     <!-- Image preview -->
     <div v-if="imagePreview" class="image-preview">
@@ -41,6 +42,7 @@
 <script setup>
 import { ref } from 'vue'
 import { usePostsStore } from '../stores/posts'
+import MentionInput from './MentionInput.vue'
 
 const postsStore = usePostsStore()
 const content = ref('')

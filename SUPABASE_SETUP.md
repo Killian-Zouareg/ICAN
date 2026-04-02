@@ -210,12 +210,137 @@ CREATE TABLE notifications (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   recipient_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   actor_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
-  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'reply', 'repost')),
+  type TEXT NOT NULL CHECK (type IN ('like', 'comment', 'reply', 'repost', 'mention')),
   post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
   comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
   read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own notifications"
+  ON notifications FOR SELECT TO authenticated
+  USING (recipient_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Users can update their own notifications"
+  ON notifications FOR UPDATE TO authenticated
+  USING (recipient_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "Users can delete their own notifications"
+  ON notifications FOR DELETE TO authenticated
+  USING (recipient_id IN (SELECT my_profile_ids()));
+
+CREATE POLICY "System can insert notifications"
+  ON notifications FOR INSERT TO authenticated
+  WITH CHECK (true);
+
+-- Trigger : notification sur like
+CREATE OR REPLACE FUNCTION notify_on_like()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO notifications (recipient_id, actor_id, type, post_id)
+  SELECT p.author_id, NEW.user_id, 'like', NEW.post_id
+  FROM posts p
+  WHERE p.id = NEW.post_id
+    AND p.author_id != NEW.user_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_notify_like
+  AFTER INSERT ON likes
+  FOR EACH ROW EXECUTE FUNCTION notify_on_like();
+
+-- Trigger : notification sur commentaire / réponse
+CREATE OR REPLACE FUNCTION notify_on_comment()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.parent_id IS NOT NULL THEN
+    INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
+    SELECT c.author_id, NEW.author_id, 'reply', NEW.post_id, NEW.id
+    FROM comments c
+    WHERE c.id = NEW.parent_id
+      AND c.author_id != NEW.author_id;
+  ELSE
+    INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
+    SELECT p.author_id, NEW.author_id, 'comment', NEW.post_id, NEW.id
+    FROM posts p
+    WHERE p.id = NEW.post_id
+      AND p.author_id != NEW.author_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_notify_comment
+  AFTER INSERT ON comments
+  FOR EACH ROW EXECUTE FUNCTION notify_on_comment();
+
+-- Trigger : notification sur repost
+CREATE OR REPLACE FUNCTION notify_on_repost()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.repost_of IS NOT NULL THEN
+    INSERT INTO notifications (recipient_id, actor_id, type, post_id)
+    SELECT p.author_id, NEW.author_id, 'repost', NEW.repost_of
+    FROM posts p
+    WHERE p.id = NEW.repost_of
+      AND p.author_id != NEW.author_id;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_notify_repost
+  AFTER INSERT ON posts
+  FOR EACH ROW EXECUTE FUNCTION notify_on_repost();
+
+-- Trigger : notification sur @mention dans un post
+CREATE OR REPLACE FUNCTION notify_on_mention_post()
+RETURNS TRIGGER AS $$
+DECLARE
+  mentioned RECORD;
+BEGIN
+  IF NEW.content IS NULL OR NEW.content = '' THEN RETURN NEW; END IF;
+  FOR mentioned IN
+    SELECT DISTINCT p.id FROM profiles p
+    WHERE NEW.content ~* ('(?:^|[^a-zA-Z0-9_])@' || p.username || '(?![a-zA-Z0-9_])')
+      AND p.id != NEW.author_id
+  LOOP
+    INSERT INTO notifications (recipient_id, actor_id, type, post_id)
+    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.id);
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_notify_mention_post
+  AFTER INSERT ON posts
+  FOR EACH ROW EXECUTE FUNCTION notify_on_mention_post();
+
+-- Trigger : notification sur @mention dans un commentaire
+CREATE OR REPLACE FUNCTION notify_on_mention_comment()
+RETURNS TRIGGER AS $$
+DECLARE
+  mentioned RECORD;
+BEGIN
+  IF NEW.content IS NULL OR NEW.content = '' THEN RETURN NEW; END IF;
+  FOR mentioned IN
+    SELECT DISTINCT p.id FROM profiles p
+    WHERE NEW.content ~* ('(?:^|[^a-zA-Z0-9_])@' || p.username || '(?![a-zA-Z0-9_])')
+      AND p.id != NEW.author_id
+  LOOP
+    INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
+    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.post_id, NEW.id);
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_notify_mention_comment
+  AFTER INSERT ON comments
+  FOR EACH ROW EXECUTE FUNCTION notify_on_mention_comment();
 
 -- =============================================
 -- TABLE: messages

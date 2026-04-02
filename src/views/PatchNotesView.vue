@@ -273,6 +273,20 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.14.0',
+    date: '2 avril 2026',
+    title: '@Mentions + notifications',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Mentionner quelqu\'un avec @username dans un post ou commentaire' },
+      { type: 'new', text: 'Autocomplete en tapant @ — affiche les profils correspondants' },
+      { type: 'new', text: 'Les @mentions sont cliquables et redirigent vers le profil' },
+      { type: 'new', text: 'Notification envoyée à la personne mentionnée' },
+      { type: 'new', text: 'Triggers SQL pour les notifications de likes, commentaires, reposts et mentions' },
+      { type: 'fix', text: 'Correction des notifications qui n\'étaient jamais créées (triggers manquants)' },
+    ],
+  },
+  {
     version: '2.13.0',
     date: '2 avril 2026',
     title: 'Compteurs virtuels + images DM principal',
