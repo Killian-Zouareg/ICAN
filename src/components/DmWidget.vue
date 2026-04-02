@@ -381,12 +381,17 @@ async function fetchConversations() {
     }
   }
 
-  // Fetch hidden conversation IDs (graceful fallback if table doesn't exist yet)
-  const { data: hiddenData } = await supabase
-    .from('conversation_hidden')
-    .select('conversation_id')
-    .eq('profile_id', profileId)
-  const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+  // Fetch hidden conversation IDs (ignore errors if table doesn't exist yet)
+  let hiddenIds = new Set()
+  try {
+    const { data: hiddenData } = await supabase
+      .from('conversation_hidden')
+      .select('conversation_id')
+      .eq('profile_id', profileId)
+    if (hiddenData) hiddenIds = new Set(hiddenData.map((h) => h.conversation_id))
+  } catch {
+    // table doesn't exist yet, ignore
+  }
 
   // Merge all conversations (excluding hidden)
   const allConvs = [

@@ -23,24 +23,27 @@ export const useMessagesStore = defineStore('messages', () => {
     assertUUID(profileId, 'profileId')
     loading.value = true
 
-    const [{ data }, hiddenResult] = await Promise.all([
-      supabase
-        .from('conversations')
-        .select(`
-          *,
-          user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
-          user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
-        `)
-        .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
-        .order('updated_at', { ascending: false }),
-      supabase
+    const { data } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
+        user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
+      `)
+      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
+      .order('updated_at', { ascending: false })
+
+    // Fetch hidden IDs separately — ignore errors (table may not exist yet)
+    let hiddenIds = new Set()
+    try {
+      const { data: hiddenData } = await supabase
         .from('conversation_hidden')
         .select('conversation_id')
-        .eq('profile_id', profileId),
-    ])
-    const hiddenData = hiddenResult?.data
-
-    const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+        .eq('profile_id', profileId)
+      if (hiddenData) hiddenIds = new Set(hiddenData.map((h) => h.conversation_id))
+    } catch {
+      // table doesn't exist yet, ignore
+    }
 
     conversations.value = (data || [])
       .filter((conv) => !hiddenIds.has(conv.id))
