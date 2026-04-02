@@ -15,7 +15,6 @@ export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
   const currentMessages = ref([])
   const loading = ref(false)
-  const hiddenConvIds = ref(new Set())
 
   async function fetchConversations() {
     const auth = useAuthStore()
@@ -34,8 +33,15 @@ export const useMessagesStore = defineStore('messages', () => {
       .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
       .order('updated_at', { ascending: false })
 
+    // Fetch hidden conversation IDs from DB
+    const { data: hiddenData } = await supabase
+      .from('conversation_hidden')
+      .select('conversation_id')
+      .eq('profile_id', profileId)
+    const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+
     conversations.value = (data || [])
-      .filter((conv) => !hiddenConvIds.value.has(conv.id))
+      .filter((conv) => !hiddenIds.has(conv.id))
       .map((conv) => {
         const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
         return { ...conv, otherUser }
@@ -66,6 +72,9 @@ export const useMessagesStore = defineStore('messages', () => {
       content,
     })
     if (error) throw error
+
+    // Unhide conversation if it was hidden (new message = reappear)
+    await unhideConversation(conversationId)
 
     await supabase
       .from('conversations')
@@ -115,9 +124,24 @@ export const useMessagesStore = defineStore('messages', () => {
     currentMessages.value = currentMessages.value.filter((m) => m.id !== messageId)
   }
 
-  function hideConversation(conversationId) {
-    hiddenConvIds.value.add(conversationId)
+  async function hideConversation(conversationId) {
+    const auth = useAuthStore()
+    if (!auth.activeProfile) return
+    await supabase.from('conversation_hidden').upsert({
+      profile_id: auth.activeProfile.id,
+      conversation_id: conversationId,
+    })
     conversations.value = conversations.value.filter((c) => c.id !== conversationId)
+  }
+
+  async function unhideConversation(conversationId) {
+    const auth = useAuthStore()
+    if (!auth.activeProfile) return
+    await supabase
+      .from('conversation_hidden')
+      .delete()
+      .eq('profile_id', auth.activeProfile.id)
+      .eq('conversation_id', conversationId)
   }
 
   return {
@@ -131,6 +155,6 @@ export const useMessagesStore = defineStore('messages', () => {
     markAsRead,
     deleteMessage,
     hideConversation,
-    hiddenConvIds,
+    unhideConversation,
   }
 })

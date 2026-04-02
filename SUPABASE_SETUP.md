@@ -629,6 +629,21 @@ CREATE POLICY "Users can hide conversations"
 CREATE POLICY "Users can unhide conversations"
   ON conversation_hidden FOR DELETE TO authenticated
   USING (profile_id IN (SELECT my_profile_ids()));
+
+-- Trigger: auto-unhide conversation when a new message arrives
+CREATE OR REPLACE FUNCTION unhide_conversation_on_message()
+RETURNS TRIGGER AS $$
+BEGIN
+  DELETE FROM conversation_hidden
+  WHERE conversation_id = NEW.conversation_id;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_unhide_on_new_message
+  AFTER INSERT ON messages
+  FOR EACH ROW
+  EXECUTE FUNCTION unhide_conversation_on_message();
 ```
 
 ---

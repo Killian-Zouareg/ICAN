@@ -237,8 +237,8 @@ import UserAvatar from './UserAvatar.vue'
 const auth = useAuthStore()
 const messagesStore = useMessagesStore()
 
-function hideConv(convId) {
-  messagesStore.hideConversation(convId)
+async function hideConv(convId) {
+  await messagesStore.hideConversation(convId)
   conversations.value = conversations.value.filter((c) => c.id !== convId)
 }
 
@@ -381,7 +381,14 @@ async function fetchConversations() {
     }
   }
 
-  // Merge all conversations (excluding locally hidden)
+  // Fetch hidden conversation IDs from DB
+  const { data: hiddenData } = await supabase
+    .from('conversation_hidden')
+    .select('conversation_id')
+    .eq('profile_id', profileId)
+  const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
+
+  // Merge all conversations (excluding hidden)
   const allConvs = [
     ...(dmData || []).map((conv) => ({
       ...conv,
@@ -393,7 +400,7 @@ async function fetchConversations() {
       displayName: conv.group_name || 'Groupe',
     })),
   ]
-    .filter((c) => !messagesStore.hiddenConvIds.has(c.id))
+    .filter((c) => !hiddenIds.has(c.id))
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
   // Fetch last messages + unread
@@ -567,6 +574,7 @@ async function handleSend() {
   if (imageUrl) insertData.image_url = imageUrl
 
   await supabase.from('messages').insert(insertData)
+  await messagesStore.unhideConversation(activeConv.value.id)
   await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', activeConv.value.id)
   await fetchMessages()
 }
