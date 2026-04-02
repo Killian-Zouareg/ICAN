@@ -237,8 +237,8 @@ import UserAvatar from './UserAvatar.vue'
 const auth = useAuthStore()
 const messagesStore = useMessagesStore()
 
-async function hideConv(convId) {
-  await messagesStore.hideConversation(convId)
+function hideConv(convId) {
+  messagesStore.hideConversation(convId)
   conversations.value = conversations.value.filter((c) => c.id !== convId)
 }
 
@@ -381,19 +381,7 @@ async function fetchConversations() {
     }
   }
 
-  // Fetch hidden conversation IDs (ignore errors if table doesn't exist yet)
-  let hiddenIds = new Set()
-  try {
-    const { data: hiddenData } = await supabase
-      .from('conversation_hidden')
-      .select('conversation_id')
-      .eq('profile_id', profileId)
-    if (hiddenData) hiddenIds = new Set(hiddenData.map((h) => h.conversation_id))
-  } catch {
-    // table doesn't exist yet, ignore
-  }
-
-  // Merge all conversations (excluding hidden)
+  // Merge all conversations (excluding locally hidden)
   const allConvs = [
     ...(dmData || []).map((conv) => ({
       ...conv,
@@ -405,7 +393,7 @@ async function fetchConversations() {
       displayName: conv.group_name || 'Groupe',
     })),
   ]
-    .filter((c) => !hiddenIds.has(c.id))
+    .filter((c) => !messagesStore.hiddenConvIds.has(c.id))
     .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
   // Fetch last messages + unread

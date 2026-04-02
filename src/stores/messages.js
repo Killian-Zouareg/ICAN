@@ -15,6 +15,7 @@ export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
   const currentMessages = ref([])
   const loading = ref(false)
+  const hiddenConvIds = ref(new Set())
 
   async function fetchConversations() {
     const auth = useAuthStore()
@@ -33,20 +34,8 @@ export const useMessagesStore = defineStore('messages', () => {
       .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
       .order('updated_at', { ascending: false })
 
-    // Fetch hidden IDs separately — ignore errors (table may not exist yet)
-    let hiddenIds = new Set()
-    try {
-      const { data: hiddenData } = await supabase
-        .from('conversation_hidden')
-        .select('conversation_id')
-        .eq('profile_id', profileId)
-      if (hiddenData) hiddenIds = new Set(hiddenData.map((h) => h.conversation_id))
-    } catch {
-      // table doesn't exist yet, ignore
-    }
-
     conversations.value = (data || [])
-      .filter((conv) => !hiddenIds.has(conv.id))
+      .filter((conv) => !hiddenConvIds.value.has(conv.id))
       .map((conv) => {
         const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
         return { ...conv, otherUser }
@@ -126,13 +115,8 @@ export const useMessagesStore = defineStore('messages', () => {
     currentMessages.value = currentMessages.value.filter((m) => m.id !== messageId)
   }
 
-  async function hideConversation(conversationId) {
-    const auth = useAuthStore()
-    if (!auth.activeProfile) return
-    await supabase.from('conversation_hidden').upsert({
-      profile_id: auth.activeProfile.id,
-      conversation_id: conversationId,
-    })
+  function hideConversation(conversationId) {
+    hiddenConvIds.value.add(conversationId)
     conversations.value = conversations.value.filter((c) => c.id !== conversationId)
   }
 
@@ -147,5 +131,6 @@ export const useMessagesStore = defineStore('messages', () => {
     markAsRead,
     deleteMessage,
     hideConversation,
+    hiddenConvIds,
   }
 })
