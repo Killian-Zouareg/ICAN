@@ -11,10 +11,10 @@ function escapeHtml(text) {
 
 /**
  * Transforme le contenu texte en HTML avec les @mentions comme liens cliquables.
- * Ex: "@faultline a raison" → '<a href="/user/faultline" class="mention">@faultline</a> a raison'
+ * Utilise le hash router (#/user/...) pour la navigation SPA.
  */
 export function renderMentions(text) {
   if (!text) return ''
   const escaped = escapeHtml(text)
-  return escaped.replace(/@([a-zA-Z0-9_]+)/g, '<a href="/user/$1" class="mention">@$1</a>')
+  return escaped.replace(/@([a-zA-Z0-9_]+)/g, '<a href="#/user/$1" class="mention">@$1</a>')
 }

@@ -97,10 +97,9 @@ function positionDropdown() {
   nextTick(() => {
     const el = inputRef.value
     if (!el) return
-    // Position dropdown below the input
     dropdownStyle.value = {
       left: '0px',
-      bottom: (el.offsetHeight + 4) + 'px',
+      top: (el.offsetHeight + 4) + 'px',
     }
   })
 }

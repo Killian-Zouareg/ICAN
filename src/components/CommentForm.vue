@@ -181,7 +181,7 @@ async function submit() {
   padding: 0.6rem 1rem;
 }
 
-input[type="text"] {
+.comment-form :deep(input[type="text"]) {
   flex: 1;
   padding: 0.5rem 0.75rem;
   background: var(--bg-primary);
@@ -191,7 +191,7 @@ input[type="text"] {
   font-size: 0.9rem;
 }
 
-input[type="text"]:focus {
+.comment-form :deep(input[type="text"]:focus) {
   outline: none;
   border-color: var(--accent);
 }

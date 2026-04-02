@@ -101,7 +101,7 @@ async function submit() {
   background: var(--bg-secondary);
 }
 
-textarea {
+.composer :deep(textarea) {
   width: 100%;
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -113,7 +113,7 @@ textarea {
   min-height: 60px;
 }
 
-textarea:focus {
+.composer :deep(textarea:focus) {
   outline: none;
   border-color: var(--accent);
 }
