@@ -273,6 +273,18 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '2.13.0',
+    date: '2 avril 2026',
+    title: 'Compteurs virtuels + images DM principal',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Compteurs virtuels illimités (likes, commentaires, reposts) — l\'admin peut mettre des millions sans générer de données' },
+      { type: 'new', text: 'Envoi et affichage d\'images dans l\'onglet principal des messages (pas seulement le widget)' },
+      { type: 'improved', text: 'Le masquage de conversations persiste entre les sessions mais se réinitialise quand un nouveau message arrive' },
+      { type: 'fix', text: 'Correction du chargement des conversations cassé par la requête conversation_hidden' },
+    ],
+  },
+  {
     version: '2.12.0',
     date: '1 avril 2026',
     title: 'Masquage de conversations + images DM widget',

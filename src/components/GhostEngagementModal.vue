@@ -9,22 +9,37 @@
       <div class="ghost-modal-body">
         <div v-if="loading" class="ghost-loading">Chargement...</div>
         <template v-else>
-          <!-- Likes -->
+          <!-- Section compteurs virtuels -->
+          <div class="ghost-section-title">Compteurs virtuels (illimité)</div>
+          <div class="ghost-section-hint">Nombres ajoutés à l'affichage, aucune donnée générée</div>
+
           <div class="ghost-field">
             <label class="ghost-label">❤️ Faux likes</label>
-            <input v-model.number="likesCount" type="number" min="0" max="9999" class="ghost-input" />
+            <input v-model.number="fakeLikes" type="number" min="0" class="ghost-input" />
           </div>
 
-          <!-- Reposts -->
-          <div class="ghost-field">
-            <label class="ghost-label">🔁 Faux reposts</label>
-            <input v-model.number="repostsCount" type="number" min="0" max="9999" class="ghost-input" />
-          </div>
-
-          <!-- Commentaires -->
           <div class="ghost-field">
             <label class="ghost-label">💬 Faux commentaires</label>
-            <input v-model.number="commentsCount" type="number" min="0" max="999" class="ghost-input" />
+            <input v-model.number="fakeComments" type="number" min="0" class="ghost-input" />
+          </div>
+
+          <div class="ghost-field">
+            <label class="ghost-label">🔁 Faux reposts</label>
+            <input v-model.number="fakeReposts" type="number" min="0" class="ghost-input" />
+          </div>
+
+          <!-- Section ghost réels -->
+          <div class="ghost-section-title" style="margin-top: 0.75rem">Ghost réels (avec profils)</div>
+          <div class="ghost-section-hint">Crée de vrais profils et interactions visibles</div>
+
+          <div class="ghost-field">
+            <label class="ghost-label">❤️ Ghost likes</label>
+            <input v-model.number="likesCount" type="number" min="0" max="200" class="ghost-input" />
+          </div>
+
+          <div class="ghost-field">
+            <label class="ghost-label">💬 Ghost commentaires</label>
+            <input v-model.number="commentsCount" type="number" min="0" max="200" class="ghost-input" />
           </div>
 
           <div v-if="commentsCount > 0" class="ghost-field">
@@ -35,7 +50,7 @@
           </div>
 
           <div v-if="applying" class="ghost-progress">
-            Génération en cours... ({{ progressText }})
+            Application en cours... ({{ progressText }})
           </div>
 
           <div class="ghost-modal-actions">
@@ -69,16 +84,23 @@ const loading = ref(true)
 const applying = ref(false)
 const progressText = ref('')
 
+// Compteurs virtuels (juste des nombres, pas de lignes en base)
+const fakeLikes = ref(0)
+const fakeComments = ref(0)
+const fakeReposts = ref(0)
+
+// Ghost réels (profils + interactions)
 const likesCount = ref(0)
-const repostsCount = ref(0)
 const commentsCount = ref(0)
 const selectedMood = ref('joyeux')
 
 onMounted(async () => {
   const counts = await ghostStore.fetchGhostCounts(props.postId)
   likesCount.value = counts.likes
-  repostsCount.value = counts.reposts
   commentsCount.value = counts.comments
+  fakeLikes.value = counts.fakeLikes
+  fakeComments.value = counts.fakeComments
+  fakeReposts.value = counts.reposts
   if (counts.comments > 0) {
     selectedMood.value = await ghostStore.fetchGhostCommentsMood(props.postId)
   }
@@ -88,13 +110,17 @@ onMounted(async () => {
 async function applyAll() {
   applying.value = true
   try {
-    progressText.value = 'likes...'
+    progressText.value = 'compteurs virtuels...'
+    await ghostStore.setFakeCounts(props.postId, {
+      fakeLikes: fakeLikes.value,
+      fakeComments: fakeComments.value,
+      fakeReposts: fakeReposts.value,
+    })
+
+    progressText.value = 'ghost likes...'
     await ghostStore.setGhostLikes(props.postId, likesCount.value)
 
-    progressText.value = 'reposts...'
-    await ghostStore.setGhostReposts(props.postId, repostsCount.value)
-
-    progressText.value = 'commentaires...'
+    progressText.value = 'ghost commentaires...'
     await ghostStore.setGhostComments(props.postId, commentsCount.value, selectedMood.value)
 
     emit('applied')
@@ -111,9 +137,12 @@ async function clearAll() {
   applying.value = true
   try {
     await ghostStore.clearGhostEngagement(props.postId)
+    await ghostStore.setFakeCounts(props.postId, { fakeLikes: 0, fakeComments: 0, fakeReposts: 0 })
     likesCount.value = 0
-    repostsCount.value = 0
     commentsCount.value = 0
+    fakeLikes.value = 0
+    fakeComments.value = 0
+    fakeReposts.value = 0
     emit('applied')
     emit('close')
   } catch (e) {
@@ -177,6 +206,18 @@ async function clearAll() {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+}
+
+.ghost-section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ghost-section-hint {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: -0.5rem;
 }
 
 .ghost-loading {

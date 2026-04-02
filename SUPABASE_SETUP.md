@@ -128,9 +128,11 @@ SELECT
   pr.display_name,
   pr.avatar_url,
   (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)
-    + (SELECT COUNT(*) FROM ghost_likes gl WHERE gl.post_id = p.id) AS like_count,
+    + (SELECT COUNT(*) FROM ghost_likes gl WHERE gl.post_id = p.id)
+    + COALESCE(p.fake_like_count, 0) AS like_count,
   (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
-    + (SELECT COUNT(*) FROM ghost_comments gc WHERE gc.post_id = p.id) AS comment_count,
+    + (SELECT COUNT(*) FROM ghost_comments gc WHERE gc.post_id = p.id)
+    + COALESCE(p.fake_comment_count, 0) AS comment_count,
   (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id)
     + COALESCE(p.ghost_repost_count, 0) AS repost_count
 FROM posts p

@@ -158,17 +158,30 @@ export const useGhostEngagementStore = defineStore('ghostEngagement', () => {
     return data
   }
 
+  // Met à jour les compteurs virtuels (fake) sur le post — aucune ligne créée
+  async function setFakeCounts(postId, { fakeLikes, fakeComments, fakeReposts }) {
+    const updates = {}
+    if (fakeLikes != null) updates.fake_like_count = Math.max(0, fakeLikes)
+    if (fakeComments != null) updates.fake_comment_count = Math.max(0, fakeComments)
+    if (fakeReposts != null) updates.ghost_repost_count = Math.max(0, fakeReposts)
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('posts').update(updates).eq('id', postId)
+    }
+  }
+
   // Récupère les compteurs actuels de ghost engagement pour un post
   async function fetchGhostCounts(postId) {
     const [{ count: likesCount }, { count: commentsCount }, { data: postData }] = await Promise.all([
       supabase.from('ghost_likes').select('*', { count: 'exact', head: true }).eq('post_id', postId),
       supabase.from('ghost_comments').select('*', { count: 'exact', head: true }).eq('post_id', postId),
-      supabase.from('posts').select('ghost_repost_count').eq('id', postId).single(),
+      supabase.from('posts').select('ghost_repost_count, fake_like_count, fake_comment_count').eq('id', postId).single(),
     ])
     return {
       likes: likesCount || 0,
       reposts: postData?.ghost_repost_count || 0,
       comments: commentsCount || 0,
+      fakeLikes: postData?.fake_like_count || 0,
+      fakeComments: postData?.fake_comment_count || 0,
     }
   }
 
@@ -214,6 +227,7 @@ export const useGhostEngagementStore = defineStore('ghostEngagement', () => {
     setGhostLikes,
     setGhostReposts,
     setGhostComments,
+    setFakeCounts,
     fetchGhostLikes,
     fetchGhostComments,
     fetchGhostProfile,
