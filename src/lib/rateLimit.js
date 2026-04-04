@@ -43,6 +43,7 @@ export function checkRateLimit(action) {
     like: { max: 30, window: 60000, msg: 'Trop de likes. Attends un peu.' },
     repost: { max: 10, window: 60000, msg: 'Trop de reposts. Attends un peu.' },
     upload: { max: 5, window: 120000, msg: 'Trop d\'uploads. Attends 2 minutes.' },
+    transfer: { max: 5, window: 60000, msg: 'Trop de transferts. Attends un peu.' },
   }
 
   const limit = limits[action]

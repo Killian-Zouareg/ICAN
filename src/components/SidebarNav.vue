@@ -30,6 +30,14 @@
           <span class="sidebar-icon">&#x1F5FA;</span>
           <span class="sidebar-label">Carte</span>
         </router-link>
+        <router-link :to="`/character/${auth.activeProfile?.username}`" class="sidebar-link" v-if="auth.activeProfile" active-class="active">
+          <span class="sidebar-icon">&#x1F9D9;</span>
+          <span class="sidebar-label">Personnage</span>
+        </router-link>
+        <router-link to="/bank" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F3E6;</span>
+          <span class="sidebar-label">Banque</span>
+        </router-link>
         <router-link to="/settings" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2699;</span>
           <span class="sidebar-label">Param&egrave;tres</span>
