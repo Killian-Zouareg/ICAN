@@ -93,7 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updateProfile(profileId, { username, displayName, avatarUrl, bio, heroColorPrimary, heroColorSecondary }) {
+  async function updateProfile(profileId, { username, displayName, avatarUrl, bio, heroColorPrimary, heroColorSecondary, showBalance }) {
     const updates = {}
     if (username !== undefined) updates.username = username
     if (displayName !== undefined) updates.display_name = displayName
@@ -101,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (bio !== undefined) updates.bio = bio
     if (heroColorPrimary !== undefined) updates.hero_color_primary = heroColorPrimary
     if (heroColorSecondary !== undefined) updates.hero_color_secondary = heroColorSecondary
+    if (showBalance !== undefined) updates.show_balance = showBalance
 
     const { data, error } = await supabase
       .from('profiles')

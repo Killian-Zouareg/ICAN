@@ -169,12 +169,26 @@
       <div class="pref-row">
         <div class="pref-info">
           <span class="pref-label">Widget Messages</span>
-          <span class="pref-desc">Afficher le widget flottant de messages en bas à droite</span>
+          <span class="pref-desc">Afficher le widget flottant de messages en bas &agrave; droite</span>
         </div>
         <button
           class="toggle-switch"
           :class="{ on: dmWidgetEnabled }"
           @click="toggleDmWidget"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-label">Solde iBank</span>
+          <span class="pref-desc">Afficher votre solde iBank sur votre profil public</span>
+        </div>
+        <button
+          class="toggle-switch"
+          :class="{ on: showBalanceEnabled }"
+          @click="toggleShowBalance"
         >
           <span class="toggle-knob"></span>
         </button>
@@ -216,6 +230,7 @@ const newError = ref('')
 const creatingProfile = ref(false)
 
 const dmWidgetEnabled = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
+const showBalanceEnabled = ref(false)
 
 function toggleDmWidget() {
   dmWidgetEnabled.value = !dmWidgetEnabled.value
@@ -224,9 +239,20 @@ function toggleDmWidget() {
   window.dispatchEvent(new CustomEvent('dm-widget-toggle', { detail: dmWidgetEnabled.value }))
 }
 
+async function toggleShowBalance() {
+  if (!auth.activeProfile) return
+  showBalanceEnabled.value = !showBalanceEnabled.value
+  try {
+    await auth.updateProfile(auth.activeProfile.id, { showBalance: showBalanceEnabled.value })
+  } catch {
+    showBalanceEnabled.value = !showBalanceEnabled.value
+  }
+}
+
 onMounted(() => {
   if (auth.activeProfile) {
     startEditing(auth.activeProfile)
+    showBalanceEnabled.value = !!auth.activeProfile.show_balance
   }
 })
 
