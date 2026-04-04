@@ -48,146 +48,146 @@
       <div v-if="addMode" class="add-mode-hint">
         Cliquez sur la carte pour placer un lieu
       </div>
-
-      <!-- Detail panel -->
-      <Transition name="panel">
-        <div v-if="store.selectedLocation && !showForm" class="detail-panel">
-          <button class="panel-close" @click="store.clearSelection()">&times;</button>
-
-          <div v-if="store.selectedLocation.image_url" class="panel-image">
-            <img :src="store.selectedLocation.image_url" :alt="store.selectedLocation.name" />
-          </div>
-
-          <div class="panel-body">
-            <div class="panel-header">
-              <span
-                class="panel-category-badge"
-                :style="{ background: getCategoryColor(store.selectedLocation.category) + '25', color: getCategoryColor(store.selectedLocation.category) }"
-              >
-                {{ getCategoryEmoji(store.selectedLocation.category) }} {{ getCategoryLabel(store.selectedLocation.category) }}
-              </span>
-            </div>
-
-            <h3 class="panel-name">{{ store.selectedLocation.name }}</h3>
-
-            <p v-if="store.selectedLocation.description" class="panel-desc">
-              {{ store.selectedLocation.description }}
-            </p>
-
-            <!-- Linked profile -->
-            <router-link
-              v-if="store.selectedLocation.linked_profile"
-              :to="`/user/${store.selectedLocation.linked_profile.username}`"
-              class="panel-profile-link"
-            >
-              <UserAvatar
-                :url="store.selectedLocation.linked_profile.avatar_url"
-                :name="store.selectedLocation.linked_profile.display_name"
-                :size="28"
-              />
-              <div class="panel-profile-info">
-                <span class="panel-profile-name">{{ store.selectedLocation.linked_profile.display_name }}</span>
-                <span class="panel-profile-handle">@{{ store.selectedLocation.linked_profile.username }}</span>
-              </div>
-            </router-link>
-
-            <!-- Admin actions -->
-            <div v-if="auth.isAdmin" class="panel-admin-actions">
-              <button class="panel-edit-btn" @click="startEdit(store.selectedLocation)">Modifier</button>
-              <button class="panel-delete-btn" @click="handleDelete(store.selectedLocation)">Supprimer</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
-
-      <!-- Add/Edit Form modal -->
-      <Transition name="panel">
-        <div v-if="showForm" class="form-overlay" @click.self="cancelForm">
-          <div class="form-modal">
-            <h3 class="form-title">{{ editingLocation ? 'Modifier le lieu' : 'Nouveau lieu' }}</h3>
-
-            <div class="form-field">
-              <label>Nom</label>
-              <input v-model="formData.name" type="text" maxlength="100" placeholder="Nom du lieu" />
-            </div>
-
-            <div class="form-field">
-              <label>Description</label>
-              <textarea v-model="formData.description" rows="3" maxlength="500" placeholder="Description..."></textarea>
-            </div>
-
-            <div class="form-field">
-              <label>Cat&eacute;gorie</label>
-              <div class="form-categories">
-                <button
-                  v-for="(cat, key) in store.CATEGORIES"
-                  :key="key"
-                  class="form-cat-btn"
-                  :class="{ active: formData.category === key }"
-                  :style="formData.category === key ? { background: cat.color + '30', color: cat.color, borderColor: cat.color } : {}"
-                  @click="formData.category = key"
-                >
-                  {{ cat.emoji }} {{ cat.label }}
-                </button>
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Coordonn&eacute;es</label>
-              <div class="form-coords">
-                <input v-model.number="formData.lat" type="number" step="0.0001" placeholder="Latitude" />
-                <input v-model.number="formData.lng" type="number" step="0.0001" placeholder="Longitude" />
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Image (optionnel)</label>
-              <input type="file" accept="image/*" @change="onImageChange" ref="imageInput" />
-              <div v-if="imagePreview" class="form-image-preview">
-                <img :src="imagePreview" alt="Preview" />
-                <button class="remove-image-btn" @click="removeImage">&times;</button>
-              </div>
-            </div>
-
-            <div class="form-field">
-              <label>Profil li&eacute; (optionnel)</label>
-              <input
-                v-model="profileSearch"
-                type="text"
-                placeholder="Rechercher un profil..."
-                @input="searchProfiles"
-              />
-              <div v-if="profileResults.length > 0" class="profile-results">
-                <div
-                  v-for="p in profileResults"
-                  :key="p.id"
-                  class="profile-result-item"
-                  @click="selectProfile(p)"
-                >
-                  <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="24" />
-                  <span>{{ p.display_name }}</span>
-                  <span class="muted">@{{ p.username }}</span>
-                </div>
-              </div>
-              <div v-if="formData.linkedProfile" class="selected-profile">
-                <UserAvatar :url="formData.linkedProfile.avatar_url" :name="formData.linkedProfile.display_name" :size="24" />
-                <span>{{ formData.linkedProfile.display_name }}</span>
-                <button class="remove-profile-btn" @click="formData.linkedProfile = null; formData.linkedProfileId = null">&times;</button>
-              </div>
-            </div>
-
-            <p v-if="formError" class="form-error">{{ formError }}</p>
-
-            <div class="form-actions">
-              <button class="form-save-btn" @click="handleSave" :disabled="saving">
-                {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
-              </button>
-              <button class="form-cancel-btn" @click="cancelForm">Annuler</button>
-            </div>
-          </div>
-        </div>
-      </Transition>
     </div>
+
+    <!-- Detail panel (outside map-wrapper to avoid Leaflet z-index conflicts) -->
+    <Transition name="panel">
+      <div v-if="store.selectedLocation && !showForm" class="detail-panel">
+        <button class="panel-close" @click="store.clearSelection()">&times;</button>
+
+        <div v-if="store.selectedLocation.image_url" class="panel-image">
+          <img :src="store.selectedLocation.image_url" :alt="store.selectedLocation.name" />
+        </div>
+
+        <div class="panel-body">
+          <div class="panel-header">
+            <span
+              class="panel-category-badge"
+              :style="{ background: getCategoryColor(store.selectedLocation.category) + '25', color: getCategoryColor(store.selectedLocation.category) }"
+            >
+              {{ getCategoryEmoji(store.selectedLocation.category) }} {{ getCategoryLabel(store.selectedLocation.category) }}
+            </span>
+          </div>
+
+          <h3 class="panel-name">{{ store.selectedLocation.name }}</h3>
+
+          <p v-if="store.selectedLocation.description" class="panel-desc">
+            {{ store.selectedLocation.description }}
+          </p>
+
+          <!-- Linked profile -->
+          <router-link
+            v-if="store.selectedLocation.linked_profile"
+            :to="`/user/${store.selectedLocation.linked_profile.username}`"
+            class="panel-profile-link"
+          >
+            <UserAvatar
+              :url="store.selectedLocation.linked_profile.avatar_url"
+              :name="store.selectedLocation.linked_profile.display_name"
+              :size="28"
+            />
+            <div class="panel-profile-info">
+              <span class="panel-profile-name">{{ store.selectedLocation.linked_profile.display_name }}</span>
+              <span class="panel-profile-handle">@{{ store.selectedLocation.linked_profile.username }}</span>
+            </div>
+          </router-link>
+
+          <!-- Admin actions -->
+          <div v-if="auth.isAdmin" class="panel-admin-actions">
+            <button class="panel-edit-btn" @click="startEdit(store.selectedLocation)">Modifier</button>
+            <button class="panel-delete-btn" @click="handleDelete(store.selectedLocation)">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Add/Edit Form modal -->
+    <Transition name="panel">
+      <div v-if="showForm" class="form-overlay" @click.self="cancelForm">
+        <div class="form-modal">
+          <h3 class="form-title">{{ editingLocation ? 'Modifier le lieu' : 'Nouveau lieu' }}</h3>
+
+          <div class="form-field">
+            <label>Nom</label>
+            <input v-model="formData.name" type="text" maxlength="100" placeholder="Nom du lieu" />
+          </div>
+
+          <div class="form-field">
+            <label>Description</label>
+            <textarea v-model="formData.description" rows="3" maxlength="500" placeholder="Description..."></textarea>
+          </div>
+
+          <div class="form-field">
+            <label>Cat&eacute;gorie</label>
+            <div class="form-categories">
+              <button
+                v-for="(cat, key) in store.CATEGORIES"
+                :key="key"
+                class="form-cat-btn"
+                :class="{ active: formData.category === key }"
+                :style="formData.category === key ? { background: cat.color + '30', color: cat.color, borderColor: cat.color } : {}"
+                @click="formData.category = key"
+              >
+                {{ cat.emoji }} {{ cat.label }}
+              </button>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Coordonn&eacute;es</label>
+            <div class="form-coords">
+              <input v-model.number="formData.lat" type="number" step="0.0001" placeholder="Latitude" />
+              <input v-model.number="formData.lng" type="number" step="0.0001" placeholder="Longitude" />
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Image (optionnel)</label>
+            <input type="file" accept="image/*" @change="onImageChange" ref="imageInput" />
+            <div v-if="imagePreview" class="form-image-preview">
+              <img :src="imagePreview" alt="Preview" />
+              <button class="remove-image-btn" @click="removeImage">&times;</button>
+            </div>
+          </div>
+
+          <div class="form-field">
+            <label>Profil li&eacute; (optionnel)</label>
+            <input
+              v-model="profileSearch"
+              type="text"
+              placeholder="Rechercher un profil..."
+              @input="searchProfiles"
+            />
+            <div v-if="profileResults.length > 0" class="profile-results">
+              <div
+                v-for="p in profileResults"
+                :key="p.id"
+                class="profile-result-item"
+                @click="selectProfile(p)"
+              >
+                <UserAvatar :url="p.avatar_url" :name="p.display_name" :size="24" />
+                <span>{{ p.display_name }}</span>
+                <span class="muted">@{{ p.username }}</span>
+              </div>
+            </div>
+            <div v-if="formData.linkedProfile" class="selected-profile">
+              <UserAvatar :url="formData.linkedProfile.avatar_url" :name="formData.linkedProfile.display_name" :size="24" />
+              <span>{{ formData.linkedProfile.display_name }}</span>
+              <button class="remove-profile-btn" @click="formData.linkedProfile = null; formData.linkedProfileId = null">&times;</button>
+            </div>
+          </div>
+
+          <p v-if="formError" class="form-error">{{ formError }}</p>
+
+          <div class="form-actions">
+            <button class="form-save-btn" @click="handleSave" :disabled="saving">
+              {{ saving ? 'Sauvegarde...' : 'Sauvegarder' }}
+            </button>
+            <button class="form-cancel-btn" @click="cancelForm">Annuler</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -534,6 +534,7 @@ async function handleDelete(location) {
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
   flex-shrink: 0;
+  position: relative;
   z-index: 10;
 }
 
@@ -585,6 +586,7 @@ async function handleDelete(location) {
   background: var(--bg-primary);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  position: relative;
   z-index: 10;
 }
 
@@ -619,6 +621,8 @@ async function handleDelete(location) {
   flex: 1;
   position: relative;
   min-height: 0;
+  overflow: hidden;
+  z-index: 0;
 }
 
 .map-container {
@@ -749,7 +753,7 @@ async function handleDelete(location) {
   width: 320px;
   background: var(--bg-secondary);
   border-left: 1px solid var(--border);
-  z-index: 500;
+  z-index: 20;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
