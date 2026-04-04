@@ -3,7 +3,7 @@
     <!-- Top bar -->
     <div class="character-top-bar">
       <button @click="$router.back()" class="back-btn">&larr;</button>
-      <h1 class="top-bar-title">Fiche Personnage</h1>
+      <h1 class="top-bar-title">iCharacter</h1>
     </div>
 
     <div v-if="loading" class="loading">Chargement...</div>
@@ -102,7 +102,7 @@
                 <input
                   type="range"
                   min="0"
-                  max="100"
+                  max="20"
                   v-model.number="form[stat.key]"
                 />
                 <span class="stat-num">{{ form[stat.key] }}</span>
@@ -118,7 +118,7 @@
                 {{ stat.label }}
               </span>
               <div class="stat-bar-track">
-                <div class="stat-bar-fill" :style="{ width: (form[stat.key] || 0) + '%' }"></div>
+                <div class="stat-bar-fill" :style="{ width: ((form[stat.key] || 0) / 20 * 100) + '%' }"></div>
               </div>
               <span class="stat-bar-value">{{ form[stat.key] || 0 }}</span>
             </div>

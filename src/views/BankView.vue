@@ -3,7 +3,7 @@
     <!-- Top bar -->
     <div class="bank-top-bar">
       <button @click="$router.back()" class="back-btn">&larr;</button>
-      <h1 class="top-bar-title">iBanque</h1>
+      <h1 class="top-bar-title">iBank</h1>
     </div>
 
     <div v-if="loading" class="loading">Chargement...</div>

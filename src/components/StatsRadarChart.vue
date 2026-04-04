@@ -27,8 +27,8 @@
       <circle
         v-for="(key, i) in statKeys"
         :key="'dot-' + i"
-        :cx="vertexX(i, (stats[key] || 0) / 100)"
-        :cy="vertexY(i, (stats[key] || 0) / 100)"
+        :cx="vertexX(i, (stats[key] || 0) / 20)"
+        :cy="vertexY(i, (stats[key] || 0) / 20)"
         r="4"
         class="radar-dot"
       />
@@ -95,7 +95,7 @@ function gridPoints(scale) {
 const dataPoints = computed(() =>
   statKeys
     .map((key, i) => {
-      const val = Math.max(0, Math.min(100, props.stats[key] || 0)) / 100
+      const val = Math.max(0, Math.min(20, props.stats[key] || 0)) / 20
       return `${vertexX(i, val)},${vertexY(i, val)}`
     })
     .join(' ')
