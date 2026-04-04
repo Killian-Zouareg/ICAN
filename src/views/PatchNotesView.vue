@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.15.0',
+    date: '4 avril 2026',
+    icon: '⭐',
+    color: '#FFD700',
+    title: 'Rôle Hero',
+    description: 'Nouveau rôle Hero attribué par les admins ! Les Heroes ont des posts ultra-distincts avec bordure animée dégradée, effet glow et badge étoile. Chaque Hero peut personnaliser ses couleurs depuis les paramètres.',
+    tags: ['Hero', 'Rôle', 'Personnalisation', 'Admin', 'Animation'],
+  },
+  {
     version: '2.10.0',
     date: '1 avril 2026',
     icon: '✏️',
@@ -272,6 +281,21 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.15.0',
+    date: '4 avril 2026',
+    title: 'Rôle Hero — posts super-highlight personnalisables',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Nouveau rôle "Hero" avec bordure animée dégradée, effet glow et fond teinté sur les posts' },
+      { type: 'new', text: 'Badge étoile doré à côté du nom des Heroes dans les posts et le feed' },
+      { type: 'new', text: 'Nom d\'affichage en dégradé avec les couleurs personnalisées du Hero' },
+      { type: 'new', text: 'Personnalisation des couleurs Hero (primaire + secondaire) depuis les paramètres avec aperçu en direct' },
+      { type: 'new', text: 'Badge "Hero" sur les profils avec bannière colorée et halo lumineux autour de l\'avatar' },
+      { type: 'new', text: 'Bouton toggle Hero dans le panel admin pour attribuer/retirer le rôle' },
+      { type: 'new', text: 'Tag Hero visible dans la recherche de profils' },
+    ],
+  },
   {
     version: '2.14.0',
     date: '2 avril 2026',
