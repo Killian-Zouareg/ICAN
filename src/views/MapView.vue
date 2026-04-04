@@ -247,8 +247,12 @@ onMounted(async () => {
   // Init map first so it renders while locations load
   await nextTick()
   initMap()
-  await store.fetchLocations()
-  renderMarkers()
+  try {
+    await store.fetchLocations()
+    renderMarkers()
+  } catch (e) {
+    console.error('Failed to load map locations:', e)
+  }
 })
 
 onUnmounted(() => {
@@ -286,9 +290,14 @@ function initMap() {
   markersLayer = L.layerGroup().addTo(map)
 
   // Force Leaflet to recalculate container size (fixes blank map)
-  setTimeout(() => {
-    if (map) map.invalidateSize()
-  }, 100)
+  setTimeout(() => { if (map) map.invalidateSize() }, 100)
+  setTimeout(() => { if (map) map.invalidateSize() }, 500)
+
+  // Also observe container resize
+  if (window.ResizeObserver && mapContainer.value) {
+    const ro = new ResizeObserver(() => { if (map) map.invalidateSize() })
+    ro.observe(mapContainer.value)
+  }
 
   // Map click for add mode
   map.on('click', (e) => {
@@ -507,13 +516,13 @@ async function handleDelete(location) {
   position: fixed;
   top: var(--header-height);
   left: 220px;
-  right: 0;
+  right: 280px;
   bottom: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background: var(--bg-primary);
-  z-index: 1;
+  z-index: 2;
 }
 
 /* Toolbar */
@@ -1116,7 +1125,8 @@ async function handleDelete(location) {
 @media (max-width: 768px) {
   .map-page {
     left: 0;
-    bottom: var(--mobile-nav-height);
+    right: 0;
+    bottom: 56px;
   }
 
   .map-toolbar {
