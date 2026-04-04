@@ -82,13 +82,22 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.16.0',
+    date: '4 avril 2026',
+    icon: '\u{1F5FA}',
+    color: '#1da1f2',
+    title: 'Carte interactive d\'Allentown',
+    description: 'Explorez la ville d\'Allentown directement depuis l\'app ! Carte sombre interactive avec les lieux cl\u00e9s de l\'univers : maisons des h\u00e9ros, lyc\u00e9e, QG, repaires de vilains... Les admins peuvent ajouter et g\u00e9rer les emplacements, chaque lieu peut \u00eatre li\u00e9 \u00e0 un personnage.',
+    tags: ['Carte', 'Immersion', 'Leaflet', 'Lieux', 'Admin'],
+  },
+  {
     version: '2.15.0',
     date: '4 avril 2026',
-    icon: '⭐',
+    icon: '\u2B50',
     color: '#FFD700',
-    title: 'Rôle Hero',
-    description: 'Nouveau rôle Hero attribué par les admins ! Les Heroes ont des posts ultra-distincts avec bordure animée dégradée, effet glow et badge étoile. Chaque Hero peut personnaliser ses couleurs depuis les paramètres.',
-    tags: ['Hero', 'Rôle', 'Personnalisation', 'Admin', 'Animation'],
+    title: 'R\u00f4le Hero',
+    description: 'Nouveau r\u00f4le Hero attribu\u00e9 par les admins ! Les Heroes ont des posts ultra-distincts avec bordure anim\u00e9e d\u00e9grad\u00e9e, effet glow et badge \u00e9toile. Chaque Hero peut personnaliser ses couleurs depuis les param\u00e8tres.',
+    tags: ['Hero', 'R\u00f4le', 'Personnalisation', 'Admin', 'Animation'],
   },
   {
     version: '2.10.0',

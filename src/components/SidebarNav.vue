@@ -26,6 +26,10 @@
           <span class="sidebar-icon">&#x1F464;</span>
           <span class="sidebar-label">Profil</span>
         </router-link>
+        <router-link to="/map" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F5FA;</span>
+          <span class="sidebar-label">Carte</span>
+        </router-link>
         <router-link to="/settings" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2699;</span>
           <span class="sidebar-label">Param&egrave;tres</span>

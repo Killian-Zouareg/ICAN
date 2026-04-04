@@ -49,6 +49,11 @@ const routes = [
     component: () => import('../views/SearchView.vue'),
   },
   {
+    path: '/map',
+    name: 'Map',
+    component: () => import('../views/MapView.vue'),
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),

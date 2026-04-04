@@ -1010,7 +1010,61 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
-## 10b. Hero System (admin RPC functions)
+## 10b. Carte interactive (map_locations)
+
+Run this SQL to create the interactive map feature:
+
+```sql
+-- Table for map locations
+CREATE TABLE map_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  category TEXT NOT NULL DEFAULT 'other'
+    CHECK (category IN ('residence','school','landmark','hq','danger','shop','hospital','police','villain','other')),
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  image_url TEXT,
+  linked_profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_map_locations_category ON map_locations(category);
+
+ALTER TABLE map_locations ENABLE ROW LEVEL SECURITY;
+
+-- Everyone can view
+CREATE POLICY "Authenticated can view map locations"
+  ON map_locations FOR SELECT TO authenticated USING (true);
+
+-- Only admins can insert
+CREATE POLICY "Admins can insert map locations"
+  ON map_locations FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- Only admins can update
+CREATE POLICY "Admins can update map locations"
+  ON map_locations FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- Only admins can delete
+CREATE POLICY "Admins can delete map locations"
+  ON map_locations FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+```
+
+Then create a **public** storage bucket called `map-images` with admin-only write policies:
+1. Go to **Storage > New Bucket** > name it `map-images`, check **Public bucket**
+2. Add policies:
+   - **SELECT**: Allow all authenticated users
+   - **INSERT/UPDATE/DELETE**: Only users with `is_admin = true` in their profiles
+
+---
+
+## 10c. Hero System (admin RPC functions)
 
 Run this SQL to enable the hero role management from the admin panel:
 
