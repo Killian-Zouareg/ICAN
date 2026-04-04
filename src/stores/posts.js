@@ -116,7 +116,7 @@ export const usePostsStore = defineStore('posts', () => {
       const uniqueCommentIds = [...new Set(quoteCommentIds)]
       const { data: quotedComments } = await supabase
         .from('comments')
-        .select('*, profiles(username, display_name, avatar_url)')
+        .select('*, profiles(username, display_name, avatar_url, is_hero, hero_color_primary, hero_color_secondary)')
         .in('id', uniqueCommentIds)
       ;(quotedComments || []).forEach((c) => {
         quotedCommentsMap[c.id] = c
