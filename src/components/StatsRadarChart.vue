@@ -1,50 +1,53 @@
 <template>
-  <div class="radar-chart-wrapper">
-    <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`">
-      <!-- Grid levels (33%, 66%, 100%) -->
-      <polygon
-        v-for="level in [0.33, 0.66, 1]"
-        :key="level"
-        :points="gridPoints(level)"
-        class="radar-grid"
-      />
+  <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`" class="radar-chart">
+    <!-- Grid levels (33%, 66%, 100%) -->
+    <polygon
+      v-for="level in [0.33, 0.66, 1]"
+      :key="level"
+      :points="gridPoints(level)"
+      class="radar-grid"
+    />
 
-      <!-- Axis lines from center to vertices -->
-      <line
-        v-for="(_, i) in statKeys"
-        :key="'axis-' + i"
-        :x1="cx"
-        :y1="cy"
-        :x2="vertexX(i, 1)"
-        :y2="vertexY(i, 1)"
-        class="radar-axis"
-      />
+    <!-- Axis lines from center to vertices -->
+    <line
+      v-for="(_, i) in statKeys"
+      :key="'axis-' + i"
+      :x1="cx"
+      :y1="cy"
+      :x2="vertexX(i, 1)"
+      :y2="vertexY(i, 1)"
+      class="radar-axis"
+    />
 
-      <!-- Data polygon -->
-      <polygon :points="dataPoints" class="radar-data" />
+    <!-- Data polygon -->
+    <polygon :points="dataPoints" class="radar-data" />
 
-      <!-- Data points (dots) -->
-      <circle
-        v-for="(key, i) in statKeys"
-        :key="'dot-' + i"
-        :cx="vertexX(i, (stats[key] || 0) / 20)"
-        :cy="vertexY(i, (stats[key] || 0) / 20)"
-        r="4"
-        class="radar-dot"
-      />
-    </svg>
-
-    <!-- Labels positioned around the chart -->
-    <div
+    <!-- Data points (dots) -->
+    <circle
       v-for="(key, i) in statKeys"
-      :key="'label-' + i"
-      class="radar-label"
-      :style="labelStyle(i)"
-    >
-      <span class="radar-label-name">{{ statLabels[key] }}</span>
-      <span class="radar-label-value">{{ stats[key] || 0 }}</span>
-    </div>
-  </div>
+      :key="'dot-' + i"
+      :cx="vertexX(i, (stats[key] || 0) / 20)"
+      :cy="vertexY(i, (stats[key] || 0) / 20)"
+      r="3.5"
+      class="radar-dot"
+    />
+
+    <!-- Labels -->
+    <g v-for="(key, i) in statKeys" :key="'label-' + i">
+      <text
+        :x="labelX(i)"
+        :y="labelY(i) - 6"
+        :text-anchor="labelAnchor(i)"
+        class="radar-label-name"
+      >{{ statLabels[key] }}</text>
+      <text
+        :x="labelX(i)"
+        :y="labelY(i) + 10"
+        :text-anchor="labelAnchor(i)"
+        class="radar-label-value"
+      >{{ stats[key] || 0 }}</text>
+    </g>
+  </svg>
 </template>
 
 <script setup>
@@ -72,7 +75,7 @@ const statLabels = {
 
 const cx = computed(() => props.size / 2)
 const cy = computed(() => props.size / 2)
-const radius = computed(() => props.size * 0.28)
+const radius = computed(() => props.size * 0.30)
 
 function angle(i) {
   return -Math.PI / 2 + (2 * Math.PI * i) / 5
@@ -101,24 +104,28 @@ const dataPoints = computed(() =>
     .join(' ')
 )
 
-function labelStyle(i) {
-  const labelRadius = radius.value + 24
-  const x = cx.value + labelRadius * Math.cos(angle(i))
-  const y = cy.value + labelRadius * Math.sin(angle(i))
-  return {
-    left: `${x}px`,
-    top: `${y}px`,
-    transform: 'translate(-50%, -50%)',
-  }
+function labelX(i) {
+  const offset = radius.value + 18
+  return cx.value + offset * Math.cos(angle(i))
+}
+
+function labelY(i) {
+  const offset = radius.value + 18
+  return cy.value + offset * Math.sin(angle(i))
+}
+
+function labelAnchor(i) {
+  const a = angle(i)
+  const cos = Math.cos(a)
+  if (cos > 0.3) return 'start'
+  if (cos < -0.3) return 'end'
+  return 'middle'
 }
 </script>
 
 <style scoped>
-.radar-chart-wrapper {
-  position: relative;
-  display: inline-block;
-  padding: 8px;
-  overflow: visible;
+.radar-chart {
+  display: block;
 }
 
 .radar-grid {
@@ -147,27 +154,17 @@ function labelStyle(i) {
   transition: all 0.3s ease;
 }
 
-.radar-label {
-  position: absolute;
-  text-align: center;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
 .radar-label-name {
-  font-size: 0.7rem;
+  font-size: 9px;
   font-weight: 600;
-  color: var(--text-primary);
+  fill: var(--text-primary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .radar-label-value {
-  font-size: 0.85rem;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--accent);
+  fill: var(--accent);
 }
 </style>
