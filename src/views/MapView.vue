@@ -244,8 +244,11 @@ function getCategoryLabel(cat) {
 
 // Map init
 onMounted(async () => {
-  await store.fetchLocations()
+  // Init map first so it renders while locations load
+  await nextTick()
   initMap()
+  await store.fetchLocations()
+  renderMarkers()
 })
 
 onUnmounted(() => {
@@ -282,8 +285,10 @@ function initMap() {
   // Markers layer group
   markersLayer = L.layerGroup().addTo(map)
 
-  // Render initial markers
-  renderMarkers()
+  // Force Leaflet to recalculate container size (fixes blank map)
+  setTimeout(() => {
+    if (map) map.invalidateSize()
+  }, 100)
 
   // Map click for add mode
   map.on('click', (e) => {
@@ -498,14 +503,17 @@ async function handleDelete(location) {
 
 <style scoped>
 .map-page {
-  max-width: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  height: calc(100vh - var(--header-height));
-  height: calc(100dvh - var(--header-height));
+  /* Break out of .container (max-width: 600px) */
+  position: fixed;
+  top: var(--header-height);
+  left: 220px;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--bg-primary);
+  z-index: 1;
 }
 
 /* Toolbar */
@@ -1099,10 +1107,16 @@ async function handleDelete(location) {
 }
 
 /* Mobile */
+@media (max-width: 1100px) {
+  .map-page {
+    right: 0;
+  }
+}
+
 @media (max-width: 768px) {
   .map-page {
-    height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
-    height: calc(100dvh - var(--header-height) - var(--mobile-nav-height));
+    left: 0;
+    bottom: var(--mobile-nav-height);
   }
 
   .map-toolbar {
