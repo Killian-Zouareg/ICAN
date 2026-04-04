@@ -272,8 +272,8 @@ function initMap() {
     attributionControl: false,
   })
 
-  // Dark tiles
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  // Dark colored tiles (OSM with CSS dark filter)
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     maxZoom: 19,
     subdomains: 'abcd',
   }).addTo(map)
@@ -663,6 +663,10 @@ async function handleDelete(location) {
 }
 
 /* Leaflet overrides */
+.map-container :deep(.leaflet-tile-pane) {
+  filter: brightness(0.7) contrast(1.2) saturate(0.6);
+}
+
 .map-container :deep(.leaflet-tile) {
   box-sizing: content-box;
 }

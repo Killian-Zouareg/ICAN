@@ -161,6 +161,25 @@
         </button>
       </div>
     </div>
+
+    <!-- App preferences -->
+    <div class="section">
+      <h3 class="section-title">Préférences</h3>
+
+      <div class="pref-row">
+        <div class="pref-info">
+          <span class="pref-label">Widget Messages</span>
+          <span class="pref-desc">Afficher le widget flottant de messages en bas à droite</span>
+        </div>
+        <button
+          class="toggle-switch"
+          :class="{ on: dmWidgetEnabled }"
+          @click="toggleDmWidget"
+        >
+          <span class="toggle-knob"></span>
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -195,6 +214,15 @@ const newUsername = ref('')
 const newDisplayName = ref('')
 const newError = ref('')
 const creatingProfile = ref(false)
+
+const dmWidgetEnabled = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
+
+function toggleDmWidget() {
+  dmWidgetEnabled.value = !dmWidgetEnabled.value
+  localStorage.setItem('dmWidgetEnabled', dmWidgetEnabled.value)
+  // Dispatch event so App.vue can react
+  window.dispatchEvent(new CustomEvent('dm-widget-toggle', { detail: dmWidgetEnabled.value }))
+}
 
 onMounted(() => {
   if (auth.activeProfile) {
@@ -786,5 +814,63 @@ async function handleDeleteProfile() {
   margin: 0;
   font-size: 0.85rem;
   color: var(--text-primary);
+}
+
+/* Preferences */
+.pref-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.6rem 0;
+}
+
+.pref-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pref-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.pref-desc {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border: none;
+  border-radius: 12px;
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.toggle-switch.on {
+  background: var(--accent);
+}
+
+.toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s;
+}
+
+.toggle-switch.on .toggle-knob {
+  transform: translateX(20px);
 }
 </style>
