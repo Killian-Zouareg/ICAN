@@ -72,7 +72,7 @@ const statLabels = {
 
 const cx = computed(() => props.size / 2)
 const cy = computed(() => props.size / 2)
-const radius = computed(() => props.size * 0.35)
+const radius = computed(() => props.size * 0.28)
 
 function angle(i) {
   return -Math.PI / 2 + (2 * Math.PI * i) / 5
@@ -102,7 +102,7 @@ const dataPoints = computed(() =>
 )
 
 function labelStyle(i) {
-  const labelRadius = radius.value + 32
+  const labelRadius = radius.value + 24
   const x = cx.value + labelRadius * Math.cos(angle(i))
   const y = cy.value + labelRadius * Math.sin(angle(i))
   return {
@@ -117,6 +117,8 @@ function labelStyle(i) {
 .radar-chart-wrapper {
   position: relative;
   display: inline-block;
+  padding: 8px;
+  overflow: visible;
 }
 
 .radar-grid {
