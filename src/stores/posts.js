@@ -20,7 +20,7 @@ export const usePostsStore = defineStore('posts', () => {
         .limit(50)
       if (!error) {
         let enriched = await enrichReposts(data || [])
-        enriched = await enrichAdminStatus(enriched)
+        enriched = await enrichAuthorStatus(enriched)
         posts.value = enriched
         await fetchUserLikes()
         await fetchUserReposts()
@@ -40,7 +40,7 @@ export const usePostsStore = defineStore('posts', () => {
         .order('created_at', { ascending: false })
       if (!error) {
         let enriched = await enrichReposts(data || [])
-        enriched = await enrichAdminStatus(enriched)
+        enriched = await enrichAuthorStatus(enriched)
         posts.value = enriched
         await fetchUserLikes()
         await fetchUserReposts()
@@ -51,23 +51,26 @@ export const usePostsStore = defineStore('posts', () => {
   }
 
   // Fetch is_admin flag for all authors and attach it to posts
-  async function enrichAdminStatus(postsList) {
+  async function enrichAuthorStatus(postsList) {
     const authorIds = [...new Set(postsList.map((p) => p.author_id).filter(Boolean))]
     if (authorIds.length === 0) return postsList
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, is_admin')
+      .select('id, is_admin, is_hero, hero_color_primary, hero_color_secondary')
       .in('id', authorIds)
 
-    const adminMap = {}
+    const authorMap = {}
     ;(profiles || []).forEach((p) => {
-      adminMap[p.id] = p.is_admin === true
+      authorMap[p.id] = p
     })
 
     return postsList.map((p) => ({
       ...p,
-      is_admin: adminMap[p.author_id] || false,
+      is_admin: authorMap[p.author_id]?.is_admin || false,
+      is_hero: authorMap[p.author_id]?.is_hero || false,
+      hero_color_primary: authorMap[p.author_id]?.hero_color_primary || null,
+      hero_color_secondary: authorMap[p.author_id]?.hero_color_secondary || null,
     }))
   }
 
@@ -87,18 +90,24 @@ export const usePostsStore = defineStore('posts', () => {
         .in('id', allPostIds)
 
       const originalAuthorIds = [...new Set((originals || []).map((p) => p.author_id).filter(Boolean))]
-      let adminMap = {}
+      let authorMap = {}
       if (originalAuthorIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, is_admin')
+          .select('id, is_admin, is_hero, hero_color_primary, hero_color_secondary')
           .in('id', originalAuthorIds)
         ;(profiles || []).forEach((p) => {
-          adminMap[p.id] = p.is_admin === true
+          authorMap[p.id] = p
         })
       }
       ;(originals || []).forEach((p) => {
-        originalsMap[p.id] = { ...p, is_admin: adminMap[p.author_id] || false }
+        originalsMap[p.id] = {
+          ...p,
+          is_admin: authorMap[p.author_id]?.is_admin || false,
+          is_hero: authorMap[p.author_id]?.is_hero || false,
+          hero_color_primary: authorMap[p.author_id]?.hero_color_primary || null,
+          hero_color_secondary: authorMap[p.author_id]?.hero_color_secondary || null,
+        }
       })
     }
 

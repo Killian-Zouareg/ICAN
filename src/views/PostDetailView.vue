@@ -179,12 +179,20 @@ async function fetchPost() {
     }
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, is_admin')
+      .select('id, is_admin, is_hero, hero_color_primary, hero_color_secondary')
       .in('id', [...new Set(authorIds)])
-    const adminMap = {}
-    ;(profiles || []).forEach((p) => { adminMap[p.id] = p.is_admin === true })
-    data.is_admin = adminMap[data.author_id] || false
-    if (data._original) data._original.is_admin = adminMap[data._original.author_id] || false
+    const authorMap = {}
+    ;(profiles || []).forEach((p) => { authorMap[p.id] = p })
+    data.is_admin = authorMap[data.author_id]?.is_admin || false
+    data.is_hero = authorMap[data.author_id]?.is_hero || false
+    data.hero_color_primary = authorMap[data.author_id]?.hero_color_primary || null
+    data.hero_color_secondary = authorMap[data.author_id]?.hero_color_secondary || null
+    if (data._original) {
+      data._original.is_admin = authorMap[data._original.author_id]?.is_admin || false
+      data._original.is_hero = authorMap[data._original.author_id]?.is_hero || false
+      data._original.hero_color_primary = authorMap[data._original.author_id]?.hero_color_primary || null
+      data._original.hero_color_secondary = authorMap[data._original.author_id]?.hero_color_secondary || null
+    }
   }
 
   post.value = data

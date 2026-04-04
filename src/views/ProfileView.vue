@@ -14,10 +14,10 @@
 
       <!-- Banner + Avatar -->
       <div class="profile-banner">
-        <div class="banner-gradient"></div>
+        <div class="banner-gradient" :style="heroBannerStyle"></div>
       </div>
       <div class="profile-avatar-row">
-        <div class="avatar-wrapper" @click="openAvatarViewer" :class="{ clickable: profileData.avatar_url }">
+        <div class="avatar-wrapper" @click="openAvatarViewer" :class="{ clickable: profileData.avatar_url, 'hero-glow': profileData.is_hero }" :style="profileData.is_hero ? { '--hero-primary': profileData.hero_color_primary || '#FFD700' } : {}">
           <UserAvatar :url="profileData.avatar_url" :name="profileData.display_name" :size="120" />
         </div>
         <div class="profile-actions">
@@ -44,7 +44,8 @@
         <div class="profile-names">
           <h2 class="display-name">
             {{ profileData.display_name }}
-            <span v-if="profileData.is_admin" class="admin-badge">Admin</span>
+            <span v-if="profileData.is_hero" class="hero-badge">Hero</span>
+            <span v-else-if="profileData.is_admin" class="admin-badge">Admin</span>
           </h2>
           <span class="username">@{{ profileData.username }}</span>
         </div>
@@ -201,6 +202,15 @@ const stats = ref({ posts: 0, likes: 0 })
 const isOwnProfile = computed(() => {
   if (!profileData.value) return false
   return auth.profiles.some((p) => p.id === profileData.value.id)
+})
+
+const heroBannerStyle = computed(() => {
+  if (!profileData.value?.is_hero) return {}
+  const p = profileData.value.hero_color_primary || '#FFD700'
+  const s = profileData.value.hero_color_secondary || '#FF6B00'
+  return {
+    background: `linear-gradient(135deg, ${p}44 0%, ${s}33 50%, ${p}55 100%)`,
+  }
 })
 
 const joinedDate = computed(() => {
@@ -526,6 +536,22 @@ watch(() => route.params.username, loadProfile)
   border-radius: 4px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+}
+
+.hero-badge {
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.avatar-wrapper.hero-glow {
+  border-radius: 50%;
+  box-shadow: 0 0 20px var(--hero-primary, #FFD700), 0 0 40px color-mix(in srgb, var(--hero-primary, #FFD700) 30%, transparent);
 }
 
 .bio {

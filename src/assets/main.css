@@ -12,6 +12,14 @@
   --repost: #17bf63;
   --header-height: 48px;
   --mobile-nav-height: 48px;
+  --hero-primary: #FFD700;
+  --hero-secondary: #FF6B00;
+  --hero-glow: rgba(255, 215, 0, 0.25);
+}
+
+@keyframes hero-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
 }
 
 @media (max-width: 768px) {

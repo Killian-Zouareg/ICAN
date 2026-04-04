@@ -107,6 +107,38 @@
         <span class="char-count">{{ editBio.length }}/160</span>
       </div>
 
+      <!-- Hero color customization -->
+      <div v-if="editingProfile?.is_hero" class="hero-colors-section">
+        <h4 class="hero-colors-title">Personnalisation Hero</h4>
+        <p class="hero-colors-desc">Choisis les couleurs de tes posts Hero</p>
+
+        <div class="color-fields">
+          <div class="color-field">
+            <label>Couleur primaire</label>
+            <div class="color-input-row">
+              <input type="color" v-model="editHeroColorPrimary" class="color-picker" />
+              <input type="text" v-model="editHeroColorPrimary" class="color-text" maxlength="7" placeholder="#FFD700" />
+            </div>
+          </div>
+          <div class="color-field">
+            <label>Couleur secondaire</label>
+            <div class="color-input-row">
+              <input type="color" v-model="editHeroColorSecondary" class="color-picker" />
+              <input type="text" v-model="editHeroColorSecondary" class="color-text" maxlength="7" placeholder="#FF6B00" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Live preview -->
+        <div class="hero-preview" :style="{ '--hero-primary': editHeroColorPrimary, '--hero-secondary': editHeroColorSecondary, '--hero-glow': editHeroColorPrimary + '40' }">
+          <div class="hero-preview-header">
+            <span class="hero-preview-name" :style="{ background: `linear-gradient(90deg, ${editHeroColorPrimary}, ${editHeroColorSecondary})`, '-webkit-background-clip': 'text', '-webkit-text-fill-color': 'transparent', 'background-clip': 'text' }">{{ editDisplayName || 'Apercu' }}</span>
+            <span class="hero-preview-handle">@{{ editUsername || 'hero' }}</span>
+          </div>
+          <p class="hero-preview-text">Voici un apercu de vos posts Hero !</p>
+        </div>
+      </div>
+
       <!-- Email (read-only) -->
       <div class="field">
         <label>Email (compte)</label>
@@ -152,6 +184,9 @@ const saving = ref(false)
 const editError = ref('')
 const editSuccess = ref('')
 
+const editHeroColorPrimary = ref('#FFD700')
+const editHeroColorSecondary = ref('#FF6B00')
+
 const showCropper = ref(false)
 const cropperSrc = ref('')
 
@@ -175,6 +210,8 @@ function startEditing(p) {
   editBio.value = p.bio || ''
   avatarPreview.value = p.avatar_url || null
   avatarFile.value = null
+  editHeroColorPrimary.value = p.hero_color_primary || '#FFD700'
+  editHeroColorSecondary.value = p.hero_color_secondary || '#FF6B00'
   editError.value = ''
   editSuccess.value = ''
 }
@@ -238,11 +275,16 @@ async function handleSave() {
       avatarFile.value = null
     }
 
-    const updated = await auth.updateProfile(editingProfileId.value, {
+    const profileUpdate = {
       username: editUsername.value.trim(),
       displayName: editDisplayName.value.trim(),
       bio: editBio.value.trim(),
-    })
+    }
+    if (editingProfile.value?.is_hero) {
+      profileUpdate.heroColorPrimary = editHeroColorPrimary.value
+      profileUpdate.heroColorSecondary = editHeroColorSecondary.value
+    }
+    const updated = await auth.updateProfile(editingProfileId.value, profileUpdate)
 
     editingProfile.value = updated
     editSuccess.value = 'Profil mis à jour !'
@@ -611,5 +653,138 @@ async function handleDeleteProfile() {
 .delete-profile-btn:hover {
   background: var(--danger);
   color: white;
+}
+
+/* Hero color customization */
+.hero-colors-section {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+}
+
+.hero-colors-title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+  background: linear-gradient(90deg, #FFD700, #FF6B00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-colors-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin: 0 0 1rem;
+}
+
+.color-fields {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.color-field {
+  flex: 1;
+}
+
+.color-field label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.color-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-picker {
+  width: 40px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 4px;
+}
+
+.color-text {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: monospace;
+}
+
+.color-text:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Hero live preview */
+.hero-preview {
+  position: relative;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--hero-primary) 8%, var(--bg-primary)),
+    color-mix(in srgb, var(--hero-secondary) 5%, var(--bg-primary))
+  );
+  box-shadow: 0 0 12px var(--hero-glow), inset 0 0 12px color-mix(in srgb, var(--hero-glow) 40%, transparent);
+  overflow: hidden;
+}
+
+.hero-preview::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--hero-primary), var(--hero-secondary), var(--hero-primary));
+  background-size: 200% 200%;
+  animation: hero-gradient-shift 3s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hero-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.3rem;
+}
+
+.hero-preview-name {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.hero-preview-handle {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.hero-preview-text {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--text-primary);
 }
 </style>

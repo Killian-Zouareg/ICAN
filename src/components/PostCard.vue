@@ -1,5 +1,5 @@
 <template>
-  <div class="post-card" :class="{ 'admin-post': displayPost.is_admin }" @click="goToPost">
+  <div class="post-card" :class="postCardClasses" :style="heroInlineStyles" @click="goToPost">
     <!-- Repost badge -->
     <div v-if="isRepost" class="repost-badge">
       <span class="repost-icon">
@@ -29,11 +29,17 @@
           <router-link
             :to="`/user/${displayPost.username}`"
             class="author-name"
-            :class="{ 'admin-name': displayPost.is_admin }"
+            :class="{ 'admin-name': displayPost.is_admin && !displayPost.is_hero, 'hero-name': displayPost.is_hero }"
+            :style="displayPost.is_hero ? { '--hero-primary': displayPost.hero_color_primary || '#FFD700', '--hero-secondary': displayPost.hero_color_secondary || '#FF6B00' } : {}"
             @click.stop
           >
             {{ displayPost.display_name }}
-            <svg v-if="displayPost.is_admin" class="verified-badge" viewBox="0 0 22 22" aria-label="Compte certifié">
+            <!-- Hero star badge -->
+            <svg v-if="displayPost.is_hero" class="hero-badge-icon" viewBox="0 0 24 24" aria-label="Hero">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 22 12 18.56 5.82 22 7 14.14l-5-4.87 6.91-1.01L12 2z" fill="currentColor"/>
+            </svg>
+            <!-- Admin verified badge (only if not hero) -->
+            <svg v-else-if="displayPost.is_admin" class="verified-badge" viewBox="0 0 22 22" aria-label="Compte certifié">
               <path d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.274-.586-.705-1.084-1.246-1.439-.54-.354-1.17-.551-1.816-.569-.646.018-1.275.215-1.816.57-.54.354-.972.852-1.246 1.438-.607-.223-1.264-.27-1.897-.14-.634.131-1.218.437-1.687.882-.445.47-.75 1.053-.882 1.687-.13.633-.083 1.29.14 1.897-.586.274-1.084.705-1.439 1.246-.354.54-.551 1.17-.569 1.816.018.646.215 1.275.57 1.816.354.54.852.972 1.438 1.246-.223.607-.27 1.264-.14 1.897.131.634.437 1.218.882 1.687.47.445 1.053.75 1.687.882.633.13 1.29.083 1.897-.14.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.646-.018 1.275-.215 1.816-.57.54-.354.972-.852 1.246-1.438.607.223 1.264.27 1.897.14.634-.131 1.218-.437 1.687-.882.445-.47.75-1.053.882-1.687.13-.633.083-1.29-.14-1.897.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.072 2.072 4.4-4.794 1.347 1.246z" fill="currentColor"/>
             </svg>
           </router-link>
@@ -186,6 +192,22 @@ const showQuoteComposer = ref(false)
 
 const isRepost = computed(() => !!props.post.repost_of)
 
+const postCardClasses = computed(() => ({
+  'admin-post': displayPost.value.is_admin && !displayPost.value.is_hero,
+  'hero-post': displayPost.value.is_hero,
+}))
+
+const heroInlineStyles = computed(() => {
+  if (!displayPost.value.is_hero) return {}
+  const primary = displayPost.value.hero_color_primary || '#FFD700'
+  const secondary = displayPost.value.hero_color_secondary || '#FF6B00'
+  return {
+    '--hero-primary': primary,
+    '--hero-secondary': secondary,
+    '--hero-glow': primary + '40',
+  }
+})
+
 // For reposts, show the original post content. For normal posts, show the post itself.
 const displayPost = computed(() => {
   if (isRepost.value && props.post._original) {
@@ -268,6 +290,45 @@ function animateClick(event) {
   background: rgba(29, 161, 242, 0.08);
 }
 
+/* Hero post highlight — animated gradient border + glow */
+.post-card.hero-post {
+  position: relative;
+  border-left: none;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--hero-primary) 8%, var(--bg-primary)),
+    color-mix(in srgb, var(--hero-secondary) 5%, var(--bg-primary))
+  );
+  box-shadow: 0 0 12px var(--hero-glow), inset 0 0 12px color-mix(in srgb, var(--hero-glow) 40%, transparent);
+  z-index: 0;
+  border-bottom: none;
+  margin-bottom: 1px;
+}
+
+.post-card.hero-post:hover {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--hero-primary) 14%, var(--bg-primary)),
+    color-mix(in srgb, var(--hero-secondary) 10%, var(--bg-primary))
+  );
+  box-shadow: 0 0 20px var(--hero-glow), inset 0 0 16px color-mix(in srgb, var(--hero-glow) 50%, transparent);
+}
+
+.post-card.hero-post::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  background: linear-gradient(135deg, var(--hero-primary), var(--hero-secondary), var(--hero-primary));
+  background-size: 200% 200%;
+  animation: hero-gradient-shift 3s ease infinite;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: -1;
+}
+
 .repost-badge {
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -332,6 +393,22 @@ function animateClick(event) {
   height: 18px;
   color: var(--accent);
   flex-shrink: 0;
+}
+
+.hero-name {
+  background: linear-gradient(90deg, var(--hero-primary, #FFD700), var(--hero-secondary, #FF6B00));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 800;
+}
+
+.hero-badge-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--hero-primary, #FFD700);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px var(--hero-primary, #FFD700));
 }
 
 .author-handle {

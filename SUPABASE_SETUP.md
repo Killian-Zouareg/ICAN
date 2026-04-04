@@ -46,6 +46,9 @@ CREATE TABLE profiles (
   display_name TEXT NOT NULL,
   avatar_url TEXT,
   is_admin BOOLEAN DEFAULT false,
+  is_hero BOOLEAN DEFAULT false,
+  hero_color_primary TEXT DEFAULT '#FFD700',
+  hero_color_secondary TEXT DEFAULT '#FF6B00',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -1004,6 +1007,30 @@ CREATE TRIGGER on_auth_user_created
 ```
 
 **Après la migration**, copie-colle et exécute le SQL de la **section 4** (RLS) pour recréer toutes les policies.
+
+---
+
+## 10b. Hero System (admin RPC functions)
+
+Run this SQL to enable the hero role management from the admin panel:
+
+```sql
+-- Toggle hero status (called from admin panel)
+CREATE OR REPLACE FUNCTION admin_toggle_hero(p_profile_id UUID, p_is_hero BOOLEAN)
+RETURNS void AS $$
+BEGIN
+  UPDATE profiles SET is_hero = p_is_hero WHERE id = p_profile_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+If you already have a `profiles` table without the hero columns, run this migration:
+
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_hero BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS hero_color_primary TEXT DEFAULT '#FFD700';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS hero_color_secondary TEXT DEFAULT '#FF6B00';
+```
 
 ---
 
