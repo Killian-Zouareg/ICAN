@@ -56,7 +56,7 @@ import { computed } from 'vue'
 const props = defineProps({
   stats: {
     type: Object,
-    default: () => ({ force: 0, defense: 0, endurance: 0, intellect: 0, charisme: 0 }),
+    default: () => ({ force: 0, vigueur: 0, mobilite: 0, intelligence: 0, charisme: 0 }),
   },
   size: {
     type: Number,
@@ -64,12 +64,12 @@ const props = defineProps({
   },
 })
 
-const statKeys = ['force', 'defense', 'endurance', 'intellect', 'charisme']
+const statKeys = ['force', 'vigueur', 'mobilite', 'intelligence', 'charisme']
 const statLabels = {
   force: 'Force',
-  defense: 'Défense',
-  endurance: 'Endurance',
-  intellect: 'Intellect',
+  vigueur: 'Vigueur',
+  mobilite: 'Mobilité',
+  intelligence: 'Intelligence',
   charisme: 'Charisme',
 }
 
@@ -126,6 +126,7 @@ function labelAnchor(i) {
 <style scoped>
 .radar-chart {
   display: block;
+  overflow: visible;
 }
 
 .radar-grid {

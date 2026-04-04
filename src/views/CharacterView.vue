@@ -165,25 +165,25 @@ const form = ref({
   lieu_naissance: '',
   date_naissance: '',
   force: 0,
-  defense: 0,
-  endurance: 0,
-  intellect: 0,
+  vigueur: 0,
+  mobilite: 0,
+  intelligence: 0,
   charisme: 0,
 })
 
 const statDefs = [
   { key: 'force', label: 'Force', emoji: '💪' },
-  { key: 'defense', label: 'Défense', emoji: '🛡️' },
-  { key: 'endurance', label: 'Endurance', emoji: '🏃' },
-  { key: 'intellect', label: 'Intellect', emoji: '🧠' },
+  { key: 'vigueur', label: 'Vigueur', emoji: '🛡️' },
+  { key: 'mobilite', label: 'Mobilité', emoji: '🏃' },
+  { key: 'intelligence', label: 'Intelligence', emoji: '🧠' },
   { key: 'charisme', label: 'Charisme', emoji: '✨' },
 ]
 
 const statValues = computed(() => ({
   force: form.value.force,
-  defense: form.value.defense,
-  endurance: form.value.endurance,
-  intellect: form.value.intellect,
+  vigueur: form.value.vigueur,
+  mobilite: form.value.mobilite,
+  intelligence: form.value.intelligence,
   charisme: form.value.charisme,
 }))
 
@@ -215,9 +215,9 @@ async function loadProfile(username) {
         lieu_naissance: sheet.lieu_naissance || '',
         date_naissance: sheet.date_naissance || '',
         force: sheet.force || 0,
-        defense: sheet.defense || 0,
-        endurance: sheet.endurance || 0,
-        intellect: sheet.intellect || 0,
+        vigueur: sheet.vigueur || 0,
+        mobilite: sheet.mobilite || 0,
+        intelligence: sheet.intelligence || 0,
         charisme: sheet.charisme || 0,
       }
     } else {
@@ -225,7 +225,7 @@ async function loadProfile(username) {
       form.value = {
         photo_url: '', nom: '', prenom: '', nationalite: '', sexe: '',
         lieu_naissance: '', date_naissance: '',
-        force: 0, defense: 0, endurance: 0, intellect: 0, charisme: 0,
+        force: 0, vigueur: 0, mobilite: 0, intelligence: 0, charisme: 0,
       }
     }
   } catch {

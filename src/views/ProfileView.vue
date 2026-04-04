@@ -224,9 +224,9 @@ const stats = ref({ posts: 0, likes: 0 })
 
 const characterSheetStats = computed(() => ({
   force: characterSheet.value?.force || 0,
-  defense: characterSheet.value?.defense || 0,
-  endurance: characterSheet.value?.endurance || 0,
-  intellect: characterSheet.value?.intellect || 0,
+  vigueur: characterSheet.value?.vigueur || 0,
+  mobilite: characterSheet.value?.mobilite || 0,
+  intelligence: characterSheet.value?.intelligence || 0,
   charisme: characterSheet.value?.charisme || 0,
 }))
 
