@@ -105,8 +105,33 @@ export const useBankStore = defineStore('bank', () => {
     return data || []
   }
 
+  async function spend(senderId, amount, note = '') {
+    const auth = useAuthStore()
+    auth.checkBan()
+
+    const rateLimitMsg = checkRateLimit('transfer')
+    if (rateLimitMsg) throw new Error(rateLimitMsg)
+
+    if (!amount || amount <= 0) throw new Error('Montant invalide')
+
+    sending.value = true
+    try {
+      const { error } = await supabase.rpc('spend_money', {
+        p_sender_id: senderId,
+        p_amount: amount,
+        p_note: note,
+      })
+      if (error) throw error
+
+      await fetchAccount(senderId)
+      await fetchTransactions(senderId)
+    } finally {
+      sending.value = false
+    }
+  }
+
   return {
     account, transactions, loading, sending,
-    fetchAccount, fetchTransactions, transfer, adminAdjustBalance, searchRecipient,
+    fetchAccount, fetchTransactions, transfer, spend, adminAdjustBalance, searchRecipient,
   }
 })

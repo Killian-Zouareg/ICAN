@@ -22,8 +22,26 @@
         <div class="bank-section">
           <h3 class="section-title">Envoyer de l'argent</h3>
 
-          <!-- Recipient search -->
-          <div class="field">
+          <!-- Transfer mode toggle -->
+          <div class="transfer-mode-toggle">
+            <button
+              class="mode-btn"
+              :class="{ active: transferMode === 'profile' }"
+              @click="switchTransferMode('profile')"
+            >
+              &#x1F464; Joueur
+            </button>
+            <button
+              class="mode-btn"
+              :class="{ active: transferMode === 'location' }"
+              @click="switchTransferMode('location')"
+            >
+              &#x1F3EA; Commerce / Lieu
+            </button>
+          </div>
+
+          <!-- Recipient search (profile mode) -->
+          <div v-if="transferMode === 'profile'" class="field">
             <label>Destinataire</label>
             <div class="recipient-search">
               <input
@@ -32,7 +50,6 @@
                 placeholder="Rechercher un profil..."
                 @input="onSearchRecipient"
               />
-              <!-- Dropdown -->
               <div v-if="recipientResults.length > 0 && !selectedRecipient" class="recipient-dropdown">
                 <div
                   v-for="r in recipientResults"
@@ -48,11 +65,46 @@
                 </div>
               </div>
             </div>
-            <!-- Selected recipient badge -->
             <div v-if="selectedRecipient" class="selected-recipient">
               <UserAvatar :url="selectedRecipient.avatar_url" :name="selectedRecipient.display_name" :size="24" />
               <span>@{{ selectedRecipient.username }}</span>
               <button class="clear-recipient" @click="clearRecipient">&times;</button>
+            </div>
+          </div>
+
+          <!-- Location search (location mode) -->
+          <div v-if="transferMode === 'location'" class="field">
+            <label>Lieu / Commerce</label>
+            <div class="recipient-search">
+              <input
+                v-model="locationQuery"
+                type="text"
+                placeholder="Rechercher un lieu..."
+                @input="onSearchLocation"
+              />
+              <div v-if="locationResults.length > 0 && !selectedLocation" class="recipient-dropdown">
+                <div
+                  v-for="loc in locationResults"
+                  :key="loc.id"
+                  class="recipient-item"
+                  @click="selectLocationRecipient(loc)"
+                >
+                  <span class="loc-recipient-emoji" :style="{ background: getCatColor(loc.category) + '30', color: getCatColor(loc.category) }">
+                    {{ getCatEmoji(loc.category) }}
+                  </span>
+                  <div class="recipient-info">
+                    <span class="recipient-name">{{ loc.name }}</span>
+                    <span class="recipient-handle">{{ getCatLabel(loc.category) }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="selectedLocation" class="selected-recipient">
+              <span class="loc-recipient-emoji loc-recipient-emoji-sm" :style="{ background: getCatColor(selectedLocation.category) + '30', color: getCatColor(selectedLocation.category) }">
+                {{ getCatEmoji(selectedLocation.category) }}
+              </span>
+              <span>{{ selectedLocation.name }}</span>
+              <button class="clear-recipient" @click="clearLocation">&times;</button>
             </div>
           </div>
 
@@ -63,7 +115,7 @@
             </div>
             <div class="field field-note">
               <label>Note (optionnel)</label>
-              <input v-model="transferNote" type="text" maxlength="100" placeholder="Motif du transfert" />
+              <input v-model="transferNote" type="text" maxlength="100" :placeholder="transferMode === 'location' ? 'Achat, service...' : 'Motif du transfert'" />
             </div>
           </div>
 
@@ -154,6 +206,10 @@
                     <span class="tx-admin-badge">ADMIN</span>
                     <span class="tx-party">{{ tx.sender?.display_name }}</span>
                   </template>
+                  <template v-else-if="isSpendTx(tx)">
+                    <span class="tx-spend-badge">&#x1F3EA;</span>
+                    <span class="tx-party">D&eacute;pense</span>
+                  </template>
                   <template v-else-if="txDirection(tx) === 'incoming'">
                     <span class="tx-from">De</span>
                     <router-link :to="`/user/${tx.sender?.username}`" class="tx-party">
@@ -185,16 +241,21 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useBankStore } from '../stores/bank'
+import { useMapLocationsStore } from '../stores/mapLocations'
 import { timeAgo } from '../lib/time'
 import UserAvatar from '../components/UserAvatar.vue'
 
 const auth = useAuthStore()
 const bankStore = useBankStore()
+const mapStore = useMapLocationsStore()
 
 const loading = ref(true)
 const sending = ref(false)
 
-// Transfer form
+// Transfer mode
+const transferMode = ref('profile') // 'profile' | 'location'
+
+// Transfer form - profile mode
 const recipientQuery = ref('')
 const recipientResults = ref([])
 const selectedRecipient = ref(null)
@@ -202,6 +263,11 @@ const transferAmount = ref(null)
 const transferNote = ref('')
 const transferMsg = ref('')
 const transferMsgType = ref('')
+
+// Transfer form - location mode
+const locationQuery = ref('')
+const locationResults = ref([])
+const selectedLocation = ref(null)
 
 // Admin form
 const adminQuery = ref('')
@@ -215,9 +281,31 @@ const adminMsgType = ref('')
 const account = computed(() => bankStore.account)
 const transactions = computed(() => bankStore.transactions)
 
-const canTransfer = computed(() =>
-  selectedRecipient.value && transferAmount.value && transferAmount.value > 0
-)
+const canTransfer = computed(() => {
+  if (!transferAmount.value || transferAmount.value <= 0) return false
+  if (transferMode.value === 'profile') return !!selectedRecipient.value
+  return !!selectedLocation.value
+})
+
+// Category helpers for location mode
+function getCatColor(cat) {
+  return mapStore.CATEGORIES[cat]?.color || '#8899a6'
+}
+function getCatEmoji(cat) {
+  return mapStore.CATEGORIES[cat]?.emoji || '\u{1F4CD}'
+}
+function getCatLabel(cat) {
+  return mapStore.CATEGORIES[cat]?.label || 'Autre'
+}
+
+function switchTransferMode(mode) {
+  transferMode.value = mode
+  clearRecipient()
+  clearLocation()
+  transferAmount.value = null
+  transferNote.value = ''
+  transferMsg.value = ''
+}
 
 let searchTimeout = null
 
@@ -245,20 +333,65 @@ function clearRecipient() {
   recipientResults.value = []
 }
 
+function onSearchLocation() {
+  selectedLocation.value = null
+  const q = locationQuery.value.trim().toLowerCase()
+  if (!q) {
+    locationResults.value = []
+    return
+  }
+  // Ensure locations are loaded
+  if (mapStore.locations.length === 0) {
+    mapStore.fetchLocations().then(() => filterLocations(q))
+  } else {
+    filterLocations(q)
+  }
+}
+
+function filterLocations(q) {
+  locationResults.value = mapStore.locations
+    .filter(l => l.name.toLowerCase().includes(q))
+    .slice(0, 8)
+}
+
+function selectLocationRecipient(loc) {
+  selectedLocation.value = loc
+  locationQuery.value = loc.name
+  locationResults.value = []
+}
+
+function clearLocation() {
+  selectedLocation.value = null
+  locationQuery.value = ''
+  locationResults.value = []
+}
+
 async function doTransfer() {
   if (!canTransfer.value || !auth.activeProfile) return
   sending.value = true
   transferMsg.value = ''
   try {
-    await bankStore.transfer(
-      auth.activeProfile.id,
-      selectedRecipient.value.id,
-      transferAmount.value,
-      transferNote.value
-    )
+    if (transferMode.value === 'profile') {
+      await bankStore.transfer(
+        auth.activeProfile.id,
+        selectedRecipient.value.id,
+        transferAmount.value,
+        transferNote.value
+      )
+      clearRecipient()
+    } else {
+      const note = transferNote.value
+        ? `${selectedLocation.value.name} — ${transferNote.value}`
+        : selectedLocation.value.name
+      await bankStore.spend(
+        auth.activeProfile.id,
+        transferAmount.value,
+        note
+      )
+      clearLocation()
+    }
     transferMsg.value = 'Transfert effectué !'
     transferMsgType.value = 'success'
-    clearRecipient()
     transferAmount.value = null
     transferNote.value = ''
   } catch (err) {
@@ -316,12 +449,17 @@ async function doAdminAdjust() {
 }
 
 function txDirection(tx) {
+  if (!tx.receiver_id) return 'outgoing' // spend transaction
   if (tx.sender_id === tx.receiver_id) return 'incoming' // admin adjustment
   return tx.receiver_id === auth.activeProfile?.id ? 'incoming' : 'outgoing'
 }
 
 function isAdminTx(tx) {
-  return tx.sender_id === tx.receiver_id
+  return tx.receiver_id && tx.sender_id === tx.receiver_id
+}
+
+function isSpendTx(tx) {
+  return !tx.receiver_id
 }
 
 function formatBalance(n) {
@@ -444,6 +582,54 @@ onMounted(() => {
 
 .admin-section .section-title {
   color: var(--hero-primary);
+}
+
+/* Transfer mode toggle */
+.transfer-mode-toggle {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(29, 161, 242, 0.1);
+}
+
+.mode-btn:hover:not(.active) {
+  border-color: var(--text-secondary);
+}
+
+.loc-recipient-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.loc-recipient-emoji-sm {
+  width: 24px;
+  height: 24px;
+  font-size: 0.8rem;
+  border-radius: 6px;
 }
 
 /* Fields */
@@ -694,6 +880,10 @@ onMounted(() => {
   color: #000;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+}
+
+.tx-spend-badge {
+  font-size: 0.85rem;
 }
 
 .tx-note {

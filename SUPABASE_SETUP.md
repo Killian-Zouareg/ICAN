@@ -1145,3 +1145,50 @@ JOIN profiles pr ON p.author_id = pr.id;
 ```
 
 **Après la migration**, recréer les policies RLS si nécessaire (section 4).
+
+---
+
+## 12. Migration : Dépenses vers commerces/lieux (spend_money)
+
+Permet aux joueurs de dépenser de l'argent vers des commerces ou lieux (pas un vrai profil). L'argent est simplement débité du compte du joueur.
+
+```sql
+-- 1. Rendre receiver_id nullable dans bank_transactions
+-- (si la colonne est NOT NULL, il faut la modifier)
+ALTER TABLE bank_transactions ALTER COLUMN receiver_id DROP NOT NULL;
+
+-- 2. Créer la fonction RPC spend_money
+CREATE OR REPLACE FUNCTION spend_money(p_sender_id UUID, p_amount INT, p_note TEXT DEFAULT '')
+RETURNS VOID AS $$
+DECLARE
+  v_balance INT;
+BEGIN
+  IF p_amount <= 0 THEN
+    RAISE EXCEPTION 'Le montant doit être positif';
+  END IF;
+
+  -- Vérifier le solde
+  SELECT balance INTO v_balance
+  FROM bank_accounts
+  WHERE profile_id = p_sender_id
+  FOR UPDATE;
+
+  IF v_balance IS NULL THEN
+    RAISE EXCEPTION 'Compte introuvable';
+  END IF;
+
+  IF v_balance < p_amount THEN
+    RAISE EXCEPTION 'Solde insuffisant (% $ disponibles)', v_balance;
+  END IF;
+
+  -- Débiter le sender
+  UPDATE bank_accounts
+  SET balance = balance - p_amount
+  WHERE profile_id = p_sender_id;
+
+  -- Enregistrer la transaction (receiver_id = NULL = dépense)
+  INSERT INTO bank_transactions (sender_id, receiver_id, amount, note)
+  VALUES (p_sender_id, NULL, p_amount, p_note);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
