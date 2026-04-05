@@ -122,17 +122,17 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     return data.publicUrl + '?t=' + Date.now()
   }
 
-  async function fetchLocationPosts(locationId) {
+  async function fetchRecentLocationPosts() {
     loadingPosts.value = true
     try {
       const { data, error } = await supabase
         .from('posts_with_stats')
         .select('*')
-        .contains('location_ids', [locationId])
+        .not('location_ids', 'eq', '{}')
         .order('created_at', { ascending: false })
         .limit(5)
       if (error) {
-        console.error('fetchLocationPosts error:', error.message)
+        console.error('fetchRecentLocationPosts error:', error.message)
         locationPosts.value = []
         return
       }
@@ -148,7 +148,6 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
 
   function clearSelection() {
     selectedLocation.value = null
-    locationPosts.value = []
   }
 
   return {
@@ -161,7 +160,7 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     loadingPosts,
     CATEGORIES,
     fetchLocations,
-    fetchLocationPosts,
+    fetchRecentLocationPosts,
     createLocation,
     updateLocation,
     deleteLocation,

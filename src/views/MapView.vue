@@ -98,34 +98,6 @@
             <button class="panel-delete-btn" @click="handleDelete(store.selectedLocation)">Supprimer</button>
           </div>
 
-          <!-- Recent posts mentioning this location -->
-          <div class="panel-posts-section">
-            <h4 class="panel-posts-title">Posts r&eacute;cents</h4>
-            <div v-if="store.loadingPosts" class="panel-posts-loading">Chargement...</div>
-            <div v-else-if="store.locationPosts.length === 0" class="panel-posts-empty">
-              Aucun post ne mentionne ce lieu
-            </div>
-            <router-link
-              v-else
-              v-for="post in store.locationPosts"
-              :key="post.id"
-              :to="`/post/${post.id}`"
-              class="panel-post-card"
-            >
-              <UserAvatar
-                :url="post.avatar_url"
-                :name="post.display_name || post.username"
-                :size="24"
-              />
-              <div class="panel-post-info">
-                <div class="panel-post-header">
-                  <span class="panel-post-author">{{ post.display_name }}</span>
-                  <span class="panel-post-time">{{ timeAgo(post.created_at) }}</span>
-                </div>
-                <p class="panel-post-content">{{ post.content?.slice(0, 80) }}{{ post.content?.length > 80 ? '...' : '' }}</p>
-              </div>
-            </router-link>
-          </div>
         </div>
       </div>
     </Transition>
@@ -239,6 +211,7 @@ const mapContainer = ref(null)
 const imageInput = ref(null)
 let map = null
 let markersLayer = null
+let postMarkersLayer = null
 
 // Add mode
 const addMode = ref(false)
@@ -282,6 +255,9 @@ onMounted(async () => {
   try {
     await store.fetchLocations()
     renderMarkers()
+
+    // Fetch 5 most recent posts linked to any location
+    store.fetchRecentLocationPosts()
 
     // Navigate to location from query param (e.g. from location mention click)
     if (route.query.location) {
@@ -332,6 +308,7 @@ function initMap() {
 
   // Markers layer group
   markersLayer = L.layerGroup().addTo(map)
+  postMarkersLayer = L.layerGroup().addTo(map)
 
   // Force Leaflet to recalculate container size (fixes blank map)
   setTimeout(() => { if (map) map.invalidateSize() }, 100)
@@ -389,12 +366,59 @@ function renderMarkers() {
   }
 }
 
-// Fetch location posts when a location is selected
-watch(() => store.selectedLocation, (loc) => {
-  if (loc) {
-    store.fetchLocationPosts(loc.id)
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function renderPostMarkers() {
+  if (!postMarkersLayer) return
+  postMarkersLayer.clearLayers()
+
+  // Group posts by their first location_id that matches a known location
+  for (const post of store.locationPosts) {
+    if (!post.location_ids?.length) continue
+
+    // Find the first matching location to position the post
+    const loc = store.locations.find(l => post.location_ids.includes(l.id))
+    if (!loc) continue
+
+    const displayName = escapeHtml(post.display_name || post.username || '?')
+    const content = escapeHtml((post.content || '').slice(0, 80)) + (post.content?.length > 80 ? '...' : '')
+    const ago = timeAgo(post.created_at)
+    const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
+    const avatarHtml = post.avatar_url
+      ? `<img src="${post.avatar_url}" class="map-post-avatar" />`
+      : `<div class="map-post-avatar map-post-avatar-fallback">${initials}</div>`
+
+    const html = `
+      <a href="#/post/${post.id}" class="map-post-card">
+        ${avatarHtml}
+        <div class="map-post-body">
+          <div class="map-post-meta">
+            <span class="map-post-author">${displayName}</span>
+            <span class="map-post-time">${ago}</span>
+          </div>
+          <div class="map-post-text">${content}</div>
+        </div>
+      </a>
+    `
+
+    const icon = L.divIcon({
+      className: 'map-post-marker',
+      html,
+      iconSize: [220, 'auto'],
+      iconAnchor: [110, -24], // centered horizontally, below the location marker
+    })
+
+    const marker = L.marker([loc.lat, loc.lng], { icon, interactive: true, zIndexOffset: -100 })
+    postMarkersLayer.addLayer(marker)
   }
-})
+}
+
+// Render post cards on the map when locationPosts changes
+watch(() => store.locationPosts, () => {
+  renderPostMarkers()
+}, { deep: true })
 
 // Watch filter changes to re-render markers
 watch(() => store.filterCategory, () => {
@@ -795,6 +819,88 @@ async function handleDelete(location) {
   border-top-color: var(--border) !important;
 }
 
+/* Post cards on map */
+.map-container :deep(.map-post-marker) {
+  background: none !important;
+  border: none !important;
+}
+
+.map-container :deep(.map-post-card) {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.45rem 0.6rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  width: 220px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s, transform 0.15s;
+  cursor: pointer;
+}
+
+.map-container :deep(.map-post-card:hover) {
+  background: var(--bg-hover);
+  transform: scale(1.03);
+  text-decoration: none;
+}
+
+.map-container :deep(.map-post-avatar) {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.map-container :deep(.map-post-avatar-fallback) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+}
+
+.map-container :deep(.map-post-body) {
+  flex: 1;
+  min-width: 0;
+}
+
+.map-container :deep(.map-post-meta) {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-bottom: 0.1rem;
+}
+
+.map-container :deep(.map-post-author) {
+  font-size: 0.72rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-container :deep(.map-post-time) {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.map-container :deep(.map-post-text) {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
 /* Detail panel */
 .detail-panel {
   position: absolute;
@@ -943,80 +1049,6 @@ async function handleDelete(location) {
 .panel-delete-btn:hover {
   background: var(--danger);
   color: #fff;
-}
-
-/* Location posts section */
-.panel-posts-section {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-}
-
-.panel-posts-title {
-  margin: 0 0 0.5rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-}
-
-.panel-posts-loading,
-.panel-posts-empty {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  padding: 0.25rem 0;
-}
-
-.panel-post-card {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem;
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--text-primary);
-  transition: background 0.15s;
-}
-
-.panel-post-card:hover {
-  background: var(--bg-hover);
-  text-decoration: none;
-}
-
-.panel-post-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.panel-post-header {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.15rem;
-}
-
-.panel-post-author {
-  font-size: 0.8rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.panel-post-time {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.panel-post-content {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 /* Form overlay */
