@@ -82,15 +82,6 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
-    version: '3.0.1',
-    date: '5 avril 2026',
-    icon: '\u{1F9D9}',
-    color: '#9b59b6',
-    title: 'iCHARACTER \u2014 Fiches Personnage v2',
-    description: 'Correction du nom de certaines statistiques (Vigueur, Mobilité, Intelligence) et mise à jour du radar chart en conséquence. Les fiches personnages existantes sont automatiquement migrées vers les nouvelles stats.',
-    tags: ['Fiche perso', 'Stats', 'Radar chart', 'JDR', 'Roll20'],
-  },
-  {
     version: '3.0.0',
     date: '5 avril 2026',
     icon: '\u{1F9D9}',
