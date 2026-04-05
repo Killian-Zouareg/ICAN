@@ -9,19 +9,40 @@
       v-bind="$attrs"
     />
     <div v-if="showDropdown && suggestions.length > 0" class="mention-dropdown" :style="dropdownStyle">
-      <div
-        v-for="(user, i) in suggestions"
-        :key="user.id"
-        class="mention-item"
-        :class="{ active: i === activeIndex }"
-        @mousedown.prevent="selectUser(user)"
-      >
-        <UserAvatar :url="user.avatar_url" :name="user.display_name || user.username" :size="24" />
-        <div class="mention-item-info">
-          <span class="mention-item-name">{{ user.display_name }}</span>
-          <span class="mention-item-handle">@{{ user.username }}</span>
+      <!-- User mentions (@) -->
+      <template v-if="mentionMode === 'user'">
+        <div
+          v-for="(user, i) in suggestions"
+          :key="user.id"
+          class="mention-item"
+          :class="{ active: i === activeIndex }"
+          @mousedown.prevent="selectUser(user)"
+        >
+          <UserAvatar :url="user.avatar_url" :name="user.display_name || user.username" :size="24" />
+          <div class="mention-item-info">
+            <span class="mention-item-name">{{ user.display_name }}</span>
+            <span class="mention-item-handle">@{{ user.username }}</span>
+          </div>
         </div>
-      </div>
+      </template>
+      <!-- Location mentions (<) -->
+      <template v-else-if="mentionMode === 'location'">
+        <div
+          v-for="(loc, i) in suggestions"
+          :key="loc.id"
+          class="mention-item"
+          :class="{ active: i === activeIndex }"
+          @mousedown.prevent="selectLocation(loc)"
+        >
+          <span class="loc-emoji" :style="{ background: getCatColor(loc.category) + '30', color: getCatColor(loc.category) }">
+            {{ getCatEmoji(loc.category) }}
+          </span>
+          <div class="mention-item-info">
+            <span class="mention-item-name">{{ loc.name }}</span>
+            <span class="mention-item-handle">{{ getCatLabel(loc.category) }}</span>
+          </div>
+        </div>
+      </template>
     </div>
   </div>
 </template>
@@ -29,6 +50,7 @@
 <script setup>
 import { ref, nextTick } from 'vue'
 import { supabase } from '../lib/supabase'
+import { useMapLocationsStore } from '../stores/mapLocations'
 import UserAvatar from './UserAvatar.vue'
 
 defineOptions({ inheritAttrs: false })
@@ -50,8 +72,21 @@ const showDropdown = ref(false)
 const suggestions = ref([])
 const activeIndex = ref(0)
 const mentionStart = ref(-1)
+const mentionMode = ref(null) // 'user' | 'location' | null
 const dropdownStyle = ref({})
 let searchTimeout = null
+
+const mapStore = useMapLocationsStore()
+
+function getCatColor(cat) {
+  return mapStore.CATEGORIES[cat]?.color || '#8899a6'
+}
+function getCatEmoji(cat) {
+  return mapStore.CATEGORIES[cat]?.emoji || '📍'
+}
+function getCatLabel(cat) {
+  return mapStore.CATEGORIES[cat]?.label || 'Autre'
+}
 
 function onInput(e) {
   const value = e.target.value
@@ -60,11 +95,11 @@ function onInput(e) {
   const pos = e.target.selectionStart
   const textBefore = value.slice(0, pos)
 
-  // Find the last @ that starts a mention (preceded by space, newline, or start of string)
-  const match = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_]*)$/)
-
-  if (match) {
-    const query = match[1]
+  // Check for @ user mention
+  const userMatch = textBefore.match(/(?:^|[\s])@([a-zA-Z0-9_]*)$/)
+  if (userMatch) {
+    mentionMode.value = 'user'
+    const query = userMatch[1]
     mentionStart.value = pos - query.length - 1 // position of @
     activeIndex.value = 0
     if (query.length > 0) {
@@ -72,10 +107,23 @@ function onInput(e) {
     } else {
       showDropdown.value = false
     }
-  } else {
-    showDropdown.value = false
-    suggestions.value = []
+    return
   }
+
+  // Check for < location mention
+  const locMatch = textBefore.match(/(?:^|[\s])<([^>\s]*)$/)
+  if (locMatch) {
+    mentionMode.value = 'location'
+    const query = locMatch[1]
+    mentionStart.value = pos - query.length - 1 // position of <
+    activeIndex.value = 0
+    searchLocations(query)
+    return
+  }
+
+  showDropdown.value = false
+  suggestions.value = []
+  mentionMode.value = null
 }
 
 function searchUsers(query) {
@@ -91,6 +139,24 @@ function searchUsers(query) {
     showDropdown.value = suggestions.value.length > 0
     if (showDropdown.value) positionDropdown()
   }, 200)
+}
+
+function searchLocations(query) {
+  // Ensure locations are loaded
+  if (mapStore.locations.length === 0) {
+    mapStore.fetchLocations().then(() => filterLocations(query))
+  } else {
+    filterLocations(query)
+  }
+}
+
+function filterLocations(query) {
+  const q = query.toLowerCase()
+  suggestions.value = mapStore.locations
+    .filter(l => l.name.toLowerCase().includes(q))
+    .slice(0, 6)
+  showDropdown.value = suggestions.value.length > 0
+  if (showDropdown.value) positionDropdown()
 }
 
 function positionDropdown() {
@@ -114,14 +180,38 @@ function selectUser(user) {
   const newValue = before + '@' + user.username + ' ' + after
 
   emit('update:modelValue', newValue)
-  showDropdown.value = false
-  suggestions.value = []
+  closeDropdown()
 
   nextTick(() => {
     const cursorPos = mentionStart.value + user.username.length + 2 // @ + username + space
     el.focus()
     el.setSelectionRange(cursorPos, cursorPos)
   })
+}
+
+function selectLocation(loc) {
+  const el = inputRef.value
+  if (!el) return
+
+  const value = props.modelValue
+  const before = value.slice(0, mentionStart.value)
+  const after = value.slice(el.selectionStart)
+  const newValue = before + '<' + loc.name + '> ' + after
+
+  emit('update:modelValue', newValue)
+  closeDropdown()
+
+  nextTick(() => {
+    const cursorPos = mentionStart.value + loc.name.length + 3 // < + name + > + space
+    el.focus()
+    el.setSelectionRange(cursorPos, cursorPos)
+  })
+}
+
+function closeDropdown() {
+  showDropdown.value = false
+  suggestions.value = []
+  mentionMode.value = null
 }
 
 function onKeydown(e) {
@@ -135,9 +225,14 @@ function onKeydown(e) {
     activeIndex.value = (activeIndex.value - 1 + suggestions.value.length) % suggestions.value.length
   } else if (e.key === 'Enter' && showDropdown.value) {
     e.preventDefault()
-    selectUser(suggestions.value[activeIndex.value])
+    const selected = suggestions.value[activeIndex.value]
+    if (mentionMode.value === 'location') {
+      selectLocation(selected)
+    } else {
+      selectUser(selected)
+    }
   } else if (e.key === 'Escape') {
-    showDropdown.value = false
+    closeDropdown()
   }
 }
 </script>
@@ -210,5 +305,16 @@ function onKeydown(e) {
 .mention-item-handle {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.loc-emoji {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  flex-shrink: 0;
 }
 </style>

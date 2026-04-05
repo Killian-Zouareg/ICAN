@@ -97,6 +97,35 @@
             <button class="panel-edit-btn" @click="startEdit(store.selectedLocation)">Modifier</button>
             <button class="panel-delete-btn" @click="handleDelete(store.selectedLocation)">Supprimer</button>
           </div>
+
+          <!-- Recent posts mentioning this location -->
+          <div class="panel-posts-section">
+            <h4 class="panel-posts-title">Posts r&eacute;cents</h4>
+            <div v-if="store.loadingPosts" class="panel-posts-loading">Chargement...</div>
+            <div v-else-if="store.locationPosts.length === 0" class="panel-posts-empty">
+              Aucun post ne mentionne ce lieu
+            </div>
+            <router-link
+              v-else
+              v-for="post in store.locationPosts"
+              :key="post.id"
+              :to="`/post/${post.id}`"
+              class="panel-post-card"
+            >
+              <UserAvatar
+                :url="post.avatar_url"
+                :name="post.display_name || post.username"
+                :size="24"
+              />
+              <div class="panel-post-info">
+                <div class="panel-post-header">
+                  <span class="panel-post-author">{{ post.display_name }}</span>
+                  <span class="panel-post-time">{{ timeAgo(post.created_at) }}</span>
+                </div>
+                <p class="panel-post-content">{{ post.content?.slice(0, 80) }}{{ post.content?.length > 80 ? '...' : '' }}</p>
+              </div>
+            </router-link>
+          </div>
         </div>
       </div>
     </Transition>
@@ -193,13 +222,16 @@
 
 <script setup>
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMapLocationsStore } from '../stores/mapLocations'
 import { supabase } from '../lib/supabase'
+import { timeAgo } from '../lib/time'
 import UserAvatar from '../components/UserAvatar.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+const route = useRoute()
 const auth = useAuthStore()
 const store = useMapLocationsStore()
 
@@ -250,6 +282,18 @@ onMounted(async () => {
   try {
     await store.fetchLocations()
     renderMarkers()
+
+    // Navigate to location from query param (e.g. from location mention click)
+    if (route.query.location) {
+      const targetName = decodeURIComponent(route.query.location)
+      const target = store.locations.find(
+        l => l.name.toLowerCase() === targetName.toLowerCase()
+      )
+      if (target) {
+        store.selectLocation(target)
+        if (map) map.setView([target.lat, target.lng], 16)
+      }
+    }
   } catch (e) {
     console.error('Failed to load map locations:', e)
   }
@@ -344,6 +388,13 @@ function renderMarkers() {
     markersLayer.addLayer(marker)
   }
 }
+
+// Fetch location posts when a location is selected
+watch(() => store.selectedLocation, (loc) => {
+  if (loc) {
+    store.fetchLocationPosts(loc.id)
+  }
+})
 
 // Watch filter changes to re-render markers
 watch(() => store.filterCategory, () => {
@@ -892,6 +943,80 @@ async function handleDelete(location) {
 .panel-delete-btn:hover {
   background: var(--danger);
   color: #fff;
+}
+
+/* Location posts section */
+.panel-posts-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.panel-posts-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.panel-posts-loading,
+.panel-posts-empty {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  padding: 0.25rem 0;
+}
+
+.panel-post-card {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.panel-post-card:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.panel-post-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-post-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.15rem;
+}
+
+.panel-post-author {
+  font-size: 0.8rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-post-time {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.panel-post-content {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 /* Form overlay */

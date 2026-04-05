@@ -7,6 +7,8 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
   const loading = ref(false)
   const selectedLocation = ref(null)
   const filterCategory = ref(null)
+  const locationPosts = ref([])
+  const loadingPosts = ref(false)
 
   const CATEGORIES = {
     residence: { label: 'Residence', color: '#1da1f2', emoji: '\u{1F3E0}' },
@@ -120,12 +122,33 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     return data.publicUrl + '?t=' + Date.now()
   }
 
+  async function fetchLocationPosts(locationId) {
+    loadingPosts.value = true
+    try {
+      const { data, error } = await supabase
+        .from('posts_with_stats')
+        .select('*')
+        .contains('location_ids', [locationId])
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (error) {
+        console.error('fetchLocationPosts error:', error.message)
+        locationPosts.value = []
+        return
+      }
+      locationPosts.value = data || []
+    } finally {
+      loadingPosts.value = false
+    }
+  }
+
   function selectLocation(location) {
     selectedLocation.value = location
   }
 
   function clearSelection() {
     selectedLocation.value = null
+    locationPosts.value = []
   }
 
   return {
@@ -134,8 +157,11 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     selectedLocation,
     filterCategory,
     filteredLocations,
+    locationPosts,
+    loadingPosts,
     CATEGORIES,
     fetchLocations,
+    fetchLocationPosts,
     createLocation,
     updateLocation,
     deleteLocation,

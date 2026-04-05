@@ -1113,3 +1113,35 @@ Une fois que tous tes amis se sont inscrits :
 | 9 | Créer le repo GitHub + push | GitHub |
 | 10 | Ajouter les secrets | GitHub Settings |
 | 11 | Activer GitHub Pages | GitHub Settings > Pages |
+
+---
+
+## 11. Migration : Mentions de lieux dans les posts
+
+Cette migration ajoute le support des mentions de lieux (`<NomDuLieu>`) dans les posts, permettant de lier un post à un ou plusieurs lieux de la carte.
+
+```sql
+-- 1. Ajouter la colonne location_ids à posts
+ALTER TABLE posts ADD COLUMN location_ids UUID[] DEFAULT '{}';
+
+-- 2. Créer un index GIN pour les requêtes rapides par lieu
+CREATE INDEX idx_posts_location_ids ON posts USING GIN (location_ids);
+
+-- 3. Recréer la vue posts_with_stats pour inclure location_ids
+-- ⚠️ IMPORTANT : PostgreSQL résout p.* à la création de la vue,
+-- donc il faut la recréer après l'ajout de la colonne.
+DROP VIEW IF EXISTS posts_with_stats;
+CREATE VIEW posts_with_stats AS
+SELECT
+  p.*,
+  pr.username,
+  pr.display_name,
+  pr.avatar_url,
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id) AS repost_count
+FROM posts p
+JOIN profiles pr ON p.author_id = pr.id;
+```
+
+**Après la migration**, recréer les policies RLS si nécessaire (section 4).

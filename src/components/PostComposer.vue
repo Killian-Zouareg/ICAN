@@ -42,9 +42,12 @@
 <script setup>
 import { ref } from 'vue'
 import { usePostsStore } from '../stores/posts'
+import { useMapLocationsStore } from '../stores/mapLocations'
+import { extractLocationIds } from '../lib/locationMentions'
 import MentionInput from './MentionInput.vue'
 
 const postsStore = usePostsStore()
+const mapStore = useMapLocationsStore()
 const content = ref('')
 const submitting = ref(false)
 const imageFile = ref(null)
@@ -83,7 +86,8 @@ async function submit() {
   if (!content.value.trim() && !imageFile.value) return
   submitting.value = true
   try {
-    await postsStore.createPost(content.value.trim(), imageFile.value)
+    const locationIds = extractLocationIds(content.value, mapStore.locations)
+    await postsStore.createPost(content.value.trim(), imageFile.value, locationIds)
     content.value = ''
     removeImage()
   } catch (e) {

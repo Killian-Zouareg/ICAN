@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '3.1.0',
+    date: '5 avril 2026',
+    icon: '\u{1F4CD}',
+    color: '#f39c12',
+    title: 'Mentions de lieux sur la carte',
+    description: 'Liez vos posts aux lieux de la carte d\'Allentown ! Tapez < dans un post pour mentionner un lieu avec autocompl\u00e9tion. Les mentions s\'affichent en dor\u00e9 et redirigent vers la carte. Chaque lieu affiche d\u00e9sormais les 5 derniers posts qui le mentionnent.',
+    tags: ['Carte', 'Mentions', 'Lieux', 'Immersion', 'JDR'],
+  },
+  {
     version: '3.0.0',
     date: '5 avril 2026',
     icon: '\u{1F9D9}',
@@ -308,6 +317,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '3.1.0',
+    date: '5 avril 2026',
+    title: 'Mentions de lieux (<Lieu>)',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Mention de lieux dans les posts : tapez < pour ouvrir l\'autocompl\u00e9tion des lieux de la carte' },
+      { type: 'new', text: 'Les mentions de lieux s\'affichent en dor\u00e9 avec un \u{1F4CD} et redirigent vers la carte au clic' },
+      { type: 'new', text: 'Panel de d\u00e9tail sur la carte : section "Posts r\u00e9cents" avec les 5 derniers posts mentionnant le lieu' },
+      { type: 'new', text: 'Navigation automatique vers un lieu depuis un lien de mention (centrage + s\u00e9lection)' },
+      { type: 'improved', text: 'Le composant MentionInput g\u00e8re d\u00e9sormais deux modes : @ pour les utilisateurs, < pour les lieux' },
+      { type: 'improved', text: 'Recherche de lieux instantan\u00e9e (filtrage client-side, pas de requ\u00eate serveur)' },
+    ],
+  },
   {
     version: '3.0.0',
     date: '5 avril 2026',

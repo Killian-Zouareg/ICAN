@@ -441,6 +441,16 @@ function animateClick(event) {
   text-decoration: underline;
 }
 
+.post-text :deep(.location-mention) {
+  color: #f39c12;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.post-text :deep(.location-mention:hover) {
+  text-decoration: underline;
+}
+
 .post-image-wrapper {
   margin: 0.4rem 0 0.5rem;
   border-radius: 12px;

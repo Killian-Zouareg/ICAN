@@ -68,6 +68,8 @@
 import { ref } from 'vue'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
+import { useMapLocationsStore } from '../stores/mapLocations'
+import { extractLocationIds } from '../lib/locationMentions'
 import UserAvatar from './UserAvatar.vue'
 import QuotedPostEmbed from './QuotedPostEmbed.vue'
 import QuotedCommentEmbed from './QuotedCommentEmbed.vue'
@@ -81,6 +83,7 @@ const emit = defineEmits(['close', 'published'])
 
 const postsStore = usePostsStore()
 const auth = useAuthStore()
+const mapStore = useMapLocationsStore()
 
 const content = ref('')
 const submitting = ref(false)
@@ -116,7 +119,8 @@ async function submit() {
   try {
     const quoteOfId = props.quotedPost?.id || null
     const quoteCommentId = props.quotedComment?.id || null
-    await postsStore.createQuotePost(content.value.trim(), quoteOfId, quoteCommentId, imageFile.value)
+    const locationIds = extractLocationIds(content.value, mapStore.locations)
+    await postsStore.createQuotePost(content.value.trim(), quoteOfId, quoteCommentId, imageFile.value, locationIds)
     emit('published')
     emit('close')
   } catch (e) {

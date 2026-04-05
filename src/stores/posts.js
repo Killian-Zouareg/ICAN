@@ -162,7 +162,7 @@ export const usePostsStore = defineStore('posts', () => {
     userReposts.value = new Set((data || []).map((r) => r.repost_of))
   }
 
-  async function createPost(content, imageFile = null) {
+  async function createPost(content, imageFile = null, locationIds = []) {
     const auth = useAuthStore()
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('post')
@@ -204,6 +204,9 @@ export const usePostsStore = defineStore('posts', () => {
     }
     if (imageUrl) {
       insertData.image_url = imageUrl
+    }
+    if (locationIds.length > 0) {
+      insertData.location_ids = locationIds
     }
 
     const { error } = await supabase.from('posts').insert(insertData)
@@ -412,7 +415,7 @@ export const usePostsStore = defineStore('posts', () => {
     if (error) throw error
   }
 
-  async function createQuotePost(content, quoteOfId, quoteCommentId, imageFile = null) {
+  async function createQuotePost(content, quoteOfId, quoteCommentId, imageFile = null, locationIds = []) {
     const auth = useAuthStore()
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('post')
@@ -450,6 +453,7 @@ export const usePostsStore = defineStore('posts', () => {
     if (quoteOfId) insertData.quote_of = quoteOfId
     if (quoteCommentId) insertData.quote_comment_id = quoteCommentId
     if (imageUrl) insertData.image_url = imageUrl
+    if (locationIds.length > 0) insertData.location_ids = locationIds
 
     const { error } = await supabase.from('posts').insert(insertData)
     if (error) throw error
