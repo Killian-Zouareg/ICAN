@@ -202,6 +202,158 @@
       </div>
     </div>
 
+    <!-- ============ BANK ============ -->
+    <div v-if="tab === 'bank'" class="admin-section">
+      <!-- Bank stats -->
+      <div class="stats-grid bank-stats">
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F4B0;</div>
+          <div class="stat-info">
+            <span class="stat-value">${{ formatMoney(bankStats.totalCirculation) }}</span>
+            <span class="stat-label">En circulation</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F4B3;</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ bankStats.totalAccounts }}</span>
+            <span class="stat-label">Comptes</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F4C8;</div>
+          <div class="stat-info">
+            <span class="stat-value">${{ formatMoney(bankStats.avgBalance) }}</span>
+            <span class="stat-label">Solde moyen</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F451;</div>
+          <div class="stat-info">
+            <span class="stat-value">${{ formatMoney(bankStats.maxBalance) }}</span>
+            <span class="stat-label">Plus riche</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F4E4;</div>
+          <div class="stat-info">
+            <span class="stat-value">{{ bankStats.totalTransactions }}</span>
+            <span class="stat-label">Transactions</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">&#x1F4B8;</div>
+          <div class="stat-info">
+            <span class="stat-value">${{ formatMoney(bankStats.totalVolume) }}</span>
+            <span class="stat-label">Volume total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- All balances -->
+      <h3 class="section-title">Soldes des profils</h3>
+      <div class="section-toolbar">
+        <input v-model="bankSearch" class="search-input" placeholder="Rechercher un profil..." />
+        <select v-model="bankSort" class="sort-select">
+          <option value="balance-desc">Solde (plus riche)</option>
+          <option value="balance-asc">Solde (plus pauvre)</option>
+          <option value="name-asc">Nom (A-Z)</option>
+        </select>
+      </div>
+      <div class="bank-accounts-list">
+        <div class="bank-account-header">
+          <span class="ba-col ba-col-name">Profil</span>
+          <span class="ba-col ba-col-balance">Solde</span>
+          <span class="ba-col ba-col-tx">Transactions</span>
+          <span class="ba-col ba-col-actions">Actions</span>
+        </div>
+        <div
+          v-for="ba in filteredBankAccounts"
+          :key="ba.profile_id"
+          class="bank-account-row"
+          :class="{ zero: ba.balance === 0, negative: ba.balance < 0 }"
+        >
+          <div class="ba-col ba-col-name">
+            <UserAvatar :url="ba.profile?.avatar_url" :name="ba.profile?.display_name" :size="32" />
+            <div class="ba-profile-info">
+              <span class="bold">{{ ba.profile?.display_name || '?' }}</span>
+              <span class="muted">@{{ ba.profile?.username }}</span>
+            </div>
+          </div>
+          <div class="ba-col ba-col-balance">
+            <span class="ba-balance" :class="{ positive: ba.balance > 0, negative: ba.balance < 0 }">
+              ${{ formatMoney(ba.balance) }}
+            </span>
+          </div>
+          <div class="ba-col ba-col-tx">
+            <span class="muted">{{ ba.txCount || 0 }}</span>
+          </div>
+          <div class="ba-col ba-col-actions">
+            <button class="action-btn" title="Cr&eacute;diter" @click="openAdjustModal(ba, 'credit')">&#x2795;</button>
+            <button class="action-btn warn" title="D&eacute;biter" @click="openAdjustModal(ba, 'debit')">&#x2796;</button>
+            <router-link :to="`/user/${ba.profile?.username}`" class="action-btn view" title="Voir le profil">&#x1F441;</router-link>
+          </div>
+        </div>
+        <div v-if="filteredBankAccounts.length === 0" class="empty-state">Aucun compte trouv&eacute;</div>
+      </div>
+
+      <!-- Recent transactions -->
+      <h3 class="section-title">Derni&egrave;res transactions</h3>
+      <div class="bank-tx-list">
+        <div class="bank-tx-header">
+          <span class="tx-col tx-col-date">Date</span>
+          <span class="tx-col tx-col-from">Exp&eacute;diteur</span>
+          <span class="tx-col tx-col-to">Destinataire</span>
+          <span class="tx-col tx-col-amount">Montant</span>
+          <span class="tx-col tx-col-note">Note</span>
+        </div>
+        <div v-for="tx in allBankTransactions" :key="tx.id" class="bank-tx-row">
+          <span class="tx-col tx-col-date muted">{{ formatDateTime(tx.created_at) }}</span>
+          <span class="tx-col tx-col-from">
+            <template v-if="tx.sender">{{ tx.sender.display_name }}</template>
+            <template v-else><em class="muted">Syst&egrave;me</em></template>
+          </span>
+          <span class="tx-col tx-col-to">
+            <template v-if="tx.receiver">{{ tx.receiver.display_name }}</template>
+            <template v-else><em class="muted">Syst&egrave;me</em></template>
+          </span>
+          <span class="tx-col tx-col-amount tx-amount">${{ formatMoney(tx.amount) }}</span>
+          <span class="tx-col tx-col-note muted">{{ tx.note || '—' }}</span>
+        </div>
+        <div v-if="allBankTransactions.length === 0" class="empty-state">Aucune transaction</div>
+      </div>
+    </div>
+
+    <!-- Adjust balance modal -->
+    <div v-if="adjustModal.show" class="modal-overlay" @click.self="adjustModal.show = false">
+      <div class="modal-card">
+        <h3 class="modal-title">{{ adjustModal.type === 'credit' ? '&#x2795; Cr&eacute;diter' : '&#x2796; D&eacute;biter' }}</h3>
+        <p class="modal-desc">
+          Profil : <strong>{{ adjustModal.account?.profile?.display_name }}</strong>
+          &mdash; Solde actuel : <strong>${{ formatMoney(adjustModal.account?.balance || 0) }}</strong>
+        </p>
+        <div class="field">
+          <label>Montant ($)</label>
+          <input v-model.number="adjustModal.amount" type="number" min="1" class="search-input" placeholder="100" />
+        </div>
+        <div class="field" style="margin-top: 0.6rem;">
+          <label>Note (optionnel)</label>
+          <input v-model="adjustModal.note" type="text" class="search-input" placeholder="Raison..." />
+        </div>
+        <div class="modal-actions" style="margin-top: 1rem;">
+          <button class="action-btn" @click="adjustModal.show = false">Annuler</button>
+          <button
+            class="action-btn"
+            :class="adjustModal.type === 'credit' ? 'credit-fill' : 'danger-fill'"
+            @click="confirmAdjust"
+            :disabled="!adjustModal.amount || adjustModal.amount <= 0"
+          >
+            {{ adjustModal.type === 'credit' ? 'Cr&eacute;diter' : 'D&eacute;biter' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ============ COMMENTS ============ -->
     <div v-if="tab === 'comments'" class="admin-section">
       <div class="section-toolbar">
@@ -270,6 +422,8 @@ const messagesBody = ref(null)
 const userSearch = ref('')
 const convSearch = ref('')
 const commentSearch = ref('')
+const bankSearch = ref('')
+const bankSort = ref('balance-desc')
 
 // Data
 const allProfiles = ref([])
@@ -277,6 +431,10 @@ const allConversations = ref([])
 const allComments = ref([])
 const selectedConv = ref(null)
 const convMessages = ref([])
+const allBankAccounts = ref([])
+const allBankTransactions = ref([])
+const bankStats = ref({ totalCirculation: 0, totalAccounts: 0, avgBalance: 0, maxBalance: 0, totalTransactions: 0, totalVolume: 0 })
+const adjustModal = ref({ show: false, account: null, type: 'credit', amount: null, note: '' })
 
 const stats = ref({
   accounts: 0,
@@ -295,6 +453,7 @@ const recentActivity = ref([])
 const tabs = computed(() => [
   { key: 'dashboard', icon: '\u{1F4CA}', label: 'Dashboard' },
   { key: 'users', icon: '\u{1F465}', label: 'Utilisateurs', count: stats.value.profiles },
+  { key: 'bank', icon: '\u{1F3E6}', label: 'Banque', count: bankStats.value.totalAccounts },
   { key: 'conversations', icon: '\u{1F4AC}', label: 'Conversations', count: stats.value.conversations },
   { key: 'comments', icon: '\u{1F4E3}', label: 'Commentaires', count: stats.value.comments },
 ])
@@ -334,6 +493,28 @@ const filteredComments = computed(() => {
       c.author?.username?.toLowerCase().includes(q),
   )
 })
+
+const filteredBankAccounts = computed(() => {
+  let list = allBankAccounts.value
+  if (bankSearch.value) {
+    const q = bankSearch.value.toLowerCase()
+    list = list.filter(
+      (ba) =>
+        ba.profile?.display_name?.toLowerCase().includes(q) ||
+        ba.profile?.username?.toLowerCase().includes(q),
+    )
+  }
+  const sorted = [...list]
+  if (bankSort.value === 'balance-desc') sorted.sort((a, b) => b.balance - a.balance)
+  else if (bankSort.value === 'balance-asc') sorted.sort((a, b) => a.balance - b.balance)
+  else if (bankSort.value === 'name-asc') sorted.sort((a, b) => (a.profile?.display_name || '').localeCompare(b.profile?.display_name || ''))
+  return sorted
+})
+
+function formatMoney(n) {
+  if (n == null) return '0'
+  return Number(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
 
 // Date formatting helpers
 function formatDate(d) {
@@ -489,6 +670,79 @@ async function fetchRecentActivity() {
 
   activities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
   recentActivity.value = activities.slice(0, 15)
+}
+
+// ============ BANK ============
+
+async function fetchBankData() {
+  // Fetch all bank accounts with profile info
+  const { data: accounts } = await supabase
+    .from('bank_accounts')
+    .select('*, profile:profiles!bank_accounts_profile_id_fkey(id, username, display_name, avatar_url)')
+    .order('balance', { ascending: false })
+
+  // Fetch all transactions (last 100)
+  const { data: txs } = await supabase
+    .from('bank_transactions')
+    .select(`
+      *,
+      sender:profiles!bank_transactions_sender_id_fkey(username, display_name, avatar_url),
+      receiver:profiles!bank_transactions_receiver_id_fkey(username, display_name, avatar_url)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  const { count: txCount } = await supabase
+    .from('bank_transactions')
+    .select('id', { count: 'exact', head: true })
+
+  const accs = accounts || []
+  const transactions = txs || []
+
+  // Count transactions per profile
+  const txCountMap = {}
+  for (const tx of transactions) {
+    if (tx.sender_id) txCountMap[tx.sender_id] = (txCountMap[tx.sender_id] || 0) + 1
+    if (tx.receiver_id) txCountMap[tx.receiver_id] = (txCountMap[tx.receiver_id] || 0) + 1
+  }
+  for (const acc of accs) {
+    acc.txCount = txCountMap[acc.profile_id] || 0
+  }
+
+  allBankAccounts.value = accs
+  allBankTransactions.value = transactions
+
+  // Compute stats
+  const totalCirculation = accs.reduce((s, a) => s + (a.balance || 0), 0)
+  const maxBalance = accs.length > 0 ? Math.max(...accs.map((a) => a.balance || 0)) : 0
+  const totalVolume = transactions.reduce((s, t) => s + (t.amount || 0), 0)
+
+  bankStats.value = {
+    totalCirculation,
+    totalAccounts: accs.length,
+    avgBalance: accs.length > 0 ? Math.round(totalCirculation / accs.length) : 0,
+    maxBalance,
+    totalTransactions: txCount || 0,
+    totalVolume,
+  }
+}
+
+function openAdjustModal(account, type) {
+  adjustModal.value = { show: true, account, type, amount: null, note: '' }
+}
+
+async function confirmAdjust() {
+  const { account, type, amount, note } = adjustModal.value
+  if (!account || !amount || amount <= 0) return
+  const finalAmount = type === 'debit' ? -amount : amount
+  const { error } = await supabase.rpc('admin_adjust_balance', {
+    p_profile_id: account.profile_id,
+    p_amount: finalAmount,
+    p_note: note || (type === 'credit' ? 'Cr\u00e9dit admin' : 'D\u00e9bit admin'),
+  })
+  if (error) { alert('Erreur: ' + error.message); return }
+  adjustModal.value.show = false
+  await fetchBankData()
 }
 
 // ============ BAN SYSTEM ============
