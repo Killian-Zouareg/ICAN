@@ -96,8 +96,8 @@ const highlights = [
     icon: '\u{1F9D9}',
     color: '#9b59b6',
     title: 'iCHARACTER \u2014 Fiches Personnage',
-    description: 'Chaque profil poss\u00e8de d\u00e9sormais sa fiche personnage compl\u00e8te ! Photo, identit\u00e9 (nom, pr\u00e9nom, nationalit\u00e9, sexe, lieu et date de naissance) et 5 comp\u00e9tences (Force, D\u00e9fense, Endurance, Intellect, Charisme) visualis\u00e9es sur un radar chart pentagone SVG interactif. Modifiez votre fiche, consultez celles des autres.',
-    tags: ['Fiche perso', 'Stats', 'Radar chart', 'JDR', 'Roll20'],
+    description: 'Chaque profil poss\u00e8de d\u00e9sormais sa fiche personnage compl\u00e8te ! Photo, identit\u00e9 (nom, pr\u00e9nom, nationalit\u00e9, sexe, lieu et date de naissance) et 5 comp\u00e9tences (Charisme, Intelligence, Force, Vigueur, Mobilit\u00e9) visualis\u00e9es sur un radar chart pentagone SVG interactif. Inventaire d\'objets avec \u00e9mojis. Modifiez votre fiche, consultez celles des autres.',
+    tags: ['Fiche perso', 'Stats', 'Inventaire', 'Radar chart', 'JDR'],
   },
   {
     version: '3.0.0',
@@ -318,6 +318,16 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.1.1',
+    date: '6 avril 2026',
+    title: 'Fix compteurs ghost & notifications',
+    tag: 'hotfix',
+    changes: [
+      { type: 'fixed', text: 'Les compteurs de likes/commentaires/reposts ghost s\'affichent de nouveau correctement sur les posts' },
+      { type: 'fixed', text: 'Les notifications n\'apparaissent plus en double dans la cloche (fix race condition realtime)' },
+    ],
+  },
+  {
     version: '3.1.0',
     date: '5 avril 2026',
     title: 'Mentions de lieux (<Lieu>)',
@@ -338,8 +348,9 @@ const patches = [
     tag: 'major',
     changes: [
       { type: 'new', text: 'Onglet iCHARACTER : fiche compl\u00e8te avec photo, identit\u00e9 (nom, pr\u00e9nom, nationalit\u00e9, sexe, lieu/date de naissance)' },
-      { type: 'new', text: '5 comp\u00e9tences : Force, D\u00e9fense, Endurance, Intellect, Charisme (0-20)' },
+      { type: 'new', text: '5 comp\u00e9tences : Charisme, Intelligence, Force, Vigueur, Mobilit\u00e9 (0-5)' },
       { type: 'new', text: 'Radar chart pentagone SVG avec 3 niveaux concentriques et animation' },
+      { type: 'new', text: 'Inventaire d\'objets avec \u00e9mojis, nom, description et quantit\u00e9' },
       { type: 'new', text: 'Mode \u00e9dition pour le propri\u00e9taire, mode lecture pour les autres' },
       { type: 'new', text: 'Upload de photo personnage (bucket Supabase d\u00e9di\u00e9)' },
       { type: 'new', text: 'Onglet iBANK : compte en dollars ($) par profil avec solde affich\u00e9 en grand' },

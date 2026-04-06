@@ -1235,3 +1235,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
+
+---
+
+## 13. Migration : Renommage stats iCharacter (max 5, nouveaux noms)
+
+Les stats du character_sheets passent de (force, defense, endurance, intellect, charisme) max 20 à (charisme, intelligence, force, vigueur, mobilite) max 5.
+
+```sql
+-- 1. Ajouter les nouvelles colonnes
+ALTER TABLE character_sheets ADD COLUMN IF NOT EXISTS intelligence INT DEFAULT 0;
+ALTER TABLE character_sheets ADD COLUMN IF NOT EXISTS vigueur INT DEFAULT 0;
+ALTER TABLE character_sheets ADD COLUMN IF NOT EXISTS mobilite INT DEFAULT 0;
+
+-- 2. Migrer les anciennes valeurs (ramenées de /20 à /5)
+UPDATE character_sheets SET
+  charisme = LEAST(ROUND(charisme / 4.0), 5),
+  force = LEAST(ROUND(force / 4.0), 5),
+  intelligence = LEAST(ROUND(COALESCE(intellect, 0) / 4.0), 5),
+  vigueur = LEAST(ROUND(COALESCE(endurance, 0) / 4.0), 5),
+  mobilite = LEAST(ROUND(COALESCE(defense, 0) / 4.0), 5);
+
+-- 3. Supprimer les anciennes colonnes
+ALTER TABLE character_sheets DROP COLUMN IF EXISTS defense;
+ALTER TABLE character_sheets DROP COLUMN IF EXISTS endurance;
+ALTER TABLE character_sheets DROP COLUMN IF EXISTS intellect;
+```

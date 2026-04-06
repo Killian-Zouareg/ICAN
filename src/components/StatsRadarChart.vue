@@ -26,8 +26,8 @@
     <circle
       v-for="(key, i) in statKeys"
       :key="'dot-' + i"
-      :cx="vertexX(i, (stats[key] || 0) / 20)"
-      :cy="vertexY(i, (stats[key] || 0) / 20)"
+      :cx="vertexX(i, (stats[key] || 0) / 5)"
+      :cy="vertexY(i, (stats[key] || 0) / 5)"
       r="3.5"
       class="radar-dot"
     />
@@ -56,7 +56,7 @@ import { computed } from 'vue'
 const props = defineProps({
   stats: {
     type: Object,
-    default: () => ({ force: 0, defense: 0, endurance: 0, intellect: 0, charisme: 0 }),
+    default: () => ({ charisme: 0, intelligence: 0, force: 0, vigueur: 0, mobilite: 0 }),
   },
   size: {
     type: Number,
@@ -64,13 +64,13 @@ const props = defineProps({
   },
 })
 
-const statKeys = ['force', 'defense', 'endurance', 'intellect', 'charisme']
+const statKeys = ['charisme', 'intelligence', 'force', 'vigueur', 'mobilite']
 const statLabels = {
-  force: 'Force',
-  defense: 'Défense',
-  endurance: 'Endurance',
-  intellect: 'Intellect',
   charisme: 'Charisme',
+  intelligence: 'Intelligence',
+  force: 'Force',
+  vigueur: 'Vigueur',
+  mobilite: 'Mobilité',
 }
 
 const cx = computed(() => props.size / 2)
@@ -98,7 +98,7 @@ function gridPoints(scale) {
 const dataPoints = computed(() =>
   statKeys
     .map((key, i) => {
-      const val = Math.max(0, Math.min(20, props.stats[key] || 0)) / 20
+      const val = Math.max(0, Math.min(5, props.stats[key] || 0)) / 5
       return `${vertexX(i, val)},${vertexY(i, val)}`
     })
     .join(' ')

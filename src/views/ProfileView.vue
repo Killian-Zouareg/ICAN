@@ -119,13 +119,6 @@
         >
           M&eacute;dias
         </button>
-        <button
-          class="tab"
-          :class="{ active: activeTab === 'character' }"
-          @click="activeTab = 'character'"
-        >
-          iCharacter
-        </button>
       </div>
 
       <!-- Tab content -->
@@ -180,15 +173,6 @@
           </div>
         </template>
 
-        <!-- iCharacter tab -->
-        <template v-else-if="activeTab === 'character'">
-          <CharacterPanel
-            :profileId="profileData.id"
-            :isOwner="isOwnProfile"
-            :characterStats="profileData.character_stats"
-            @stats-updated="onStatsUpdated"
-          />
-        </template>
       </div>
 
     </template>
@@ -219,7 +203,6 @@ import { usePostsStore } from '../stores/posts'
 import PostCard from '../components/PostCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
 import StatsRadarChart from '../components/StatsRadarChart.vue'
-import CharacterPanel from '../components/CharacterPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -241,11 +224,11 @@ const bankBalance = ref(null)
 const stats = ref({ posts: 0, likes: 0 })
 
 const characterSheetStats = computed(() => ({
-  force: characterSheet.value?.force || 0,
-  defense: characterSheet.value?.defense || 0,
-  endurance: characterSheet.value?.endurance || 0,
-  intellect: characterSheet.value?.intellect || 0,
   charisme: characterSheet.value?.charisme || 0,
+  intelligence: characterSheet.value?.intelligence || 0,
+  force: characterSheet.value?.force || 0,
+  vigueur: characterSheet.value?.vigueur || 0,
+  mobilite: characterSheet.value?.mobilite || 0,
 }))
 
 const isOwnProfile = computed(() => {
@@ -442,12 +425,6 @@ async function startDM() {
 
 function goToPost(postId) {
   router.push(`/post/${postId}`)
-}
-
-function onStatsUpdated(stats) {
-  if (profileData.value) {
-    profileData.value.character_stats = stats
-  }
 }
 
 function openAvatarViewer() {
