@@ -20,6 +20,7 @@ export const useMessagesStore = defineStore('messages', () => {
     const auth = useAuthStore()
     if (!auth.activeProfile) return
     const profileId = auth.activeProfile.id
+    const allProfileIds = auth.profiles.map((p) => p.id)
     assertUUID(profileId, 'profileId')
     loading.value = true
 
@@ -40,12 +41,58 @@ export const useMessagesStore = defineStore('messages', () => {
       .eq('profile_id', profileId)
     const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
 
-    conversations.value = (data || [])
+    const allConvs = (data || [])
       .filter((conv) => !hiddenIds.has(conv.id))
       .map((conv) => {
         const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
         return { ...conv, otherUser }
       })
+
+    // Fetch last messages + unread status
+    const convIds = allConvs.map((c) => c.id)
+    let lastMessages = []
+    let unreadMessages = []
+
+    if (convIds.length > 0) {
+      const { data: msgs } = await supabase
+        .from('messages')
+        .select('conversation_id, content, image_url, created_at')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: false })
+
+      const seen = new Set()
+      lastMessages = (msgs || []).filter((m) => {
+        if (seen.has(m.conversation_id)) return false
+        seen.add(m.conversation_id)
+        return true
+      })
+
+      const { data: unreads } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', convIds)
+        .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+        .eq('read', false)
+      unreadMessages = unreads || []
+    }
+
+    const lastMsgMap = {}
+    lastMessages.forEach((m) => { lastMsgMap[m.conversation_id] = m })
+    const unreadSet = new Set(unreadMessages.map((m) => m.conversation_id))
+
+    conversations.value = allConvs.map((conv) => {
+      const last = lastMsgMap[conv.id]
+      return {
+        ...conv,
+        lastMessage: last
+          ? (last.content
+            ? (last.content.length > 50 ? last.content.slice(0, 50) + '...' : last.content)
+            : (last.image_url ? '\ud83d\uddbc\ufe0f Image' : null))
+          : null,
+        lastMessageTime: last?.created_at || conv.updated_at,
+        hasUnread: unreadSet.has(conv.id),
+      }
+    })
 
     loading.value = false
   }
@@ -112,6 +159,19 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function markAsRead(conversationId) {
     const auth = useAuthStore()
+
+    // Optimistic: update local state immediately
+    for (const m of currentMessages.value) {
+      if (m.sender_id !== auth.activeProfile.id) m.read = true
+    }
+    // Update conversation hasUnread
+    const conv = conversations.value.find((c) => c.id === conversationId)
+    if (conv) conv.hasUnread = false
+
+    // Notify other components
+    window.dispatchEvent(new Event('dm-read-update'))
+
+    // Persist to server
     await supabase
       .from('messages')
       .update({ read: true })

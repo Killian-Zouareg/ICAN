@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '3.2.0',
+    date: '7 avril 2026',
+    icon: '\u{2709}',
+    color: '#1da1f2',
+    title: 'Messages redesign\u00e9s style X',
+    description: 'La page Messages adopte un layout 2 colonnes inspir\u00e9 de X/Twitter ! Liste des conversations \u00e0 gauche avec apercu du dernier message, indicateur non-lu et timestamp. Conversation active \u00e0 droite. Les notifications et badges se mettent \u00e0 jour instantan\u00e9ment.',
+    tags: ['Messages', 'UI', 'Twitter-style', 'Split-view'],
+  },
+  {
     version: '3.1.0',
     date: '5 avril 2026',
     icon: '\u{1F4CD}',
@@ -318,6 +327,21 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.2.0',
+    date: '7 avril 2026',
+    title: 'Refonte Messages style X + fix notifications',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Page Messages en layout 2 colonnes : liste des conversations \u00e0 gauche, conversation active \u00e0 droite' },
+      { type: 'new', text: 'Chaque conversation affiche le dernier message, le timestamp et un indicateur non-lu' },
+      { type: 'new', text: 'Badge de messages non-lus par profil dans le switcher' },
+      { type: 'improved', text: 'Les notifications et badges se mettent \u00e0 jour instantan\u00e9ment (optimistic updates)' },
+      { type: 'improved', text: 'La sidebar \u00e9coute les changements de lecture pour rafra\u00eechir le badge imm\u00e9diatement' },
+      { type: 'fixed', text: 'Correction du nom de table conversation_participants \u2192 conversation_members (erreur 404)' },
+      { type: 'fixed', text: 'Les badges de notifications et messages se chargent correctement d\u00e8s le d\u00e9marrage' },
+    ],
+  },
+  {
     version: '3.1.1',
     date: '6 avril 2026',
     title: 'Fix compteurs ghost & notifications',
@@ -326,9 +350,6 @@ const patches = [
       { type: 'fixed', text: 'Les compteurs de likes/commentaires/reposts ghost s\'affichent de nouveau correctement sur les posts' },
       { type: 'fixed', text: 'Les notifications n\'apparaissent plus en double dans la cloche (fix race condition realtime + contrainte unique DB)' },
       { type: 'fixed', text: 'Le badge messages non-lus ne compte plus les messages de conversations auxquelles on ne participe pas' },
-      { type: 'new', text: 'Badge de messages non-lus visible en permanence sur la sidebar et le widget DM (plus besoin d\'ouvrir le widget)' },
-      { type: 'new', text: 'Compteur de messages non-lus par profil dans le switcher de profils' },
-      { type: 'fixed', text: 'Les badges de notifications et messages se chargent correctement au d\u00e9marrage (fix timing auth asynchrone)' },
     ],
   },
   {

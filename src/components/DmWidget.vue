@@ -470,7 +470,7 @@ async function fetchUnreadCount() {
       .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
 
     const { data: groupConvs } = await supabase
-      .from('conversation_participants')
+      .from('conversation_members')
       .select('conversation_id')
       .eq('profile_id', profileId)
 

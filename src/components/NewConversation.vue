@@ -31,14 +31,13 @@
 
 <script setup>
 import { ref, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMessagesStore } from '../stores/messages'
 import { supabase } from '../lib/supabase'
 
+const emit = defineEmits(['created'])
 const auth = useAuthStore()
 const messagesStore = useMessagesStore()
-const router = useRouter()
 
 const showSearch = ref(false)
 const query = ref('')
@@ -70,7 +69,8 @@ function search() {
 
 async function startConversation(user) {
   const convId = await messagesStore.getOrCreateConversation(user.id)
-  router.push(`/messages/${convId}`)
+  emit('created', convId)
+  close()
 }
 
 function close() {

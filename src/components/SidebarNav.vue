@@ -143,7 +143,7 @@ async function fetchUnread() {
       .or(allProfileIds.map(pid => `user1_id.eq.${pid},user2_id.eq.${pid}`).join(','))
 
     const { data: groupParts } = await supabase
-      .from('conversation_participants')
+      .from('conversation_members')
       .select('conversation_id, profile_id')
       .in('profile_id', allProfileIds)
 
@@ -205,15 +205,21 @@ watch(() => auth.activeProfile?.id, () => {
   fetchUnread()
 })
 
+function onDmReadUpdate() {
+  fetchUnread()
+}
+
 onMounted(() => {
   fetchUnread()
   unreadInterval = setInterval(fetchUnread, 30000)
   document.addEventListener('click', handleClickOutside)
+  window.addEventListener('dm-read-update', onDmReadUpdate)
 })
 
 onUnmounted(() => {
   clearInterval(unreadInterval)
   document.removeEventListener('click', handleClickOutside)
+  window.removeEventListener('dm-read-update', onDmReadUpdate)
 })
 </script>
 

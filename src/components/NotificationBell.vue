@@ -227,23 +227,27 @@ async function markAllReadForProfile() {
     ? [selectedProfileId.value]
     : auth.profiles.map((p) => p.id)
 
-  await supabase
-    .from('notifications')
-    .update({ read: true })
-    .in('recipient_id', targetIds)
-    .eq('read', false)
-
+  // Optimistic: update UI immediately
   for (const n of notifications.value) {
     if (targetIds.includes(n.recipient_id)) {
       n.read = true
     }
   }
+
+  // Then persist to server
+  supabase
+    .from('notifications')
+    .update({ read: true })
+    .in('recipient_id', targetIds)
+    .eq('read', false)
+    .then()
 }
 
 async function handleClick(n) {
+  // Optimistic: mark read immediately
   if (!n.read) {
-    await supabase.from('notifications').update({ read: true }).eq('id', n.id)
     n.read = true
+    supabase.from('notifications').update({ read: true }).eq('id', n.id).then()
   }
 
   showPanel.value = false
