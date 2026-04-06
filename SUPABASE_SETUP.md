@@ -238,6 +238,10 @@ CREATE POLICY "System can insert notifications"
   ON notifications FOR INSERT TO authenticated
   WITH CHECK (true);
 
+-- Index unique pour empêcher les notifications en double
+CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_unique
+  ON notifications (recipient_id, actor_id, type, post_id, COALESCE(comment_id, '00000000-0000-0000-0000-000000000000'));
+
 -- Trigger : notification sur like
 CREATE OR REPLACE FUNCTION notify_on_like()
 RETURNS TRIGGER AS $$
@@ -246,7 +250,8 @@ BEGIN
   SELECT p.author_id, NEW.user_id, 'like', NEW.post_id
   FROM posts p
   WHERE p.id = NEW.post_id
-    AND p.author_id != NEW.user_id;
+    AND p.author_id != NEW.user_id
+  ON CONFLICT DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -264,13 +269,15 @@ BEGIN
     SELECT c.author_id, NEW.author_id, 'reply', NEW.post_id, NEW.id
     FROM comments c
     WHERE c.id = NEW.parent_id
-      AND c.author_id != NEW.author_id;
+      AND c.author_id != NEW.author_id
+    ON CONFLICT DO NOTHING;
   ELSE
     INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
     SELECT p.author_id, NEW.author_id, 'comment', NEW.post_id, NEW.id
     FROM posts p
     WHERE p.id = NEW.post_id
-      AND p.author_id != NEW.author_id;
+      AND p.author_id != NEW.author_id
+    ON CONFLICT DO NOTHING;
   END IF;
   RETURN NEW;
 END;
@@ -289,7 +296,8 @@ BEGIN
     SELECT p.author_id, NEW.author_id, 'repost', NEW.repost_of
     FROM posts p
     WHERE p.id = NEW.repost_of
-      AND p.author_id != NEW.author_id;
+      AND p.author_id != NEW.author_id
+    ON CONFLICT DO NOTHING;
   END IF;
   RETURN NEW;
 END;
@@ -319,7 +327,8 @@ BEGIN
       AND p.id IS DISTINCT FROM already_notified
   LOOP
     INSERT INTO notifications (recipient_id, actor_id, type, post_id)
-    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.id);
+    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.id)
+    ON CONFLICT DO NOTHING;
   END LOOP;
   RETURN NEW;
 END;
@@ -351,7 +360,8 @@ BEGIN
       AND p.id IS DISTINCT FROM already_notified
   LOOP
     INSERT INTO notifications (recipient_id, actor_id, type, post_id, comment_id)
-    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.post_id, NEW.id);
+    VALUES (mentioned.id, NEW.author_id, 'mention', NEW.post_id, NEW.id)
+    ON CONFLICT DO NOTHING;
   END LOOP;
   RETURN NEW;
 END;

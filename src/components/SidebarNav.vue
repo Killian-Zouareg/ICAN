@@ -129,10 +129,36 @@ async function handleLogout() {
 async function fetchUnread() {
   if (!auth.activeProfile) return
   try {
+    const profileId = auth.activeProfile.id
+    const allProfileIds = auth.profiles.map((p) => p.id)
+
+    // Get conversations the user is part of (DM or group)
+    const { data: dmConvs } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('is_group', false)
+      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
+
+    const { data: groupConvs } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('profile_id', profileId)
+
+    const convIds = [
+      ...(dmConvs || []).map((c) => c.id),
+      ...(groupConvs || []).map((c) => c.conversation_id),
+    ]
+
+    if (convIds.length === 0) {
+      unreadCount.value = 0
+      return
+    }
+
     const { count } = await supabase
       .from('messages')
       .select('id', { count: 'exact', head: true })
-      .neq('sender_id', auth.activeProfile.id)
+      .in('conversation_id', convIds)
+      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
       .eq('read', false)
     unreadCount.value = count || 0
   } catch { /* ignore */ }

@@ -324,7 +324,8 @@ const patches = [
     tag: 'hotfix',
     changes: [
       { type: 'fixed', text: 'Les compteurs de likes/commentaires/reposts ghost s\'affichent de nouveau correctement sur les posts' },
-      { type: 'fixed', text: 'Les notifications n\'apparaissent plus en double dans la cloche (fix race condition realtime)' },
+      { type: 'fixed', text: 'Les notifications n\'apparaissent plus en double dans la cloche (fix race condition realtime + contrainte unique DB)' },
+      { type: 'fixed', text: 'Le badge messages non-lus ne compte plus les messages de conversations auxquelles on ne participe pas' },
     ],
   },
   {

@@ -459,10 +459,20 @@ async function fetchConversations() {
 async function fetchUnreadCount() {
   if (!auth.activeProfile) return
   try {
+    const profileId = auth.activeProfile.id
     const allProfileIds = auth.profiles.map((p) => p.id)
+
+    // Only count unread from conversations the user is part of
+    const convIds = conversations.value.map((c) => c.id)
+    if (convIds.length === 0) {
+      unreadCount.value = 0
+      return
+    }
+
     const { count, error } = await supabase
       .from('messages')
       .select('*', { count: 'exact', head: true })
+      .in('conversation_id', convIds)
       .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
       .eq('read', false)
     if (!error) unreadCount.value = count || 0
