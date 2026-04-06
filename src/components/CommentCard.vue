@@ -240,6 +240,16 @@ function animateClick(event) {
   text-decoration: underline;
 }
 
+.comment-text :deep(.location-mention) {
+  color: #f39c12;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.comment-text :deep(.location-mention:hover) {
+  text-decoration: underline;
+}
+
 .comment-actions {
   display: flex;
   gap: 1.2rem;

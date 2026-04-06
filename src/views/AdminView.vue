@@ -100,6 +100,7 @@
               <div class="user-card-name">
                 <span class="bold">{{ p.display_name }}</span>
                 <span v-if="p.is_admin" class="admin-tag">Admin</span>
+                <span v-if="p.is_hero" class="hero-tag">Hero</span>
               </div>
               <span class="muted">@{{ p.username }}</span>
             </div>
@@ -115,6 +116,9 @@
             <div class="action-btns">
               <button class="toggle-btn" :class="{ on: p.is_admin }" @click="toggleAdmin(p)" :title="p.is_admin ? 'Retirer admin' : 'Rendre admin'">
                 {{ p.is_admin ? '&#x1F6E1; Admin' : '&#x1F464; User' }}
+              </button>
+              <button class="toggle-btn hero-toggle" :class="{ on: p.is_hero }" @click="toggleHero(p)" :title="p.is_hero ? 'Retirer hero' : 'Rendre hero'">
+                {{ p.is_hero ? '&#x2B50; Hero' : '&#x2606; Hero' }}
               </button>
               <router-link :to="`/user/${p.username}`" class="action-btn view" title="Voir le profil">&#x1F441;</router-link>
               <button v-if="isBanned(p)" class="action-btn unban" title="D&eacute;bannir" @click="unbanProfile(p)">&#x2705;</button>
@@ -567,6 +571,19 @@ async function toggleAdmin(profile) {
   profile.is_admin = newVal
 }
 
+async function toggleHero(profile) {
+  const newVal = !profile.is_hero
+  const { error } = await supabase.rpc('admin_toggle_hero', {
+    p_profile_id: profile.id,
+    p_is_hero: newVal,
+  })
+  if (error) {
+    alert('Erreur: ' + error.message)
+    return
+  }
+  profile.is_hero = newVal
+}
+
 async function deleteProfile(profile) {
   if (!confirm(`Supprimer le profil "${profile.display_name}" (@${profile.username}) ? Cette action est irr\u00e9versible.`)) return
   const { error } = await supabase.from('profiles').delete().eq('id', profile.id)
@@ -897,6 +914,16 @@ onMounted(async () => {
   text-transform: uppercase;
 }
 
+.hero-tag {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  color: #000;
+  text-transform: uppercase;
+}
+
 .user-card-status {
   flex-shrink: 0;
 }
@@ -944,6 +971,12 @@ onMounted(async () => {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+
+.toggle-btn.hero-toggle.on {
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  border-color: #FFD700;
+  color: #000;
 }
 
 /* Action buttons */

@@ -14,7 +14,7 @@
         </main>
       </div>
       <TrendingPanel />
-      <DmWidget />
+      <DmWidget v-if="showDmWidget" />
     </template>
     <template v-else>
       <main class="container">
@@ -25,6 +25,7 @@
 </template>
 
 <script setup>
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from './stores/auth'
 import AppHeader from './components/AppHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
@@ -33,6 +34,19 @@ import DmWidget from './components/DmWidget.vue'
 import TrendingPanel from './components/TrendingPanel.vue'
 
 const auth = useAuthStore()
+const showDmWidget = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
+
+function onDmWidgetToggle(e) {
+  showDmWidget.value = e.detail
+}
+
+onMounted(() => {
+  window.addEventListener('dm-widget-toggle', onDmWidgetToggle)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('dm-widget-toggle', onDmWidgetToggle)
+})
 
 function formatBanDate(date) {
   if (!date) return ''

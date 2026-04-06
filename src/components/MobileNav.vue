@@ -57,6 +57,15 @@
 
     <!-- More menu -->
     <div v-if="showMore" class="mobile-more-menu">
+      <router-link to="/map" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F5FA;</span> Carte
+      </router-link>
+      <router-link :to="`/character/${auth.activeProfile?.username}`" class="mobile-more-item" @click="showMore = false" v-if="auth.activeProfile">
+        <span>&#x1F9D9;</span> iCharacter
+      </router-link>
+      <router-link to="/bank" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F3E6;</span> iBank
+      </router-link>
       <router-link to="/settings" class="mobile-more-item" @click="showMore = false">
         <span>&#x2699;</span> Param&egrave;tres
       </router-link>

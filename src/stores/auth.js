@@ -9,6 +9,7 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(true)
 
   const isAdmin = computed(() => activeProfile.value?.is_admin === true)
+  const isHero = computed(() => activeProfile.value?.is_hero === true)
   const isAuthenticated = computed(() => !!user.value)
   const isBanned = computed(() => {
     if (!activeProfile.value?.banned_until) return false
@@ -92,12 +93,15 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updateProfile(profileId, { username, displayName, avatarUrl, bio, characterStats }) {
+  async function updateProfile(profileId, { username, displayName, avatarUrl, bio, heroColorPrimary, heroColorSecondary, showBalance, characterStats }) {
     const updates = {}
     if (username !== undefined) updates.username = username
     if (displayName !== undefined) updates.display_name = displayName
     if (avatarUrl !== undefined) updates.avatar_url = avatarUrl
     if (bio !== undefined) updates.bio = bio
+    if (heroColorPrimary !== undefined) updates.hero_color_primary = heroColorPrimary
+    if (heroColorSecondary !== undefined) updates.hero_color_secondary = heroColorSecondary
+    if (showBalance !== undefined) updates.show_balance = showBalance
     if (characterStats !== undefined) updates.character_stats = characterStats
 
     const { data, error } = await supabase
@@ -244,6 +248,7 @@ export const useAuthStore = defineStore('auth', () => {
     profile,
     loading,
     isAdmin,
+    isHero,
     isAuthenticated,
     isBanned,
     bannedUntil,

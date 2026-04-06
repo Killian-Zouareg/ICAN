@@ -100,7 +100,8 @@
           <div class="result-profile-info">
             <span class="result-profile-name">
               {{ p.display_name }}
-              <span v-if="p.is_admin" class="admin-tag">Admin</span>
+              <span v-if="p.is_hero" class="hero-tag">Hero</span>
+              <span v-else-if="p.is_admin" class="admin-tag">Admin</span>
             </span>
             <span class="result-profile-handle">@{{ p.username }}</span>
           </div>
@@ -262,7 +263,7 @@ async function doSearch() {
   const [profilesRes, postsRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('id, username, display_name, avatar_url, is_admin')
+      .select('id, username, display_name, avatar_url, is_admin, is_hero')
       .or(`username.ilike.%${q}%,display_name.ilike.%${q}%`)
       .limit(20),
     supabase
@@ -512,6 +513,16 @@ onMounted(() => {
   border-radius: 4px;
   background: var(--accent);
   color: #fff;
+  text-transform: uppercase;
+}
+
+.hero-tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  color: #000;
   text-transform: uppercase;
 }
 

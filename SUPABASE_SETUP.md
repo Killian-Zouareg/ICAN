@@ -46,6 +46,9 @@ CREATE TABLE profiles (
   display_name TEXT NOT NULL,
   avatar_url TEXT,
   is_admin BOOLEAN DEFAULT false,
+  is_hero BOOLEAN DEFAULT false,
+  hero_color_primary TEXT DEFAULT '#FFD700',
+  hero_color_secondary TEXT DEFAULT '#FF6B00',
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -1012,6 +1015,84 @@ CREATE TRIGGER on_auth_user_created
 
 ---
 
+## 10b. Carte interactive (map_locations)
+
+Run this SQL to create the interactive map feature:
+
+```sql
+-- Table for map locations
+CREATE TABLE map_locations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  category TEXT NOT NULL DEFAULT 'other'
+    CHECK (category IN ('residence','school','landmark','hq','danger','shop','hospital','police','villain','other')),
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  image_url TEXT,
+  linked_profile_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_map_locations_category ON map_locations(category);
+
+ALTER TABLE map_locations ENABLE ROW LEVEL SECURITY;
+
+-- Everyone can view
+CREATE POLICY "Authenticated can view map locations"
+  ON map_locations FOR SELECT TO authenticated USING (true);
+
+-- Only admins can insert
+CREATE POLICY "Admins can insert map locations"
+  ON map_locations FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- Only admins can update
+CREATE POLICY "Admins can update map locations"
+  ON map_locations FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true))
+  WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+
+-- Only admins can delete
+CREATE POLICY "Admins can delete map locations"
+  ON map_locations FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM profiles WHERE owner_id = auth.uid() AND is_admin = true));
+```
+
+Then create a **public** storage bucket called `map-images` with admin-only write policies:
+1. Go to **Storage > New Bucket** > name it `map-images`, check **Public bucket**
+2. Add policies:
+   - **SELECT**: Allow all authenticated users
+   - **INSERT/UPDATE/DELETE**: Only users with `is_admin = true` in their profiles
+
+---
+
+## 10c. Hero System (admin RPC functions)
+
+Run this SQL to enable the hero role management from the admin panel:
+
+```sql
+-- Toggle hero status (called from admin panel)
+CREATE OR REPLACE FUNCTION admin_toggle_hero(p_profile_id UUID, p_is_hero BOOLEAN)
+RETURNS void AS $$
+BEGIN
+  UPDATE profiles SET is_hero = p_is_hero WHERE id = p_profile_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+If you already have a `profiles` table without the hero columns, run this migration:
+
+```sql
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_hero BOOLEAN DEFAULT false;
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS hero_color_primary TEXT DEFAULT '#FFD700';
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS hero_color_secondary TEXT DEFAULT '#FF6B00';
+```
+
+---
+
 ## 11. Désactiver les inscriptions (optionnel)
 
 Une fois que tous tes amis se sont inscrits :
@@ -1075,3 +1156,82 @@ CREATE POLICY "Owners can delete inventory" ON inventory_items
 | 9 | Créer le repo GitHub + push | GitHub |
 | 10 | Ajouter les secrets | GitHub Settings |
 | 11 | Activer GitHub Pages | GitHub Settings > Pages |
+
+---
+
+## 11. Migration : Mentions de lieux dans les posts
+
+Cette migration ajoute le support des mentions de lieux (`<NomDuLieu>`) dans les posts, permettant de lier un post à un ou plusieurs lieux de la carte.
+
+```sql
+-- 1. Ajouter la colonne location_ids à posts
+ALTER TABLE posts ADD COLUMN location_ids UUID[] DEFAULT '{}';
+
+-- 2. Créer un index GIN pour les requêtes rapides par lieu
+CREATE INDEX idx_posts_location_ids ON posts USING GIN (location_ids);
+
+-- 3. Recréer la vue posts_with_stats pour inclure location_ids
+-- ⚠️ IMPORTANT : PostgreSQL résout p.* à la création de la vue,
+-- donc il faut la recréer après l'ajout de la colonne.
+DROP VIEW IF EXISTS posts_with_stats;
+CREATE VIEW posts_with_stats AS
+SELECT
+  p.*,
+  pr.username,
+  pr.display_name,
+  pr.avatar_url,
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id) AS repost_count
+FROM posts p
+JOIN profiles pr ON p.author_id = pr.id;
+```
+
+**Après la migration**, recréer les policies RLS si nécessaire (section 4).
+
+---
+
+## 12. Migration : Dépenses vers commerces/lieux (spend_money)
+
+Permet aux joueurs de dépenser de l'argent vers des commerces ou lieux (pas un vrai profil). L'argent est simplement débité du compte du joueur.
+
+```sql
+-- 1. Rendre receiver_id nullable dans bank_transactions
+-- (si la colonne est NOT NULL, il faut la modifier)
+ALTER TABLE bank_transactions ALTER COLUMN receiver_id DROP NOT NULL;
+
+-- 2. Créer la fonction RPC spend_money
+CREATE OR REPLACE FUNCTION spend_money(p_sender_id UUID, p_amount INT, p_note TEXT DEFAULT '')
+RETURNS VOID AS $$
+DECLARE
+  v_balance INT;
+BEGIN
+  IF p_amount <= 0 THEN
+    RAISE EXCEPTION 'Le montant doit être positif';
+  END IF;
+
+  -- Vérifier le solde
+  SELECT balance INTO v_balance
+  FROM bank_accounts
+  WHERE profile_id = p_sender_id
+  FOR UPDATE;
+
+  IF v_balance IS NULL THEN
+    RAISE EXCEPTION 'Compte introuvable';
+  END IF;
+
+  IF v_balance < p_amount THEN
+    RAISE EXCEPTION 'Solde insuffisant (% $ disponibles)', v_balance;
+  END IF;
+
+  -- Débiter le sender
+  UPDATE bank_accounts
+  SET balance = balance - p_amount
+  WHERE profile_id = p_sender_id;
+
+  -- Enregistrer la transaction (receiver_id = NULL = dépense)
+  INSERT INTO bank_transactions (sender_id, receiver_id, amount, note)
+  VALUES (p_sender_id, NULL, p_amount, p_note);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```

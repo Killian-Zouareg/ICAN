@@ -16,5 +16,7 @@ function escapeHtml(text) {
 export function renderMentions(text) {
   if (!text) return ''
   const escaped = escapeHtml(text)
-  return escaped.replace(/@([a-zA-Z0-9_]+)/g, '<a href="#/user/$1" class="mention">@$1</a>')
+  let result = escaped.replace(/@([a-zA-Z0-9_]+)/g, '<a href="#/user/$1" class="mention">@$1</a>')
+  result = result.replace(/&lt;([^&]+?)&gt;/g, '<a href="#/map?location=$1" class="location-mention">\u{1F4CD} $1</a>')
+  return result
 }

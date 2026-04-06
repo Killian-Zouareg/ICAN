@@ -18,6 +18,7 @@
       "Bash(grep -r \"CREATE TRIGGER\\\\|CREATE FUNCTION\\\\|notification\" /c/Users/killi/Desktop/ICAN --include=*.md --include=*.sql)",
       "Bash(grep -rn notification /c/Users/killi/Desktop/ICAN/src --include=*.vue --include=*.js)",
       "Bash(ls -la /c/Users/killi/Desktop/ICAN/*.sql)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
       "Bash(npx vite:*)"
     ]
   }

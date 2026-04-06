@@ -14,10 +14,10 @@
 
       <!-- Banner + Avatar -->
       <div class="profile-banner">
-        <div class="banner-gradient"></div>
+        <div class="banner-gradient" :style="heroBannerStyle"></div>
       </div>
       <div class="profile-avatar-row">
-        <div class="avatar-wrapper" @click="openAvatarViewer" :class="{ clickable: profileData.avatar_url }">
+        <div class="avatar-wrapper" @click="openAvatarViewer" :class="{ clickable: profileData.avatar_url, 'hero-glow': profileData.is_hero }" :style="profileData.is_hero ? { '--hero-primary': profileData.hero_color_primary || '#FFD700' } : {}">
           <UserAvatar :url="profileData.avatar_url" :name="profileData.display_name" :size="120" />
         </div>
         <div class="profile-actions">
@@ -44,7 +44,8 @@
         <div class="profile-names">
           <h2 class="display-name">
             {{ profileData.display_name }}
-            <span v-if="profileData.is_admin" class="admin-badge">Admin</span>
+            <span v-if="profileData.is_hero" class="hero-badge">Hero</span>
+            <span v-else-if="profileData.is_admin" class="admin-badge">Admin</span>
           </h2>
           <span class="username">@{{ profileData.username }}</span>
         </div>
@@ -65,6 +66,26 @@
           <span class="stat">
             <strong>{{ stats.likes }}</strong> J'aime
           </span>
+          <span v-if="profileData.show_balance && bankBalance !== null" class="stat stat-balance">
+            <strong>${{ formatBalance(bankBalance) }}</strong> iBank
+          </span>
+        </div>
+      </div>
+
+      <!-- Character Sheet Card -->
+      <div v-if="characterSheet" class="character-card" @click="goToCharacter">
+        <div class="character-card-left">
+          <img v-if="characterSheet.photo_url" :src="characterSheet.photo_url" class="character-card-photo" />
+          <div v-else class="character-card-photo-placeholder">&#x1F9D9;</div>
+          <div class="character-card-identity">
+            <span class="character-card-name">{{ characterSheet.prenom }} {{ characterSheet.nom }}</span>
+            <span class="character-card-details" v-if="characterSheet.nationalite || characterSheet.sexe">
+              {{ [characterSheet.sexe, characterSheet.nationalite].filter(Boolean).join(' &middot; ') }}
+            </span>
+          </div>
+        </div>
+        <div class="character-card-stats">
+          <StatsRadarChart :stats="characterSheetStats" :size="120" />
         </div>
       </div>
 
@@ -197,6 +218,7 @@ import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import PostCard from '../components/PostCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import StatsRadarChart from '../components/StatsRadarChart.vue'
 import CharacterPanel from '../components/CharacterPanel.vue'
 
 const route = useRoute()
@@ -213,12 +235,31 @@ const reposts = ref([])
 const likedPosts = ref([])
 const mediaPosts = ref([])
 const showAvatarViewer = ref(false)
+const characterSheet = ref(null)
+const bankBalance = ref(null)
 
 const stats = ref({ posts: 0, likes: 0 })
+
+const characterSheetStats = computed(() => ({
+  force: characterSheet.value?.force || 0,
+  defense: characterSheet.value?.defense || 0,
+  endurance: characterSheet.value?.endurance || 0,
+  intellect: characterSheet.value?.intellect || 0,
+  charisme: characterSheet.value?.charisme || 0,
+}))
 
 const isOwnProfile = computed(() => {
   if (!profileData.value) return false
   return auth.profiles.some((p) => p.id === profileData.value.id)
+})
+
+const heroBannerStyle = computed(() => {
+  if (!profileData.value?.is_hero) return {}
+  const p = profileData.value.hero_color_primary || '#FFD700'
+  const s = profileData.value.hero_color_secondary || '#FF6B00'
+  return {
+    background: `linear-gradient(135deg, ${p}44 0%, ${s}33 50%, ${p}55 100%)`,
+  }
 })
 
 const joinedDate = computed(() => {
@@ -235,6 +276,8 @@ async function loadProfile() {
   reposts.value = []
   likedPosts.value = []
   mediaPosts.value = []
+  characterSheet.value = null
+  bankBalance.value = null
 
   const { data } = await supabase
     .from('profiles')
@@ -246,8 +289,36 @@ async function loadProfile() {
   if (data) {
     await postsStore.fetchUserPosts(data.id)
     await fetchStats(data.id)
+
+    // Load character sheet
+    const { data: sheet } = await supabase
+      .from('character_sheets')
+      .select('*')
+      .eq('profile_id', data.id)
+      .maybeSingle()
+    characterSheet.value = sheet
+
+    // Load bank balance if profile has show_balance enabled
+    if (data.show_balance) {
+      const { data: account } = await supabase
+        .from('bank_accounts')
+        .select('balance')
+        .eq('profile_id', data.id)
+        .maybeSingle()
+      bankBalance.value = account?.balance ?? null
+    }
   }
   loading.value = false
+}
+
+function formatBalance(n) {
+  return Number(n || 0).toLocaleString('fr-FR')
+}
+
+function goToCharacter() {
+  if (profileData.value) {
+    router.push(`/character/${profileData.value.username}`)
+  }
 }
 
 async function fetchStats(profileId) {
@@ -552,6 +623,22 @@ watch(() => route.params.username, loadProfile)
   letter-spacing: 0.3px;
 }
 
+.hero-badge {
+  background: linear-gradient(135deg, #FFD700, #FF6B00);
+  color: #000;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.avatar-wrapper.hero-glow {
+  border-radius: 50%;
+  box-shadow: 0 0 20px var(--hero-primary, #FFD700), 0 0 40px color-mix(in srgb, var(--hero-primary, #FFD700) 30%, transparent);
+}
+
 .bio {
   font-size: 0.92rem;
   line-height: 1.45;
@@ -592,6 +679,83 @@ watch(() => route.params.username, loadProfile)
 .stat strong {
   color: var(--text-primary);
   font-weight: 700;
+}
+
+/* ============ Balance stat ============ */
+.stat-balance strong {
+  color: var(--success);
+}
+
+/* ============ Character Card ============ */
+.character-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 1rem 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.character-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+
+.character-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.character-card-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.character-card-photo-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.character-card-identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.character-card-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.character-card-details {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.character-card-stats {
+  flex-shrink: 0;
+  margin-left: 0.5rem;
 }
 
 /* ============ Tabs ============ */
