@@ -210,42 +210,12 @@ async function fetchNotifications() {
   }
 }
 
-async function fetchUnreadCount() {
-  if (!auth.activeProfile) return
-  try {
-    const profileIds = auth.profiles.map((p) => p.id)
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('id, recipient_id, read')
-      .in('recipient_id', profileIds)
-      .eq('read', false)
-      .limit(200)
-
-    if (!error) {
-      // Update only unread in existing list
-      const unreadIds = new Set((data || []).map((n) => n.id))
-      // If panel is open, we already have full data; just update read status
-      if (notifications.value.length > 0) {
-        for (const n of notifications.value) {
-          if (unreadIds.has(n.id)) n.read = false
-        }
-      }
-      // Keep a lightweight copy for badge count
-      if (notifications.value.length === 0) {
-        notifications.value = data || []
-      }
-    }
-  } catch {
-    // Silently ignore
-  }
-}
-
 function togglePanel() {
   showPanel.value = !showPanel.value
   if (showPanel.value) {
-    // Default to active profile tab
     selectedProfileId.value = auth.profiles.length > 1 ? auth.activeProfile?.id : null
     activeFilter.value = 'all'
+    // Refresh on open
     fetchNotifications()
   }
 }
@@ -346,17 +316,14 @@ async function fetchNewNotification(notifId) {
 
 // Refresh notifications when switching profile
 watch(() => auth.activeProfile?.id, async () => {
-  if (showPanel.value) {
-    selectedProfileId.value = auth.activeProfile?.id || null
-    fetchNotifications()
-  } else {
-    fetchUnreadCount()
-  }
+  selectedProfileId.value = auth.activeProfile?.id || null
+  fetchNotifications()
   await subscribeRealtime()
 })
 
 onMounted(() => {
-  fetchUnreadCount()
+  // Load full notifications immediately (for badge count + panel data)
+  fetchNotifications()
   subscribeRealtime()
   document.addEventListener('click', handleClickOutside)
 })
