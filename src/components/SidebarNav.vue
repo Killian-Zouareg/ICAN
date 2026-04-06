@@ -96,7 +96,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
@@ -129,47 +129,65 @@ async function handleLogout() {
 }
 
 async function fetchUnread() {
-  if (!auth.activeProfile) return
+  if (!auth.activeProfile || auth.profiles.length === 0) return
   try {
     const allProfileIds = auth.profiles.map((p) => p.id)
     const counts = {}
+    for (const pid of allProfileIds) counts[pid] = 0
 
-    for (const profile of auth.profiles) {
-      const pid = profile.id
+    // 1. Get ALL conversations for all profiles at once
+    const { data: dmConvs } = await supabase
+      .from('conversations')
+      .select('id, user1_id, user2_id')
+      .eq('is_group', false)
+      .or(allProfileIds.map(pid => `user1_id.eq.${pid},user2_id.eq.${pid}`).join(','))
 
-      // Get conversations this profile is part of (DM or group)
-      const { data: dmConvs } = await supabase
-        .from('conversations')
-        .select('id')
-        .eq('is_group', false)
-        .or(`user1_id.eq.${pid},user2_id.eq.${pid}`)
+    const { data: groupParts } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, profile_id')
+      .in('profile_id', allProfileIds)
 
-      const { data: groupConvs } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id')
-        .eq('profile_id', pid)
+    // 2. Build per-profile conversation sets
+    const convsByProfile = {}
+    for (const pid of allProfileIds) convsByProfile[pid] = new Set()
 
-      const convIds = [
-        ...(dmConvs || []).map((c) => c.id),
-        ...(groupConvs || []).map((c) => c.conversation_id),
-      ]
+    for (const c of (dmConvs || [])) {
+      if (allProfileIds.includes(c.user1_id)) convsByProfile[c.user1_id].add(c.id)
+      if (allProfileIds.includes(c.user2_id)) convsByProfile[c.user2_id].add(c.id)
+    }
+    for (const p of (groupParts || [])) {
+      if (convsByProfile[p.profile_id]) convsByProfile[p.profile_id].add(p.conversation_id)
+    }
 
-      if (convIds.length === 0) {
-        counts[pid] = 0
-        continue
+    // 3. Get all unread messages at once for all conversations
+    const allConvIds = [...new Set([
+      ...(dmConvs || []).map(c => c.id),
+      ...(groupParts || []).map(p => p.conversation_id),
+    ])]
+
+    if (allConvIds.length === 0) {
+      unreadByProfile.value = counts
+      unreadCount.value = 0
+      return
+    }
+
+    const { data: unreads } = await supabase
+      .from('messages')
+      .select('conversation_id, sender_id')
+      .in('conversation_id', allConvIds)
+      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+      .eq('read', false)
+
+    // 4. Attribute unread messages to each profile
+    for (const msg of (unreads || [])) {
+      for (const pid of allProfileIds) {
+        if (convsByProfile[pid].has(msg.conversation_id)) {
+          counts[pid]++
+        }
       }
-
-      const { count } = await supabase
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .in('conversation_id', convIds)
-        .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
-        .eq('read', false)
-      counts[pid] = count || 0
     }
 
     unreadByProfile.value = counts
-    // Total for sidebar badge = active profile's count
     unreadCount.value = counts[auth.activeProfile.id] || 0
   } catch { /* ignore */ }
 }
@@ -181,6 +199,11 @@ function handleClickOutside(e) {
     showSwitcher.value = false
   }
 }
+
+// Re-fetch when auth loads or profile switches
+watch(() => auth.activeProfile?.id, () => {
+  fetchUnread()
+})
 
 onMounted(() => {
   fetchUnread()

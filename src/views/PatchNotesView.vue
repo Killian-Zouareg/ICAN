@@ -328,6 +328,7 @@ const patches = [
       { type: 'fixed', text: 'Le badge messages non-lus ne compte plus les messages de conversations auxquelles on ne participe pas' },
       { type: 'new', text: 'Badge de messages non-lus visible en permanence sur la sidebar et le widget DM (plus besoin d\'ouvrir le widget)' },
       { type: 'new', text: 'Compteur de messages non-lus par profil dans le switcher de profils' },
+      { type: 'fixed', text: 'Les badges de notifications et messages se chargent correctement au d\u00e9marrage (fix timing auth asynchrone)' },
     ],
   },
   {
