@@ -340,6 +340,7 @@ const patches = [
       { type: 'fixed', text: 'Correction du nom de table conversation_participants \u2192 conversation_members (erreur 404)' },
       { type: 'fixed', text: 'Les badges de notifications et messages se chargent correctement d\u00e8s le d\u00e9marrage' },
       { type: 'improved', text: 'Le widget messages flottant et l\u2019onglet Messages sont d\u00e9sormais synchronis\u00e9s en temps r\u00e9el' },
+      { type: 'improved', text: 'Refonte compl\u00e8te de l\u2019ergonomie Messages : bulles plus grandes, input polish\u00e9 avec ic\u00f4nes SVG, header avec lien profil, scrollbar discr\u00e8te, placeholder et \u00e9tats vides soign\u00e9s' },
     ],
   },
   {

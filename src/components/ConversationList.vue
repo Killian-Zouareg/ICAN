@@ -1,7 +1,9 @@
 <template>
   <div class="conversation-list">
     <div v-if="conversations.length === 0" class="empty">
-      Aucune conversation
+      <div class="empty-icon">&#x2709;</div>
+      <p>Aucune conversation</p>
+      <span>Commencez une nouvelle discussion !</span>
     </div>
     <div
       v-for="conv in conversations"
@@ -10,19 +12,24 @@
       :class="{ unread: conv.hasUnread, active: conv.id === activeId }"
       @click="$emit('select', conv)"
     >
-      <UserAvatar :url="conv.otherUser?.avatar_url" :name="conv.otherUser?.display_name || '?'" :size="48" />
+      <div class="conv-avatar-wrap">
+        <UserAvatar :url="conv.otherUser?.avatar_url" :name="conv.otherUser?.display_name || '?'" :size="48" />
+        <div v-if="conv.hasUnread" class="conv-online-dot"></div>
+      </div>
       <div class="conv-body">
         <div class="conv-top">
           <span class="conv-name">{{ conv.otherUser?.display_name }}</span>
           <span class="conv-handle">@{{ conv.otherUser?.username }}</span>
+          <span class="conv-dot">&middot;</span>
           <span class="conv-time">{{ formatTime(conv.lastMessageTime) }}</span>
         </div>
         <div class="conv-bottom">
           <span class="conv-preview">{{ conv.lastMessage || 'Aucun message' }}</span>
         </div>
       </div>
-      <div v-if="conv.hasUnread" class="conv-unread-dot"></div>
-      <button class="conv-hide" @click.stop="$emit('hide', conv.id)" title="Masquer">&times;</button>
+      <button class="conv-hide" @click.stop="$emit('hide', conv.id)" title="Masquer">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
     </div>
   </div>
 </template>
@@ -59,15 +66,28 @@ function formatTime(dateStr) {
   overflow-y: auto;
 }
 
+.conversation-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.conversation-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.conversation-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
 .conv-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: 0.85rem;
+  padding: 0.85rem 1.25rem;
   cursor: pointer;
   transition: background 0.12s;
   position: relative;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid transparent;
 }
 
 .conv-item:hover {
@@ -87,24 +107,40 @@ function formatTime(dateStr) {
   background: rgba(29, 161, 242, 0.08);
 }
 
+.conv-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.conv-online-dot {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg-primary);
+}
+
 .conv-body {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .conv-top {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.3rem;
   min-width: 0;
 }
 
 .conv-name {
   font-weight: 700;
-  font-size: 0.92rem;
+  font-size: 0.93rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -118,15 +154,20 @@ function formatTime(dateStr) {
 
 .conv-handle {
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.83rem;
   white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.conv-dot {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
   flex-shrink: 0;
 }
 
 .conv-time {
   color: var(--text-secondary);
-  font-size: 0.78rem;
-  margin-left: auto;
+  font-size: 0.8rem;
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -134,15 +175,15 @@ function formatTime(dateStr) {
 .conv-bottom {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
 }
 
 .conv-preview {
-  font-size: 0.84rem;
+  font-size: 0.87rem;
   color: var(--text-secondary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .conv-item.unread .conv-preview {
@@ -150,29 +191,23 @@ function formatTime(dateStr) {
   font-weight: 500;
 }
 
-.conv-unread-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-
 .conv-hide {
   display: none;
   background: none;
   border: none;
   color: var(--text-secondary);
-  font-size: 1.3rem;
   cursor: pointer;
-  padding: 0.2rem 0.4rem;
-  border-radius: 50%;
-  line-height: 1;
+  padding: 0.35rem;
+  border-radius: 9999px;
+  line-height: 0;
   flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
 }
 
 .conv-item:hover .conv-hide {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .conv-hide:hover {
@@ -181,9 +216,30 @@ function formatTime(dateStr) {
 }
 
 .empty {
-  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 4rem 1.5rem;
   text-align: center;
   color: var(--text-secondary);
-  font-size: 0.9rem;
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.25;
+  margin-bottom: 0.5rem;
+}
+
+.empty p {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.empty span {
+  font-size: 0.85rem;
 }
 </style>
