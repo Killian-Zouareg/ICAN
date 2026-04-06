@@ -107,6 +107,27 @@
         <span class="char-count">{{ editBio.length }}/160</span>
       </div>
 
+      <!-- iCharacter Stats -->
+      <div class="field">
+        <label>Stats iCharacter</label>
+        <div class="stats-edit-grid">
+          <div v-for="stat in statsDefs" :key="stat.key" class="stats-edit-row">
+            <span class="stats-edit-label" :style="{ color: stat.color }">{{ stat.label }}</span>
+            <div class="stats-edit-dots">
+              <span
+                v-for="i in 5"
+                :key="i"
+                class="stats-edit-dot"
+                :class="{ filled: i <= editStats[stat.key] }"
+                :style="i <= editStats[stat.key] ? { background: stat.color, borderColor: 'transparent', boxShadow: '0 0 6px ' + stat.color + '60' } : {}"
+                @click="toggleStat(stat.key, i)"
+              ></span>
+            </div>
+            <span class="stats-edit-val" :style="{ color: stat.color }">{{ editStats[stat.key] }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Email (read-only) -->
       <div class="field">
         <label>Email (compte)</label>
@@ -133,7 +154,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import UserAvatar from '../components/UserAvatar.vue'
 import ImageCropper from '../components/ImageCropper.vue'
@@ -155,6 +176,20 @@ const editSuccess = ref('')
 const showCropper = ref(false)
 const cropperSrc = ref('')
 
+const statsDefs = [
+  { key: 'charisme', label: 'Charisme', color: '#e74c3c' },
+  { key: 'intelligence', label: 'Intelligence', color: '#3498db' },
+  { key: 'force', label: 'Force', color: '#e67e22' },
+  { key: 'vigueur', label: 'Vigueur', color: '#2ecc71' },
+  { key: 'mobilite', label: 'Mobilite', color: '#9b59b6' },
+]
+
+const editStats = reactive({ charisme: 0, intelligence: 0, force: 0, vigueur: 0, mobilite: 0 })
+
+function toggleStat(key, val) {
+  editStats[key] = editStats[key] === val ? val - 1 : val
+}
+
 const showNewProfile = ref(false)
 const newUsername = ref('')
 const newDisplayName = ref('')
@@ -173,6 +208,8 @@ function startEditing(p) {
   editDisplayName.value = p.display_name || ''
   editUsername.value = p.username || ''
   editBio.value = p.bio || ''
+  const cs = p.character_stats || {}
+  for (const s of statsDefs) editStats[s.key] = cs[s.key] ?? 0
   avatarPreview.value = p.avatar_url || null
   avatarFile.value = null
   editError.value = ''
@@ -238,10 +275,14 @@ async function handleSave() {
       avatarFile.value = null
     }
 
+    const statsObj = {}
+    for (const s of statsDefs) statsObj[s.key] = editStats[s.key]
+
     const updated = await auth.updateProfile(editingProfileId.value, {
       username: editUsername.value.trim(),
       displayName: editDisplayName.value.trim(),
       bio: editBio.value.trim(),
+      characterStats: statsObj,
     })
 
     editingProfile.value = updated
@@ -611,5 +652,55 @@ async function handleDeleteProfile() {
 .delete-profile-btn:hover {
   background: var(--danger);
   color: white;
+}
+
+/* ---- Stats Editor ---- */
+.stats-edit-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
+.stats-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.stats-edit-label {
+  width: 95px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.stats-edit-dots {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.stats-edit-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.stats-edit-dot:hover {
+  transform: scale(1.2);
+}
+
+.stats-edit-dot.filled {
+  border-color: transparent;
+}
+
+.stats-edit-val {
+  font-size: 0.82rem;
+  font-weight: 700;
+  width: 18px;
+  text-align: center;
 }
 </style>

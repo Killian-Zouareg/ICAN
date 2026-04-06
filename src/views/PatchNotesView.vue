@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '2.15.0',
+    date: '6 avril 2026',
+    icon: '🎮',
+    color: '#9b59b6',
+    title: 'iCharacter',
+    description: 'Cr\u00e9ez votre personnage avec 5 stats (Charisme, Intelligence, Force, Vigueur, Mobilit\u00e9) et un inventaire interactif fa\u00e7on RPG. Visible sur votre profil, modifiable dans vos param\u00e8tres.',
+    tags: ['Stats', 'Inventaire', 'RPG', 'Profil'],
+  },
+  {
     version: '2.10.0',
     date: '1 avril 2026',
     icon: '✏️',
@@ -272,6 +281,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '2.15.0',
+    date: '6 avril 2026',
+    title: 'iCharacter + corrections',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Syst\u00e8me iCharacter : 5 stats de personnage (Charisme, Intelligence, Force, Vigueur, Mobilit\u00e9) avec affichage visuel sur le profil' },
+      { type: 'new', text: 'Inventaire interactif : ajoutez des objets avec ic\u00f4ne, description et quantit\u00e9' },
+      { type: 'new', text: 'Nouvel onglet "iCharacter" sur les pages de profil' },
+      { type: 'new', text: '\u00c9dition des stats dans les param\u00e8tres du profil' },
+      { type: 'fixed', text: 'Les compteurs ghost/fake (likes, commentaires, reposts) sont maintenant correctement inclus dans la vue posts_with_stats' },
+      { type: 'fixed', text: 'Les notifications en double sont corrig\u00e9es (race condition sur les channels realtime)' },
+    ],
+  },
   {
     version: '2.14.0',
     date: '2 avril 2026',

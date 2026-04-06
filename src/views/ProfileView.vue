@@ -98,6 +98,13 @@
         >
           M&eacute;dias
         </button>
+        <button
+          class="tab"
+          :class="{ active: activeTab === 'character' }"
+          @click="activeTab = 'character'"
+        >
+          iCharacter
+        </button>
       </div>
 
       <!-- Tab content -->
@@ -151,6 +158,16 @@
             </div>
           </div>
         </template>
+
+        <!-- iCharacter tab -->
+        <template v-else-if="activeTab === 'character'">
+          <CharacterPanel
+            :profileId="profileData.id"
+            :isOwner="isOwnProfile"
+            :characterStats="profileData.character_stats"
+            @stats-updated="onStatsUpdated"
+          />
+        </template>
       </div>
 
     </template>
@@ -180,6 +197,7 @@ import { useAuthStore } from '../stores/auth'
 import { usePostsStore } from '../stores/posts'
 import PostCard from '../components/PostCard.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import CharacterPanel from '../components/CharacterPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -353,6 +371,12 @@ async function startDM() {
 
 function goToPost(postId) {
   router.push(`/post/${postId}`)
+}
+
+function onStatsUpdated(stats) {
+  if (profileData.value) {
+    profileData.value.character_stats = stats
+  }
 }
 
 function openAvatarViewer() {

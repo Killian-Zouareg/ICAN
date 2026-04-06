@@ -968,16 +968,21 @@ ALTER TABLE conversations ADD CONSTRAINT conversations_check CHECK (user1_id < u
 -- 10. Ajouter l'index
 CREATE INDEX IF NOT EXISTS idx_profiles_owner_id ON profiles(owner_id);
 
--- 11. Recréer la vue
+-- 11. Recréer la vue (avec ghost + fake counts)
 CREATE VIEW posts_with_stats AS
 SELECT
   p.*,
   pr.username,
   pr.display_name,
   pr.avatar_url,
-  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
-  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
-  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id) AS repost_count
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id)
+    + (SELECT COUNT(*) FROM ghost_likes gl WHERE gl.post_id = p.id)
+    + COALESCE(p.fake_like_count, 0) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id)
+    + (SELECT COUNT(*) FROM ghost_comments gc WHERE gc.post_id = p.id)
+    + COALESCE(p.fake_comment_count, 0) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id)
+    + COALESCE(p.ghost_repost_count, 0) AS repost_count
 FROM posts p
 JOIN profiles pr ON p.author_id = pr.id;
 
@@ -1014,6 +1019,44 @@ Une fois que tous tes amis se sont inscrits :
 1. Va dans **Supabase Dashboard > Authentication > Settings**
 2. Désactive **"Enable sign ups"**
 3. Plus personne ne pourra créer de compte, mais les comptes existants fonctionneront toujours
+
+---
+
+## iCharacter : Stats + Inventaire
+
+```sql
+-- Ajouter les stats de personnage au profil
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS character_stats JSONB DEFAULT '{"charisme":0,"intelligence":0,"force":0,"vigueur":0,"mobilite":0}';
+
+-- Table inventaire
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL CHECK (char_length(name) <= 50),
+  description TEXT DEFAULT '' CHECK (char_length(description) <= 200),
+  icon TEXT NOT NULL DEFAULT '📦',
+  quantity INT DEFAULT 1 CHECK (quantity >= 0),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_inventory_profile ON inventory_items(profile_id);
+ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can view inventory" ON inventory_items
+  FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Owners can insert inventory" ON inventory_items
+  FOR INSERT TO authenticated
+  WITH CHECK (profile_id IN (SELECT id FROM profiles WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Owners can update inventory" ON inventory_items
+  FOR UPDATE TO authenticated
+  USING (profile_id IN (SELECT id FROM profiles WHERE owner_id = auth.uid()));
+
+CREATE POLICY "Owners can delete inventory" ON inventory_items
+  FOR DELETE TO authenticated
+  USING (profile_id IN (SELECT id FROM profiles WHERE owner_id = auth.uid()));
+```
 
 ---
 

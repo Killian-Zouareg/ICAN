@@ -17,7 +17,8 @@
       "Bash(grep -r \"virtual_counter\\\\|fake_counter\\\\|boost\\\\|engagement_boost\" /c/Users/killi/Desktop/ICAN --include=*.vue --include=*.js --include=*.md)",
       "Bash(grep -r \"CREATE TRIGGER\\\\|CREATE FUNCTION\\\\|notification\" /c/Users/killi/Desktop/ICAN --include=*.md --include=*.sql)",
       "Bash(grep -rn notification /c/Users/killi/Desktop/ICAN/src --include=*.vue --include=*.js)",
-      "Bash(ls -la /c/Users/killi/Desktop/ICAN/*.sql)"
+      "Bash(ls -la /c/Users/killi/Desktop/ICAN/*.sql)",
+      "Bash(npx vite:*)"
     ]
   }
 }

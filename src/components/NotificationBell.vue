@@ -122,6 +122,7 @@ const filters = [
 ]
 
 let realtimeChannel = null
+const pendingFetches = new Set()
 
 function actionText(type) {
   switch (type) {
@@ -286,8 +287,8 @@ function handleClickOutside(e) {
   }
 }
 
-function subscribeRealtime() {
-  unsubscribeRealtime()
+async function subscribeRealtime() {
+  await unsubscribeRealtime()
   const profileIds = auth.profiles.map((p) => p.id)
   if (profileIds.length === 0) return
 
@@ -306,36 +307,44 @@ function subscribeRealtime() {
     .subscribe()
 }
 
-function unsubscribeRealtime() {
+async function unsubscribeRealtime() {
   if (realtimeChannel) {
-    supabase.removeChannel(realtimeChannel)
+    const channel = realtimeChannel
     realtimeChannel = null
+    await supabase.removeChannel(channel)
   }
 }
 
 async function fetchNewNotification(notifId) {
-  const { data } = await supabase
-    .from('notifications')
-    .select('*, actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url)')
-    .eq('id', notifId)
-    .single()
-  if (data) {
-    // Avoid duplicates
-    if (!notifications.value.find((n) => n.id === data.id)) {
-      notifications.value.unshift(data)
+  // Prevent concurrent fetches for the same notification
+  if (pendingFetches.has(notifId)) return
+  pendingFetches.add(notifId)
+  try {
+    const { data } = await supabase
+      .from('notifications')
+      .select('*, actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url)')
+      .eq('id', notifId)
+      .single()
+    if (data) {
+      // Avoid duplicates
+      if (!notifications.value.find((n) => n.id === data.id)) {
+        notifications.value.unshift(data)
+      }
     }
+  } finally {
+    pendingFetches.delete(notifId)
   }
 }
 
 // Refresh notifications when switching profile
-watch(() => auth.activeProfile?.id, () => {
+watch(() => auth.activeProfile?.id, async () => {
   if (showPanel.value) {
     selectedProfileId.value = auth.activeProfile?.id || null
     fetchNotifications()
   } else {
     fetchUnreadCount()
   }
-  subscribeRealtime()
+  await subscribeRealtime()
 })
 
 onMounted(() => {
