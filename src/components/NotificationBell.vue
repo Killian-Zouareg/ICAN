@@ -122,7 +122,9 @@ const filters = [
 ]
 
 let realtimeChannel = null
+let subscriptionInProgress = false
 const pendingFetches = new Set()
+const recentlyAdded = new Set()
 
 function actionText(type) {
   switch (type) {
@@ -288,23 +290,29 @@ function handleClickOutside(e) {
 }
 
 async function subscribeRealtime() {
-  await unsubscribeRealtime()
-  const profileIds = auth.profiles.map((p) => p.id)
-  if (profileIds.length === 0) return
+  // Prevent concurrent subscriptions (mount + watch race)
+  if (subscriptionInProgress) return
+  subscriptionInProgress = true
+  try {
+    await unsubscribeRealtime()
+    const profileIds = auth.profiles.map((p) => p.id)
+    if (profileIds.length === 0) return
 
-  realtimeChannel = supabase
-    .channel('notifications-realtime')
-    .on(
-      'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'notifications' },
-      (payload) => {
-        if (profileIds.includes(payload.new.recipient_id)) {
-          // Fetch full notification with actor data
-          fetchNewNotification(payload.new.id)
+    realtimeChannel = supabase
+      .channel('notifications-' + Date.now())
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'notifications' },
+        (payload) => {
+          if (profileIds.includes(payload.new.recipient_id)) {
+            fetchNewNotification(payload.new.id)
+          }
         }
-      }
-    )
-    .subscribe()
+      )
+      .subscribe()
+  } finally {
+    subscriptionInProgress = false
+  }
 }
 
 async function unsubscribeRealtime() {
@@ -316,23 +324,23 @@ async function unsubscribeRealtime() {
 }
 
 async function fetchNewNotification(notifId) {
-  // Prevent concurrent fetches for the same notification
-  if (pendingFetches.has(notifId)) return
+  // Prevent concurrent fetches AND duplicate inserts for the same notification
+  if (pendingFetches.has(notifId) || recentlyAdded.has(notifId)) return
   pendingFetches.add(notifId)
+  recentlyAdded.add(notifId)
   try {
     const { data } = await supabase
       .from('notifications')
       .select('*, actor:profiles!notifications_actor_id_fkey(id, username, display_name, avatar_url)')
       .eq('id', notifId)
       .single()
-    if (data) {
-      // Avoid duplicates
-      if (!notifications.value.find((n) => n.id === data.id)) {
-        notifications.value.unshift(data)
-      }
+    if (data && !notifications.value.find((n) => n.id === data.id)) {
+      notifications.value.unshift(data)
     }
   } finally {
     pendingFetches.delete(notifId)
+    // Keep in recentlyAdded for 10s to block late duplicates
+    setTimeout(() => recentlyAdded.delete(notifId), 10000)
   }
 }
 
