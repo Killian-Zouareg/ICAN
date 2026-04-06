@@ -246,6 +246,18 @@ onUnmounted(() => {
 .messages-page {
   display: flex;
   height: calc(100vh - var(--header-height));
+  /* Break out of the 600px .container to fill the full app-layout width */
+  width: calc(100vw - 220px - 280px);
+  max-width: none;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@media (max-width: 1100px) {
+  .messages-page {
+    width: calc(100vw - 220px);
+  }
 }
 
 /* ---- Left sidebar ---- */
@@ -468,6 +480,7 @@ onUnmounted(() => {
 /* ---- Mobile ---- */
 @media (max-width: 768px) {
   .messages-page {
+    width: 100vw;
     height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
   }
 
