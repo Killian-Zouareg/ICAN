@@ -326,6 +326,8 @@ const patches = [
       { type: 'fixed', text: 'Les compteurs de likes/commentaires/reposts ghost s\'affichent de nouveau correctement sur les posts' },
       { type: 'fixed', text: 'Les notifications n\'apparaissent plus en double dans la cloche (fix race condition realtime + contrainte unique DB)' },
       { type: 'fixed', text: 'Le badge messages non-lus ne compte plus les messages de conversations auxquelles on ne participe pas' },
+      { type: 'new', text: 'Badge de messages non-lus visible en permanence sur la sidebar et le widget DM (plus besoin d\'ouvrir le widget)' },
+      { type: 'new', text: 'Compteur de messages non-lus par profil dans le switcher de profils' },
     ],
   },
   {

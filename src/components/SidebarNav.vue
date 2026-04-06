@@ -78,6 +78,7 @@
               <span class="switcher-item-name">{{ p.display_name }}</span>
               <span class="switcher-item-handle">@{{ p.username }}</span>
             </div>
+            <span v-if="unreadByProfile[p.id] > 0" class="switcher-badge">{{ unreadByProfile[p.id] }}</span>
             <span v-if="p.id === auth.activeProfile?.id" class="switcher-check">&#x2713;</span>
           </div>
         </div>
@@ -106,6 +107,7 @@ const router = useRouter()
 const showSwitcher = ref(false)
 const searchQuery = ref('')
 const unreadCount = ref(0)
+const unreadByProfile = ref({})
 
 const filteredProfiles = computed(() => {
   if (!searchQuery.value) return auth.profiles
@@ -129,38 +131,46 @@ async function handleLogout() {
 async function fetchUnread() {
   if (!auth.activeProfile) return
   try {
-    const profileId = auth.activeProfile.id
     const allProfileIds = auth.profiles.map((p) => p.id)
+    const counts = {}
 
-    // Get conversations the user is part of (DM or group)
-    const { data: dmConvs } = await supabase
-      .from('conversations')
-      .select('id')
-      .eq('is_group', false)
-      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
+    for (const profile of auth.profiles) {
+      const pid = profile.id
 
-    const { data: groupConvs } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('profile_id', profileId)
+      // Get conversations this profile is part of (DM or group)
+      const { data: dmConvs } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('is_group', false)
+        .or(`user1_id.eq.${pid},user2_id.eq.${pid}`)
 
-    const convIds = [
-      ...(dmConvs || []).map((c) => c.id),
-      ...(groupConvs || []).map((c) => c.conversation_id),
-    ]
+      const { data: groupConvs } = await supabase
+        .from('conversation_participants')
+        .select('conversation_id')
+        .eq('profile_id', pid)
 
-    if (convIds.length === 0) {
-      unreadCount.value = 0
-      return
+      const convIds = [
+        ...(dmConvs || []).map((c) => c.id),
+        ...(groupConvs || []).map((c) => c.conversation_id),
+      ]
+
+      if (convIds.length === 0) {
+        counts[pid] = 0
+        continue
+      }
+
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .in('conversation_id', convIds)
+        .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+        .eq('read', false)
+      counts[pid] = count || 0
     }
 
-    const { count } = await supabase
-      .from('messages')
-      .select('id', { count: 'exact', head: true })
-      .in('conversation_id', convIds)
-      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
-      .eq('read', false)
-    unreadCount.value = count || 0
+    unreadByProfile.value = counts
+    // Total for sidebar badge = active profile's count
+    unreadCount.value = counts[auth.activeProfile.id] || 0
   } catch { /* ignore */ }
 }
 
@@ -397,6 +407,20 @@ onUnmounted(() => {
 .switcher-item-handle {
   font-size: 0.75rem;
   color: var(--text-secondary);
+}
+
+.switcher-badge {
+  background: var(--danger);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
 }
 
 .switcher-check {

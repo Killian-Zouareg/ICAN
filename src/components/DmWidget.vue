@@ -462,8 +462,23 @@ async function fetchUnreadCount() {
     const profileId = auth.activeProfile.id
     const allProfileIds = auth.profiles.map((p) => p.id)
 
-    // Only count unread from conversations the user is part of
-    const convIds = conversations.value.map((c) => c.id)
+    // Get conversations this profile is part of (works even before panel opened)
+    const { data: dmConvs } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('is_group', false)
+      .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
+
+    const { data: groupConvs } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('profile_id', profileId)
+
+    const convIds = [
+      ...(dmConvs || []).map((c) => c.id),
+      ...(groupConvs || []).map((c) => c.conversation_id),
+    ]
+
     if (convIds.length === 0) {
       unreadCount.value = 0
       return
