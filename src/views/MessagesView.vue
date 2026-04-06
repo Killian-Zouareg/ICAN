@@ -144,6 +144,8 @@ async function handleSend({ content, imageFile }) {
   scrollToBottom()
   // Refresh conversation list to update last message
   messagesStore.fetchConversations()
+  // Notify DmWidget
+  window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConvId.value } }))
 }
 
 async function handleDeleteMessage(messageId) {
@@ -194,17 +196,35 @@ watch(() => route.params.id, (newId) => {
 
 let convPollInterval = null
 
+function onExternalMessageSent(e) {
+  const convId = e.detail?.conversationId
+  // Refresh conversation list
+  messagesStore.fetchConversations()
+  // If viewing the same conversation, refresh messages
+  if (activeConvId.value && activeConvId.value === convId) {
+    messagesStore.fetchMessages(activeConvId.value).then(() => scrollToBottom())
+  }
+}
+
+function onExternalReadUpdate() {
+  messagesStore.fetchConversations()
+}
+
 onMounted(() => {
   initFromRoute()
   // Poll conversation list every 20s
   convPollInterval = setInterval(() => {
     messagesStore.fetchConversations()
   }, 20000)
+  window.addEventListener('dm-message-sent', onExternalMessageSent)
+  window.addEventListener('dm-read-update', onExternalReadUpdate)
 })
 
 onUnmounted(() => {
   clearInterval(pollInterval)
   clearInterval(convPollInterval)
+  window.removeEventListener('dm-message-sent', onExternalMessageSent)
+  window.removeEventListener('dm-read-update', onExternalReadUpdate)
 })
 </script>
 

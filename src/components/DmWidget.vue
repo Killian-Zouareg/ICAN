@@ -532,12 +532,16 @@ async function fetchMessages() {
   loadingMessages.value = false
 
   if (auth.activeProfile) {
-    await supabase
+    const { data: markedRows } = await supabase
       .from('messages')
       .update({ read: true })
       .eq('conversation_id', activeConv.value.id)
       .neq('sender_id', auth.activeProfile.id)
       .eq('read', false)
+      .select('id')
+    if (markedRows && markedRows.length > 0) {
+      window.dispatchEvent(new Event('dm-read-update'))
+    }
   }
 
   // Scroll only on first load or when new messages arrive
@@ -606,6 +610,7 @@ async function handleSend() {
   await messagesStore.unhideConversation(activeConv.value.id)
   await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', activeConv.value.id)
   await fetchMessages()
+  window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConv.value.id } }))
 }
 
 function startMsgPolling() { stopMsgPolling(); msgPollInterval = setInterval(fetchMessages, 5000) }
@@ -735,17 +740,35 @@ watch(() => auth.activeProfile?.id, () => {
   else fetchUnreadCount()
 })
 
+function onExternalMessageSent(e) {
+  const convId = e.detail?.conversationId
+  // Refresh conversations list (last message, unread status)
+  if (isExpanded.value && !activeConv.value) fetchConversations()
+  else fetchUnreadCount()
+  // If we're viewing the same conversation, refresh messages
+  if (activeConv.value && activeConv.value.id === convId) fetchMessages()
+}
+
+function onExternalReadUpdate() {
+  if (isExpanded.value && !activeConv.value) fetchConversations()
+  else fetchUnreadCount()
+}
+
 onMounted(() => {
   fetchUnreadCount()
   convPollInterval = setInterval(() => {
     if (isExpanded.value && !activeConv.value) fetchConversations()
     else fetchUnreadCount()
   }, 15000)
+  window.addEventListener('dm-message-sent', onExternalMessageSent)
+  window.addEventListener('dm-read-update', onExternalReadUpdate)
 })
 
 onUnmounted(() => {
   clearInterval(convPollInterval)
   stopMsgPolling()
+  window.removeEventListener('dm-message-sent', onExternalMessageSent)
+  window.removeEventListener('dm-read-update', onExternalReadUpdate)
 })
 </script>
 

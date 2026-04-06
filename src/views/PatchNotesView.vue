@@ -339,6 +339,7 @@ const patches = [
       { type: 'improved', text: 'La sidebar \u00e9coute les changements de lecture pour rafra\u00eechir le badge imm\u00e9diatement' },
       { type: 'fixed', text: 'Correction du nom de table conversation_participants \u2192 conversation_members (erreur 404)' },
       { type: 'fixed', text: 'Les badges de notifications et messages se chargent correctement d\u00e8s le d\u00e9marrage' },
+      { type: 'improved', text: 'Le widget messages flottant et l\u2019onglet Messages sont d\u00e9sormais synchronis\u00e9s en temps r\u00e9el' },
     ],
   },
   {
