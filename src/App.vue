@@ -25,7 +25,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import AppHeader from './components/AppHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
@@ -34,10 +35,13 @@ import DmWidget from './components/DmWidget.vue'
 import TrendingPanel from './components/TrendingPanel.vue'
 
 const auth = useAuthStore()
-const showDmWidget = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
+const route = useRoute()
+const dmWidgetEnabled = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
+const isMessagesPage = computed(() => route.path.startsWith('/messages'))
+const showDmWidget = computed(() => dmWidgetEnabled.value && !isMessagesPage.value)
 
 function onDmWidgetToggle(e) {
-  showDmWidget.value = e.detail
+  dmWidgetEnabled.value = e.detail
 }
 
 onMounted(() => {
