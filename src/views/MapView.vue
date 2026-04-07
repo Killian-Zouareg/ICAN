@@ -178,6 +178,7 @@
     </Transition>
 
     <!-- Zone creation form -->
+    <Teleport to="body">
     <Transition name="panel">
       <div v-if="showZoneForm" class="form-overlay" @click.self="showZoneForm = false">
         <div class="form-modal">
@@ -212,8 +213,10 @@
         </div>
       </div>
     </Transition>
+    </Teleport>
 
     <!-- Add/Edit Form modal -->
+    <Teleport to="body">
     <Transition name="panel">
       <div v-if="showForm" class="form-overlay" @click.self="cancelForm">
         <div class="form-modal">
@@ -300,6 +303,7 @@
         </div>
       </div>
     </Transition>
+    </Teleport>
   </div>
 </template>
 
