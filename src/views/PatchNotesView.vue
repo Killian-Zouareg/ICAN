@@ -329,13 +329,14 @@ const patches = [
   {
     version: '3.3.0',
     date: '7 avril 2026',
-    title: 'Bulles de posts sur la carte',
+    title: 'Posts sur la carte — badge & tooltip',
     tag: 'minor',
     changes: [
-      { type: 'new', text: 'Les posts mentionnant un lieu apparaissent comme des petites bulles-avatar autour du marqueur sur la carte' },
-      { type: 'new', text: 'Au survol d\u2019une bulle, le post se d\u00e9veloppe avec auteur, contenu et timestamp' },
-      { type: 'improved', text: 'Jusqu\u2019\u00e0 6 bulles par lieu, dispos\u00e9es en cercle autour du marqueur' },
+      { type: 'new', text: 'Un petit badge num\u00e9rique sur chaque lieu de la carte indique le nombre de posts rattach\u00e9s' },
+      { type: 'new', text: 'Au survol du lieu, un tooltip affiche la liste des posts avec avatar, auteur, contenu et timestamp' },
+      { type: 'new', text: 'Chaque post dans le tooltip est cliquable et redirige vers le d\u00e9tail du post' },
       { type: 'improved', text: '20 posts r\u00e9cents affich\u00e9s sur la carte (contre 5 avant)' },
+      { type: 'improved', text: 'Interface carte plus propre : plus de photos de profil volantes, tout est int\u00e9gr\u00e9 au marqueur' },
     ],
   },
   {

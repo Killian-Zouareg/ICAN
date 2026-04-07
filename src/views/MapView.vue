@@ -211,7 +211,6 @@ const mapContainer = ref(null)
 const imageInput = ref(null)
 let map = null
 let markersLayer = null
-let postMarkersLayer = null
 
 // Add mode
 const addMode = ref(false)
@@ -308,7 +307,6 @@ function initMap() {
 
   // Markers layer group
   markersLayer = L.layerGroup().addTo(map)
-  postMarkersLayer = L.layerGroup().addTo(map)
 
   // Force Leaflet to recalculate container size (fixes blank map)
   setTimeout(() => { if (map) map.invalidateSize() }, 100)
@@ -327,14 +325,35 @@ function initMap() {
   })
 }
 
-function createMarkerIcon(category) {
+// Build a map of locationId -> posts[] for badge counts + hover tooltips
+function getPostsByLocation() {
+  const map = {}
+  for (const post of store.locationPosts) {
+    if (!post.location_ids?.length) continue
+    for (const locId of post.location_ids) {
+      if (!map[locId]) map[locId] = []
+      map[locId].push(post)
+    }
+  }
+  return map
+}
+
+function escapeHtml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+function createMarkerIcon(category, postCount) {
   const color = getCategoryColor(category)
   const emoji = getCategoryEmoji(category)
+  const badgeHtml = postCount > 0
+    ? `<span class="marker-badge">${postCount}</span>`
+    : ''
 
   return L.divIcon({
     className: 'map-custom-marker',
     html: `<div class="marker-pin" style="background:${color}; box-shadow: 0 0 14px ${color}80, 0 0 6px ${color}60;">
              <span class="marker-emoji">${emoji}</span>
+             ${badgeHtml}
            </div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
@@ -342,20 +361,63 @@ function createMarkerIcon(category) {
   })
 }
 
+function buildPostsTooltipHtml(posts) {
+  const items = posts.slice(0, 5).map(post => {
+    const displayName = escapeHtml(post.display_name || post.username || '?')
+    const content = escapeHtml((post.content || '').slice(0, 100)) + (post.content?.length > 100 ? '...' : '')
+    const ago = timeAgo(post.created_at)
+    const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
+    const avatarHtml = post.avatar_url
+      ? `<img src="${post.avatar_url}" class="loc-post-avatar" />`
+      : `<div class="loc-post-avatar loc-post-avatar-fallback">${initials}</div>`
+
+    return `<a href="#/post/${post.id}" class="loc-post-item">
+      ${avatarHtml}
+      <div class="loc-post-body">
+        <div class="loc-post-meta">
+          <span class="loc-post-author">${displayName}</span>
+          <span class="loc-post-time">${ago}</span>
+        </div>
+        <div class="loc-post-text">${content}</div>
+      </div>
+    </a>`
+  }).join('')
+
+  const moreHtml = posts.length > 5
+    ? `<div class="loc-post-more">+ ${posts.length - 5} autre${posts.length - 5 > 1 ? 's' : ''}</div>`
+    : ''
+
+  return `<div class="loc-posts-list">${items}${moreHtml}</div>`
+}
+
 function renderMarkers() {
   if (!markersLayer) return
   markersLayer.clearLayers()
 
+  const postsByLoc = getPostsByLocation()
+
   for (const loc of store.filteredLocations) {
+    const locPosts = postsByLoc[loc.id] || []
     const marker = L.marker([loc.lat, loc.lng], {
-      icon: createMarkerIcon(loc.category),
+      icon: createMarkerIcon(loc.category, locPosts.length),
     })
 
-    marker.bindTooltip(loc.name, {
-      direction: 'top',
-      offset: [0, -20],
-      className: 'map-tooltip',
-    })
+    if (locPosts.length > 0) {
+      const tooltipContent = `<div class="loc-tooltip-name">${escapeHtml(loc.name)}</div>${buildPostsTooltipHtml(locPosts)}`
+      marker.bindTooltip(tooltipContent, {
+        direction: 'top',
+        offset: [0, -20],
+        className: 'map-tooltip-posts',
+        interactive: true,
+        sticky: false,
+      })
+    } else {
+      marker.bindTooltip(loc.name, {
+        direction: 'top',
+        offset: [0, -20],
+        className: 'map-tooltip',
+      })
+    }
 
     marker.on('click', () => {
       store.selectLocation(loc)
@@ -366,79 +428,9 @@ function renderMarkers() {
   }
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-function renderPostMarkers() {
-  if (!postMarkersLayer) return
-  postMarkersLayer.clearLayers()
-
-  // Group posts by location
-  const postsByLocation = {}
-  for (const post of store.locationPosts) {
-    if (!post.location_ids?.length) continue
-    const loc = store.locations.find(l => post.location_ids.includes(l.id))
-    if (!loc) continue
-    if (!postsByLocation[loc.id]) postsByLocation[loc.id] = { loc, posts: [] }
-    postsByLocation[loc.id].posts.push(post)
-  }
-
-  // Offset angles to spread bubbles around the location marker
-  const angleOffsets = [
-    { dx: 0, dy: -40 },   // top
-    { dx: 34, dy: -20 },  // top-right
-    { dx: 34, dy: 20 },   // bottom-right
-    { dx: -34, dy: -20 },  // top-left
-    { dx: -34, dy: 20 },  // bottom-left
-    { dx: 0, dy: 40 },    // bottom
-  ]
-
-  for (const { loc, posts } of Object.values(postsByLocation)) {
-    posts.slice(0, 6).forEach((post, i) => {
-      const offset = angleOffsets[i] || angleOffsets[0]
-      const displayName = escapeHtml(post.display_name || post.username || '?')
-      const content = escapeHtml((post.content || '').slice(0, 120)) + (post.content?.length > 120 ? '...' : '')
-      const ago = timeAgo(post.created_at)
-      const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
-      const avatarHtml = post.avatar_url
-        ? `<img src="${post.avatar_url}" class="map-post-avatar" />`
-        : `<div class="map-post-avatar map-post-avatar-fallback">${initials}</div>`
-
-      const html = `
-        <div class="map-post-bubble">
-          <a href="#/post/${post.id}" class="map-post-bubble-inner">
-            ${avatarHtml}
-          </a>
-          <div class="map-post-tooltip">
-            <a href="#/post/${post.id}" class="map-post-tooltip-link">
-              <div class="map-post-tooltip-header">
-                ${avatarHtml}
-                <span class="map-post-author">${displayName}</span>
-                <span class="map-post-time">${ago}</span>
-              </div>
-              <div class="map-post-text">${content}</div>
-            </a>
-          </div>
-        </div>
-      `
-
-      const icon = L.divIcon({
-        className: 'map-post-marker',
-        html,
-        iconSize: [34, 34],
-        iconAnchor: [17 - offset.dx, 17 - offset.dy],
-      })
-
-      const marker = L.marker([loc.lat, loc.lng], { icon, interactive: true, zIndexOffset: -50 + i })
-      postMarkersLayer.addLayer(marker)
-    })
-  }
-}
-
-// Render post cards on the map when locationPosts changes
+// Re-render markers when posts load (to update badges + tooltips)
 watch(() => store.locationPosts, () => {
-  renderPostMarkers()
+  renderMarkers()
 }, { deep: true })
 
 // Watch filter changes to re-render markers
@@ -840,134 +832,106 @@ async function handleDelete(location) {
   border-top-color: var(--border) !important;
 }
 
-/* Post bubbles on map */
-.map-container :deep(.map-post-marker) {
-  background: none !important;
-  border: none !important;
-  overflow: visible !important;
+/* Post count badge on location marker */
+.map-container :deep(.marker-badge) {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  border-radius: 8px;
+  padding: 0 3px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
 }
 
-.map-container :deep(.map-post-bubble) {
-  position: relative;
-  width: 34px;
-  height: 34px;
+/* Tooltip with posts list */
+.map-container :deep(.map-tooltip-posts) {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  padding: 0 !important;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5) !important;
+  color: var(--text-primary) !important;
+  max-width: 300px !important;
+  width: 280px;
 }
 
-.map-container :deep(.map-post-bubble-inner) {
+.map-container :deep(.map-tooltip-posts::before) {
+  border-top-color: var(--border) !important;
+}
+
+.map-container :deep(.loc-tooltip-name) {
+  padding: 0.55rem 0.75rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.map-container :deep(.loc-posts-list) {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 2px solid var(--accent);
-  background: var(--bg-secondary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(29, 161, 242, 0.2);
+  flex-direction: column;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.map-container :deep(.loc-post-item) {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  overflow: hidden;
+}
+
+.map-container :deep(.loc-post-item:last-child) {
+  border-bottom: none;
+}
+
+.map-container :deep(.loc-post-item:hover) {
+  background: var(--bg-hover);
   text-decoration: none;
 }
 
-.map-container :deep(.map-post-bubble-inner:hover) {
-  transform: scale(1.15);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(29, 161, 242, 0.35);
-  z-index: 1000 !important;
-}
-
-.map-container :deep(.map-post-avatar) {
-  width: 100%;
-  height: 100%;
+.map-container :deep(.loc-post-avatar) {
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
 }
 
-.map-container :deep(.map-post-avatar-fallback) {
+.map-container :deep(.loc-post-avatar-fallback) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  height: 100%;
   background: var(--accent);
   color: #fff;
-  font-size: 0.65rem;
+  font-size: 0.6rem;
   font-weight: 700;
-  border-radius: 50%;
 }
 
-/* Tooltip (expanded post) — hidden by default, shown on bubble hover */
-.map-container :deep(.map-post-tooltip) {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 260px;
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
-  transform: translateX(-50%) translateY(4px);
-  z-index: 2000;
+.map-container :deep(.loc-post-body) {
+  flex: 1;
+  min-width: 0;
 }
 
-.map-container :deep(.map-post-bubble:hover .map-post-tooltip) {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
-}
-
-.map-container :deep(.map-post-tooltip-link) {
-  display: block;
-  padding: 0.65rem 0.75rem;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  text-decoration: none;
-  color: var(--text-primary);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.map-container :deep(.map-post-tooltip-link:hover) {
-  background: var(--bg-hover);
-  text-decoration: none;
-}
-
-/* Arrow pointing down from tooltip */
-.map-container :deep(.map-post-tooltip::after) {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--border);
-}
-
-.map-container :deep(.map-post-tooltip-header) {
+.map-container :deep(.loc-post-meta) {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  margin-bottom: 0.35rem;
+  gap: 0.3rem;
+  margin-bottom: 0.15rem;
 }
 
-.map-container :deep(.map-post-tooltip-header .map-post-avatar) {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.map-container :deep(.map-post-tooltip-header .map-post-avatar-fallback) {
-  width: 22px;
-  height: 22px;
-  font-size: 0.55rem;
-}
-
-.map-container :deep(.map-post-author) {
+.map-container :deep(.loc-post-author) {
   font-size: 0.78rem;
   font-weight: 700;
   overflow: hidden;
@@ -977,21 +941,29 @@ async function handleDelete(location) {
   min-width: 0;
 }
 
-.map-container :deep(.map-post-time) {
-  font-size: 0.68rem;
+.map-container :deep(.loc-post-time) {
+  font-size: 0.65rem;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
-.map-container :deep(.map-post-text) {
-  font-size: 0.78rem;
+.map-container :deep(.loc-post-text) {
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  line-height: 1.4;
+  line-height: 1.35;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.map-container :deep(.loc-post-more) {
+  text-align: center;
+  padding: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 /* Detail panel */
