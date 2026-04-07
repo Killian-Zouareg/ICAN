@@ -910,6 +910,7 @@ onMounted(async () => {
     fetchConversations(),
     fetchComments(),
     fetchRecentActivity(),
+    fetchBankData(),
   ])
   loading.value = false
 })
@@ -1580,6 +1581,224 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 
+/* Bank */
+.bank-stats {
+  margin-bottom: 0.5rem;
+}
+
+.section-toolbar {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.sort-select {
+  padding: 0.5rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  border-color: var(--accent);
+}
+
+.bank-accounts-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.bank-account-header {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: var(--bg-hover);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+}
+
+.bank-account-row {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.12s;
+}
+
+.bank-account-row:last-child {
+  border-bottom: none;
+}
+
+.bank-account-row:hover {
+  background: var(--bg-hover);
+}
+
+.bank-account-row.zero {
+  opacity: 0.55;
+}
+
+.ba-col {
+  display: flex;
+  align-items: center;
+}
+
+.ba-col-name {
+  flex: 2;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.ba-profile-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ba-profile-info .bold {
+  font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ba-profile-info .muted {
+  font-size: 0.75rem;
+}
+
+.ba-col-balance {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.ba-balance {
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ba-balance.positive {
+  color: var(--success);
+}
+
+.ba-balance.negative {
+  color: var(--danger);
+}
+
+.ba-col-tx {
+  flex: 0.5;
+  justify-content: center;
+}
+
+.ba-col-actions {
+  flex: 1;
+  justify-content: flex-end;
+  gap: 0.3rem;
+}
+
+/* Bank transactions table */
+.bank-tx-list {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--bg-secondary);
+}
+
+.bank-tx-header {
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1rem;
+  background: var(--bg-hover);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--border);
+}
+
+.bank-tx-row {
+  display: flex;
+  align-items: center;
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.85rem;
+  transition: background 0.12s;
+}
+
+.bank-tx-row:last-child {
+  border-bottom: none;
+}
+
+.bank-tx-row:hover {
+  background: var(--bg-hover);
+}
+
+.tx-col {
+  display: flex;
+  align-items: center;
+}
+
+.tx-col-date {
+  flex: 1;
+  font-size: 0.78rem;
+}
+
+.tx-col-from,
+.tx-col-to {
+  flex: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tx-col-amount {
+  flex: 0.8;
+  justify-content: flex-end;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+
+.tx-col-note {
+  flex: 1.5;
+  font-size: 0.8rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.field label {
+  display: block;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.action-btn.credit-fill {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+  padding: 0.4rem 0.8rem;
+}
+
+.action-btn.credit-fill:hover {
+  filter: brightness(0.9);
+}
+
 /* Empty state */
 .empty-state {
   text-align: center;
@@ -1646,5 +1865,46 @@ onMounted(async () => {
   .tab-icon {
     font-size: 1.1rem;
   }
+
+  .bank-account-header,
+  .bank-tx-header {
+    display: none;
+  }
+
+  .bank-account-row {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .ba-col-name {
+    flex: 1 1 60%;
+  }
+
+  .ba-col-balance {
+    flex: 0 0 auto;
+  }
+
+  .ba-col-tx {
+    display: none;
+  }
+
+  .ba-col-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    padding-top: 0.3rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .bank-tx-row {
+    flex-wrap: wrap;
+    gap: 0.2rem 0.5rem;
+    padding: 0.6rem 0.8rem;
+  }
+
+  .tx-col-date { flex: 1 1 100%; }
+  .tx-col-from { flex: 1; }
+  .tx-col-to { flex: 1; }
+  .tx-col-amount { flex: 0 0 auto; }
+  .tx-col-note { flex: 1 1 100%; }
 }
 </style>

@@ -327,6 +327,20 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.2.1',
+    date: '7 avril 2026',
+    title: 'Admin Banque — Overview compl\u00e8te',
+    tag: 'patch',
+    changes: [
+      { type: 'new', text: 'Nouvel onglet Banque dans le panel Admin avec vue d\u2019ensemble compl\u00e8te' },
+      { type: 'new', text: 'Statistiques : argent en circulation, nombre de comptes, solde moyen, plus riche, volume total des transactions' },
+      { type: 'new', text: 'Tableau de tous les soldes avec recherche, tri (solde, nom), et nombre de transactions par profil' },
+      { type: 'new', text: 'Historique des 100 derni\u00e8res transactions (exp\u00e9diteur, destinataire, montant, note, date)' },
+      { type: 'new', text: 'Actions rapides : cr\u00e9diter/d\u00e9biter un compte directement depuis le tableau admin' },
+      { type: 'improved', text: 'Le widget DM se masque automatiquement sur la page Messages' },
+    ],
+  },
+  {
     version: '3.2.0',
     date: '7 avril 2026',
     title: 'Refonte Messages style X + fix notifications',
