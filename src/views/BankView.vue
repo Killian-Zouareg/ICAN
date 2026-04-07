@@ -227,7 +227,7 @@
                 <span class="tx-date">{{ timeAgo(tx.created_at) }}</span>
               </div>
               <span class="tx-amount" :class="txDirection(tx)">
-                {{ txDirection(tx) === 'incoming' ? '+' : '-' }}${{ formatBalance(tx.amount) }}
+                {{ txDirection(tx) === 'incoming' ? '+' : '-' }}${{ formatBalance(Math.abs(tx.amount)) }}
               </span>
             </div>
           </div>
@@ -450,7 +450,7 @@ async function doAdminAdjust() {
 
 function txDirection(tx) {
   if (!tx.receiver_id) return 'outgoing' // spend transaction
-  if (tx.sender_id === tx.receiver_id) return 'incoming' // admin adjustment
+  if (tx.sender_id === tx.receiver_id) return tx.amount >= 0 ? 'incoming' : 'outgoing' // admin adjustment
   return tx.receiver_id === auth.activeProfile?.id ? 'incoming' : 'outgoing'
 }
 

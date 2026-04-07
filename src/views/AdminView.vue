@@ -1619,6 +1619,7 @@ onMounted(async () => {
 .bank-account-header {
   display: flex;
   align-items: center;
+  gap: 1rem;
   padding: 0.6rem 1rem;
   background: var(--bg-hover);
   font-size: 0.75rem;
@@ -1632,6 +1633,7 @@ onMounted(async () => {
 .bank-account-row {
   display: flex;
   align-items: center;
+  gap: 1rem;
   padding: 0.6rem 1rem;
   border-bottom: 1px solid var(--border);
   transition: background 0.12s;
@@ -1718,6 +1720,7 @@ onMounted(async () => {
 .bank-tx-header {
   display: flex;
   align-items: center;
+  gap: 1rem;
   padding: 0.6rem 1rem;
   background: var(--bg-hover);
   font-size: 0.75rem;
@@ -1731,6 +1734,7 @@ onMounted(async () => {
 .bank-tx-row {
   display: flex;
   align-items: center;
+  gap: 1rem;
   padding: 0.55rem 1rem;
   border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
