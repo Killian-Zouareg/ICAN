@@ -873,7 +873,7 @@ async function handleDelete(location) {
   bottom: 0;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: visible;
   background: var(--bg-primary);
   z-index: 2;
 }
