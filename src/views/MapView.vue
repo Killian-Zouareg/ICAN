@@ -59,19 +59,19 @@
     <div class="map-wrapper">
       <div ref="mapContainer" class="map-container" :class="{ 'add-mode': addMode || drawingZone }"></div>
       <div class="map-vignette"></div>
+    </div>
 
-      <!-- Add mode hint -->
-      <div v-if="addMode" class="add-mode-hint">
-        Cliquez sur la carte pour placer un lieu
-      </div>
+    <!-- Add mode hint (outside map-wrapper to avoid overflow:hidden clipping) -->
+    <div v-if="addMode" class="add-mode-hint">
+      Cliquez sur la carte pour placer un lieu
+    </div>
 
-      <!-- Zone drawing hint -->
-      <div v-if="drawingZone" class="add-mode-hint zone-drawing-hint">
-        <span>Cliquez pour tracer la zone ({{ drawingPoints.length }} points)</span>
-        <div class="zone-drawing-actions">
-          <button v-if="drawingPoints.length >= 3" class="zone-finish-btn" @click="finishDrawing">Terminer</button>
-          <button class="zone-cancel-btn" @click="cancelDrawing">Annuler</button>
-        </div>
+    <!-- Zone drawing hint -->
+    <div v-if="drawingZone" class="add-mode-hint zone-drawing-hint">
+      <span>Cliquez pour tracer la zone ({{ drawingPoints.length }} points)</span>
+      <div class="zone-drawing-actions">
+        <button v-if="drawingPoints.length >= 3" class="zone-finish-btn" @click="finishDrawing">Terminer</button>
+        <button class="zone-cancel-btn" @click="cancelDrawing">Annuler</button>
       </div>
     </div>
 
