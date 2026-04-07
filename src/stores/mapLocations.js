@@ -130,7 +130,7 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
         .select('*')
         .not('location_ids', 'eq', '{}')
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(20)
       if (error) {
         console.error('fetchRecentLocationPosts error:', error.message)
         locationPosts.value = []

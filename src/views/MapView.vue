@@ -374,44 +374,65 @@ function renderPostMarkers() {
   if (!postMarkersLayer) return
   postMarkersLayer.clearLayers()
 
-  // Group posts by their first location_id that matches a known location
+  // Group posts by location
+  const postsByLocation = {}
   for (const post of store.locationPosts) {
     if (!post.location_ids?.length) continue
-
-    // Find the first matching location to position the post
     const loc = store.locations.find(l => post.location_ids.includes(l.id))
     if (!loc) continue
+    if (!postsByLocation[loc.id]) postsByLocation[loc.id] = { loc, posts: [] }
+    postsByLocation[loc.id].posts.push(post)
+  }
 
-    const displayName = escapeHtml(post.display_name || post.username || '?')
-    const content = escapeHtml((post.content || '').slice(0, 80)) + (post.content?.length > 80 ? '...' : '')
-    const ago = timeAgo(post.created_at)
-    const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
-    const avatarHtml = post.avatar_url
-      ? `<img src="${post.avatar_url}" class="map-post-avatar" />`
-      : `<div class="map-post-avatar map-post-avatar-fallback">${initials}</div>`
+  // Offset angles to spread bubbles around the location marker
+  const angleOffsets = [
+    { dx: 0, dy: -40 },   // top
+    { dx: 34, dy: -20 },  // top-right
+    { dx: 34, dy: 20 },   // bottom-right
+    { dx: -34, dy: -20 },  // top-left
+    { dx: -34, dy: 20 },  // bottom-left
+    { dx: 0, dy: 40 },    // bottom
+  ]
 
-    const html = `
-      <a href="#/post/${post.id}" class="map-post-card">
-        ${avatarHtml}
-        <div class="map-post-body">
-          <div class="map-post-meta">
-            <span class="map-post-author">${displayName}</span>
-            <span class="map-post-time">${ago}</span>
+  for (const { loc, posts } of Object.values(postsByLocation)) {
+    posts.slice(0, 6).forEach((post, i) => {
+      const offset = angleOffsets[i] || angleOffsets[0]
+      const displayName = escapeHtml(post.display_name || post.username || '?')
+      const content = escapeHtml((post.content || '').slice(0, 120)) + (post.content?.length > 120 ? '...' : '')
+      const ago = timeAgo(post.created_at)
+      const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
+      const avatarHtml = post.avatar_url
+        ? `<img src="${post.avatar_url}" class="map-post-avatar" />`
+        : `<div class="map-post-avatar map-post-avatar-fallback">${initials}</div>`
+
+      const html = `
+        <div class="map-post-bubble">
+          <a href="#/post/${post.id}" class="map-post-bubble-inner">
+            ${avatarHtml}
+          </a>
+          <div class="map-post-tooltip">
+            <a href="#/post/${post.id}" class="map-post-tooltip-link">
+              <div class="map-post-tooltip-header">
+                ${avatarHtml}
+                <span class="map-post-author">${displayName}</span>
+                <span class="map-post-time">${ago}</span>
+              </div>
+              <div class="map-post-text">${content}</div>
+            </a>
           </div>
-          <div class="map-post-text">${content}</div>
         </div>
-      </a>
-    `
+      `
 
-    const icon = L.divIcon({
-      className: 'map-post-marker',
-      html,
-      iconSize: [220, 'auto'],
-      iconAnchor: [110, -24], // centered horizontally, below the location marker
+      const icon = L.divIcon({
+        className: 'map-post-marker',
+        html,
+        iconSize: [34, 34],
+        iconAnchor: [17 - offset.dx, 17 - offset.dy],
+      })
+
+      const marker = L.marker([loc.lat, loc.lng], { icon, interactive: true, zIndexOffset: -50 + i })
+      postMarkersLayer.addLayer(marker)
     })
-
-    const marker = L.marker([loc.lat, loc.lng], { icon, interactive: true, zIndexOffset: -100 })
-    postMarkersLayer.addLayer(marker)
   }
 }
 
@@ -819,36 +840,44 @@ async function handleDelete(location) {
   border-top-color: var(--border) !important;
 }
 
-/* Post cards on map */
+/* Post bubbles on map */
 .map-container :deep(.map-post-marker) {
   background: none !important;
   border: none !important;
+  overflow: visible !important;
 }
 
-.map-container :deep(.map-post-card) {
+.map-container :deep(.map-post-bubble) {
+  position: relative;
+  width: 34px;
+  height: 34px;
+}
+
+.map-container :deep(.map-post-bubble-inner) {
   display: flex;
-  gap: 0.4rem;
-  padding: 0.45rem 0.6rem;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
   background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  text-decoration: none;
-  color: var(--text-primary);
-  width: 220px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  transition: background 0.15s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(29, 161, 242, 0.2);
   cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+  text-decoration: none;
 }
 
-.map-container :deep(.map-post-card:hover) {
-  background: var(--bg-hover);
-  transform: scale(1.03);
-  text-decoration: none;
+.map-container :deep(.map-post-bubble-inner:hover) {
+  transform: scale(1.15);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(29, 161, 242, 0.35);
+  z-index: 1000 !important;
 }
 
 .map-container :deep(.map-post-avatar) {
-  width: 24px;
-  height: 24px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -858,46 +887,110 @@ async function handleDelete(location) {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+  height: 100%;
   background: var(--accent);
   color: #fff;
-  font-size: 0.6rem;
+  font-size: 0.65rem;
   font-weight: 700;
+  border-radius: 50%;
 }
 
-.map-container :deep(.map-post-body) {
+/* Tooltip (expanded post) — hidden by default, shown on bubble hover */
+.map-container :deep(.map-post-tooltip) {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 260px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s, visibility 0.2s, transform 0.2s;
+  transform: translateX(-50%) translateY(4px);
+  z-index: 2000;
+}
+
+.map-container :deep(.map-post-bubble:hover .map-post-tooltip) {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.map-container :deep(.map-post-tooltip-link) {
+  display: block;
+  padding: 0.65rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-decoration: none;
+  color: var(--text-primary);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.map-container :deep(.map-post-tooltip-link:hover) {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+/* Arrow pointing down from tooltip */
+.map-container :deep(.map-post-tooltip::after) {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border);
+}
+
+.map-container :deep(.map-post-tooltip-header) {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.35rem;
+}
+
+.map-container :deep(.map-post-tooltip-header .map-post-avatar) {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.map-container :deep(.map-post-tooltip-header .map-post-avatar-fallback) {
+  width: 22px;
+  height: 22px;
+  font-size: 0.55rem;
+}
+
+.map-container :deep(.map-post-author) {
+  font-size: 0.78rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   flex: 1;
   min-width: 0;
 }
 
-.map-container :deep(.map-post-meta) {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-bottom: 0.1rem;
-}
-
-.map-container :deep(.map-post-author) {
-  font-size: 0.72rem;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .map-container :deep(.map-post-time) {
-  font-size: 0.62rem;
+  font-size: 0.68rem;
   color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .map-container :deep(.map-post-text) {
-  font-size: 0.7rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
-  line-height: 1.3;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 

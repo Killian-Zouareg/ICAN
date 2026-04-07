@@ -327,6 +327,18 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.3.0',
+    date: '7 avril 2026',
+    title: 'Bulles de posts sur la carte',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Les posts mentionnant un lieu apparaissent comme des petites bulles-avatar autour du marqueur sur la carte' },
+      { type: 'new', text: 'Au survol d\u2019une bulle, le post se d\u00e9veloppe avec auteur, contenu et timestamp' },
+      { type: 'improved', text: 'Jusqu\u2019\u00e0 6 bulles par lieu, dispos\u00e9es en cercle autour du marqueur' },
+      { type: 'improved', text: '20 posts r\u00e9cents affich\u00e9s sur la carte (contre 5 avant)' },
+    ],
+  },
+  {
     version: '3.2.1',
     date: '7 avril 2026',
     title: 'Admin Banque — Overview compl\u00e8te',
