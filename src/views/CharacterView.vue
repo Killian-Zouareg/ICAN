@@ -134,14 +134,15 @@
 
           <div v-if="loadingInventory" class="loading">Chargement...</div>
           <div v-else-if="inventory.length === 0 && !isOwnProfile" class="empty-inv">Inventaire vide</div>
-          <div v-else class="inv-grid">
+          <div v-else-if="inventory.length > 0 || isOwnProfile" class="inv-grid">
             <div
               v-for="item in inventory"
               :key="item.id"
               class="inv-card"
               :title="item.description || item.name"
             >
-              <span class="inv-icon">{{ item.icon }}</span>
+              <img v-if="item.image_url" :src="item.image_url" alt="" class="inv-img" />
+              <span v-else class="inv-icon">{{ item.icon }}</span>
               <span class="inv-name">{{ item.name }}</span>
               <span v-if="item.quantity > 1" class="inv-qty">x{{ item.quantity }}</span>
               <button v-if="isOwnProfile" class="inv-remove" @click="removeItem(item.id)" title="Supprimer">&#x2715;</button>
@@ -151,9 +152,6 @@
               <span class="inv-add-label">Ajouter</span>
             </button>
           </div>
-          <button v-if="isOwnProfile && inventory.length === 0" class="inv-add-empty" @click="showAddModal = true">
-            + Ajouter un objet
-          </button>
         </div>
 
         <!-- Add Item Modal -->
@@ -162,7 +160,13 @@
             <div class="modal-box" @click.stop>
               <h3 class="modal-title">Nouvel objet</h3>
               <div class="modal-field">
-                <label>Ic&ocirc;ne</label>
+                <label>Visuel</label>
+                <div class="inv-visual-toggle">
+                  <button :class="{ active: !newItemUseImage }" @click="newItemUseImage = false">Emoji</button>
+                  <button :class="{ active: newItemUseImage }" @click="newItemUseImage = true">Image</button>
+                </div>
+              </div>
+              <div v-if="!newItemUseImage" class="modal-field">
                 <div class="emoji-grid">
                   <button
                     v-for="e in emojiOptions"
@@ -172,6 +176,16 @@
                     @click="newItem.icon = e"
                   >{{ e }}</button>
                 </div>
+              </div>
+              <div v-else class="modal-field">
+                <div v-if="newItemImagePreview" class="inv-img-preview-wrap">
+                  <img :src="newItemImagePreview" alt="" class="inv-img-preview" />
+                  <button class="inv-img-remove" @click="removeItemImage">&times;</button>
+                </div>
+                <button v-else class="inv-img-upload-btn" @click="itemImageInput?.click()">
+                  + Choisir une image
+                </button>
+                <input ref="itemImageInput" type="file" accept="image/*" style="display:none" @change="onItemImageChange" />
               </div>
               <div class="modal-field">
                 <label>Nom</label>
@@ -269,6 +283,22 @@ const showAddModal = ref(false)
 const addingItem = ref(false)
 const addError = ref('')
 const newItem = reactive({ name: '', description: '', icon: '📦', quantity: 1 })
+const newItemUseImage = ref(false)
+const newItemImage = ref(null)
+const newItemImagePreview = ref(null)
+const itemImageInput = ref(null)
+
+function onItemImageChange(e) {
+  const file = e.target.files?.[0]
+  if (!file) return
+  newItemImage.value = file
+  newItemImagePreview.value = URL.createObjectURL(file)
+}
+function removeItemImage() {
+  newItemImage.value = null
+  newItemImagePreview.value = null
+  if (itemImageInput.value) itemImageInput.value.value = ''
+}
 
 const emojiOptions = [
   '⚔️', '🗡️', '🏹', '🔫', '💣', '🛡️', '🪖', '👑',
@@ -296,6 +326,20 @@ async function addItem() {
   if (!newItem.name.trim()) { addError.value = 'Le nom est requis'; return }
   addingItem.value = true
   try {
+    let imageUrl = null
+    if (newItemUseImage.value && newItemImage.value) {
+      const file = newItemImage.value
+      const ext = file.name.split('.').pop()
+      const fileName = `${profileData.value.id}/item_${Date.now()}.${ext}`
+      const { error: upErr } = await supabase.storage
+        .from('inventory-images')
+        .upload(fileName, file, { upsert: true })
+      if (upErr) throw upErr
+      const { data: urlData } = supabase.storage
+        .from('inventory-images')
+        .getPublicUrl(fileName)
+      imageUrl = urlData.publicUrl
+    }
     const { data, error } = await supabase
       .from('inventory_items')
       .insert({
@@ -304,6 +348,7 @@ async function addItem() {
         description: newItem.description.trim(),
         icon: newItem.icon,
         quantity: newItem.quantity,
+        image_url: imageUrl,
       })
       .select()
       .single()
@@ -311,6 +356,8 @@ async function addItem() {
     inventory.value.push(data)
     showAddModal.value = false
     newItem.name = ''; newItem.description = ''; newItem.icon = '📦'; newItem.quantity = 1
+    newItemUseImage.value = false
+    removeItemImage()
   } catch (e) {
     addError.value = e.message || 'Erreur'
   } finally {
@@ -798,12 +845,41 @@ onMounted(() => {
 .inv-add-plus { font-size: 1.3rem; line-height: 1; }
 .inv-add-label { font-size: 0.72rem; font-weight: 600; }
 
-.inv-add-empty {
-  width: 100%; padding: 0.6rem; background: none;
-  border: 1px dashed var(--border); border-radius: 8px;
-  color: var(--accent); cursor: pointer; font-size: 0.88rem; font-family: inherit;
+.inv-img {
+  width: 40px; height: 40px; object-fit: cover; border-radius: 6px;
 }
-.inv-add-empty:hover { border-color: var(--accent); background: var(--bg-hover); }
+
+.inv-visual-toggle {
+  display: flex; gap: 0.35rem;
+}
+.inv-visual-toggle button {
+  flex: 1; padding: 0.4rem 0.5rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-primary); color: var(--text-secondary); cursor: pointer;
+  font-size: 0.82rem; font-family: inherit; transition: all 0.15s;
+}
+.inv-visual-toggle button.active {
+  border-color: var(--accent); color: var(--accent); background: rgba(29,161,242,0.08);
+}
+
+.inv-img-upload-btn {
+  width: 100%; padding: 1.2rem; border: 1px dashed var(--border); border-radius: 10px;
+  background: none; color: var(--text-secondary); cursor: pointer; font-size: 0.88rem;
+  font-family: inherit; transition: all 0.15s;
+}
+.inv-img-upload-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+.inv-img-preview-wrap {
+  position: relative; display: inline-block;
+}
+.inv-img-preview {
+  width: 100%; max-height: 140px; object-fit: contain; border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.inv-img-remove {
+  position: absolute; top: 4px; right: 4px; width: 24px; height: 24px;
+  border-radius: 50%; background: rgba(0,0,0,0.6); color: #fff; border: none;
+  cursor: pointer; font-size: 1rem; display: flex; align-items: center; justify-content: center;
+}
 
 /* Modal */
 .modal-overlay {

@@ -327,6 +327,17 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.3.1',
+    date: '8 avril 2026',
+    title: 'Inventaire — images custom & fix doublon',
+    tag: 'patch',
+    changes: [
+      { type: 'new', text: 'Possibilit\u00e9 d\'ajouter une image personnalis\u00e9e sur chaque objet de l\'inventaire (toggle Emoji / Image)' },
+      { type: 'improved', text: 'L\'image remplace l\'\u00e9moji sur la carte inventaire si pr\u00e9sente' },
+      { type: 'fixed', text: 'Suppression du bouton doublon \u00ab Ajouter un objet \u00bb quand l\'inventaire est vide' },
+    ],
+  },
+  {
     version: '3.3.0',
     date: '7 avril 2026',
     title: 'Posts sur la carte — badge & tooltip',
@@ -337,6 +348,7 @@ const patches = [
       { type: 'new', text: 'Chaque post dans le tooltip est cliquable et redirige vers le d\u00e9tail du post' },
       { type: 'improved', text: '20 posts r\u00e9cents affich\u00e9s sur la carte (contre 5 avant)' },
       { type: 'improved', text: 'Interface carte plus propre : plus de photos de profil volantes, tout est int\u00e9gr\u00e9 au marqueur' },
+      { type: 'new', text: 'Clic sur un lieu : les posts rattach\u00e9s s\'affichent dans le panel de d\u00e9tail \u00e0 droite' },
     ],
   },
   {
