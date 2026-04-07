@@ -619,9 +619,11 @@ function updateHeatmap() {
   if (heatData.length === 0) return
 
   heatLayer = L.heatLayer(heatData, {
-    radius: 35,
-    blur: 25,
+    radius: 45,
+    blur: 30,
     maxZoom: 17,
+    max: 2,
+    minOpacity: 0.4,
     gradient: { 0.2: '#1da1f2', 0.5: '#17bf63', 0.8: '#FFD700', 1.0: '#e0245e' },
   })
   heatLayer.addTo(map)
