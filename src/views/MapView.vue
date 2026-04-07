@@ -98,6 +98,34 @@
             <button class="panel-delete-btn" @click="handleDelete(store.selectedLocation)">Supprimer</button>
           </div>
 
+          <!-- Posts linked to this location -->
+          <div v-if="selectedLocationPosts.length > 0" class="panel-posts">
+            <h4 class="panel-posts-title">
+              Posts li&eacute;s
+              <span class="panel-posts-count">{{ selectedLocationPosts.length }}</span>
+            </h4>
+            <router-link
+              v-for="post in selectedLocationPosts"
+              :key="post.id"
+              :to="`/post/${post.id}`"
+              class="panel-post-card"
+            >
+              <UserAvatar
+                :url="post.avatar_url"
+                :name="post.display_name || post.username || '?'"
+                :size="32"
+              />
+              <div class="panel-post-body">
+                <div class="panel-post-meta">
+                  <span class="panel-post-author">{{ post.display_name || post.username }}</span>
+                  <span class="panel-post-time">{{ timeAgo(post.created_at) }}</span>
+                </div>
+                <p class="panel-post-text">{{ post.content }}</p>
+                <img v-if="post.image_url" :src="post.image_url" class="panel-post-image" />
+              </div>
+            </router-link>
+          </div>
+
         </div>
       </div>
     </Transition>
@@ -193,7 +221,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMapLocationsStore } from '../stores/mapLocations'
@@ -233,6 +261,13 @@ const formData = ref({
   lng: 0,
   linkedProfileId: null,
   linkedProfile: null,
+})
+
+const selectedLocationPosts = computed(() => {
+  if (!store.selectedLocation) return []
+  return store.locationPosts.filter(
+    p => p.location_ids?.includes(store.selectedLocation.id)
+  )
 })
 
 // Category helpers
@@ -364,7 +399,7 @@ function createMarkerIcon(category, postCount) {
 function buildPostsTooltipHtml(posts) {
   const items = posts.slice(0, 5).map(post => {
     const displayName = escapeHtml(post.display_name || post.username || '?')
-    const content = escapeHtml((post.content || '').slice(0, 100)) + (post.content?.length > 100 ? '...' : '')
+    const content = escapeHtml((post.content || '').slice(0, 200)) + (post.content?.length > 200 ? '...' : '')
     const ago = timeAgo(post.created_at)
     const initials = (post.display_name || post.username || '?').slice(0, 2).toUpperCase()
     const avatarHtml = post.avatar_url
@@ -859,8 +894,8 @@ async function handleDelete(location) {
   padding: 0 !important;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5) !important;
   color: var(--text-primary) !important;
-  max-width: 300px !important;
-  width: 280px;
+  max-width: 380px !important;
+  width: 360px;
 }
 
 .map-container :deep(.map-tooltip-posts::before) {
@@ -877,7 +912,7 @@ async function handleDelete(location) {
 .map-container :deep(.loc-posts-list) {
   display: flex;
   flex-direction: column;
-  max-height: 320px;
+  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -948,13 +983,13 @@ async function handleDelete(location) {
 }
 
 .map-container :deep(.loc-post-text) {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  line-height: 1.35;
+  line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
 }
 
@@ -1114,6 +1149,96 @@ async function handleDelete(location) {
 .panel-delete-btn:hover {
   background: var(--danger);
   color: #fff;
+}
+
+/* Panel posts */
+.panel-posts {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.panel-posts-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  margin: 0 0 0.6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.panel-posts-count {
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  padding: 0 5px;
+}
+
+.panel-post-card {
+  display: flex;
+  gap: 0.6rem;
+  padding: 0.6rem;
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background 0.12s;
+  margin-bottom: 0.25rem;
+}
+
+.panel-post-card:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.panel-post-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.2rem;
+}
+
+.panel-post-author {
+  font-size: 0.82rem;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.panel-post-time {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.panel-post-text {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin: 0;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.panel-post-image {
+  max-width: 100%;
+  max-height: 140px;
+  border-radius: 8px;
+  margin-top: 0.4rem;
+  object-fit: cover;
 }
 
 /* Form overlay */
