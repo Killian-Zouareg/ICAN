@@ -8,6 +8,22 @@
       </div>
       <div class="map-toolbar-right">
         <button
+          class="heatmap-btn"
+          :class="{ active: showHeatmap }"
+          @click="showHeatmap = !showHeatmap"
+          title="Heatmap d'activit&eacute;"
+        >
+          &#x1F525;
+        </button>
+        <button
+          v-if="auth.isAdmin && !drawingZone"
+          class="zone-btn"
+          @click="startDrawingZone"
+          title="Dessiner une zone"
+        >
+          &#x1F6E1;&#xFE0F; Zone
+        </button>
+        <button
           v-if="auth.isAdmin"
           class="add-btn"
           :class="{ active: addMode }"
@@ -41,12 +57,21 @@
 
     <!-- Map container -->
     <div class="map-wrapper">
-      <div ref="mapContainer" class="map-container" :class="{ 'add-mode': addMode }"></div>
+      <div ref="mapContainer" class="map-container" :class="{ 'add-mode': addMode || drawingZone }"></div>
       <div class="map-vignette"></div>
 
       <!-- Add mode hint -->
       <div v-if="addMode" class="add-mode-hint">
         Cliquez sur la carte pour placer un lieu
+      </div>
+
+      <!-- Zone drawing hint -->
+      <div v-if="drawingZone" class="add-mode-hint zone-drawing-hint">
+        <span>Cliquez pour tracer la zone ({{ drawingPoints.length }} points)</span>
+        <div class="zone-drawing-actions">
+          <button v-if="drawingPoints.length >= 3" class="zone-finish-btn" @click="finishDrawing">Terminer</button>
+          <button class="zone-cancel-btn" @click="cancelDrawing">Annuler</button>
+        </div>
       </div>
     </div>
 
@@ -126,6 +151,64 @@
             </router-link>
           </div>
 
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Zone detail panel -->
+    <Transition name="panel">
+      <div v-if="selectedZone && !showForm && !showZoneForm" class="detail-panel">
+        <button class="panel-close" @click="selectedZone = null">&times;</button>
+        <div class="panel-body">
+          <div class="panel-header">
+            <span
+              class="panel-category-badge"
+              :style="{ background: (ZONE_STYLES[selectedZone.zone_type]?.color || '#8899a6') + '25', color: ZONE_STYLES[selectedZone.zone_type]?.color || '#8899a6' }"
+            >
+              &#x1F6E1;&#xFE0F; {{ ZONE_LABELS[selectedZone.zone_type] || selectedZone.zone_type }}
+            </span>
+          </div>
+          <h3 class="panel-name">{{ selectedZone.name }}</h3>
+          <p v-if="selectedZone.description" class="panel-desc">{{ selectedZone.description }}</p>
+          <div v-if="auth.isAdmin" class="panel-admin-actions">
+            <button class="panel-delete-btn" @click="deleteSelectedZone">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Zone creation form -->
+    <Transition name="panel">
+      <div v-if="showZoneForm" class="form-overlay" @click.self="showZoneForm = false">
+        <div class="form-modal">
+          <h3 class="form-title">Nouvelle zone</h3>
+          <div class="form-field">
+            <label>Nom</label>
+            <input v-model="zoneFormData.name" type="text" maxlength="100" placeholder="Nom de la zone" />
+          </div>
+          <div class="form-field">
+            <label>Type</label>
+            <div class="zone-type-grid">
+              <button
+                v-for="(style, key) in ZONE_STYLES"
+                :key="key"
+                class="zone-type-btn"
+                :class="{ active: zoneFormData.zoneType === key }"
+                :style="zoneFormData.zoneType === key ? { background: style.color + '25', color: style.color, borderColor: style.color } : {}"
+                @click="zoneFormData.zoneType = key"
+              >
+                {{ ZONE_LABELS[key] }}
+              </button>
+            </div>
+          </div>
+          <div class="form-field">
+            <label>Description (optionnel)</label>
+            <textarea v-model="zoneFormData.description" rows="2" maxlength="300" placeholder="Description..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button class="form-cancel" @click="showZoneForm = false; drawingPoints = []">Annuler</button>
+            <button class="form-save" @click="saveZone" :disabled="!zoneFormData.name.trim()">Cr&eacute;er</button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -230,6 +313,7 @@ import { timeAgo } from '../lib/time'
 import UserAvatar from '../components/UserAvatar.vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.heat'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -239,6 +323,31 @@ const mapContainer = ref(null)
 const imageInput = ref(null)
 let map = null
 let markersLayer = null
+let heatLayer = null
+const showHeatmap = ref(false)
+let zonesLayer = null
+
+// Zone drawing
+const drawingZone = ref(false)
+const drawingPoints = ref([])
+let drawingPolyline = null
+const showZoneForm = ref(false)
+const zoneFormData = ref({ name: '', zoneType: 'safe', description: '' })
+const selectedZone = ref(null)
+
+const ZONE_STYLES = {
+  safe:       { color: '#17bf63', fillColor: '#17bf63', fillOpacity: 0.15, weight: 2, dashArray: null },
+  danger:     { color: '#e0245e', fillColor: '#e0245e', fillOpacity: 0.15, weight: 2, dashArray: null },
+  neutral:    { color: '#1da1f2', fillColor: '#1da1f2', fillOpacity: 0.1,  weight: 1, dashArray: '6 4' },
+  contested:  { color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.15, weight: 2, dashArray: null },
+}
+
+const ZONE_LABELS = {
+  safe: 'Safe',
+  danger: 'Danger',
+  neutral: 'Neutre',
+  contested: 'Contest\u00e9',
+}
 
 // Add mode
 const addMode = ref(false)
@@ -290,8 +399,9 @@ onMounted(async () => {
     await store.fetchLocations()
     renderMarkers()
 
-    // Fetch 5 most recent posts linked to any location
+    // Fetch recent posts & zones
     store.fetchRecentLocationPosts()
+    store.fetchZones().then(renderZones)
 
     // Navigate to location from query param (e.g. from location mention click)
     if (route.query.location) {
@@ -353,8 +463,12 @@ function initMap() {
     ro.observe(mapContainer.value)
   }
 
-  // Map click for add mode
+  // Map click for add mode or zone drawing
   map.on('click', (e) => {
+    if (drawingZone.value) {
+      addDrawingPoint(e.latlng)
+      return
+    }
     if (!addMode.value) return
     openAddForm(e.latlng.lat, e.latlng.lng)
   })
@@ -377,16 +491,24 @@ function escapeHtml(text) {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+function getPulseClass(postCount) {
+  if (postCount >= 6) return 'pulse-high'
+  if (postCount >= 3) return 'pulse-mid'
+  if (postCount >= 1) return 'pulse-low'
+  return ''
+}
+
 function createMarkerIcon(category, postCount) {
   const color = getCategoryColor(category)
   const emoji = getCategoryEmoji(category)
   const badgeHtml = postCount > 0
     ? `<span class="marker-badge">${postCount}</span>`
     : ''
+  const pulseClass = getPulseClass(postCount)
 
   return L.divIcon({
     className: 'map-custom-marker',
-    html: `<div class="marker-pin" style="background:${color}; box-shadow: 0 0 14px ${color}80, 0 0 6px ${color}60;">
+    html: `<div class="marker-pin ${pulseClass}" style="background:${color}; box-shadow: 0 0 14px ${color}80, 0 0 6px ${color}60;" data-color="${color}">
              <span class="marker-emoji">${emoji}</span>
              ${badgeHtml}
            </div>`,
@@ -477,6 +599,114 @@ watch(() => store.filterCategory, () => {
 watch(() => store.locations, () => {
   renderMarkers()
 }, { deep: true })
+
+// Heatmap
+function updateHeatmap() {
+  if (!map) return
+  if (heatLayer) { map.removeLayer(heatLayer); heatLayer = null }
+  if (!showHeatmap.value) return
+
+  const postsByLoc = getPostsByLocation()
+  const heatData = []
+  for (const loc of store.locations) {
+    const count = (postsByLoc[loc.id] || []).length
+    if (count > 0) heatData.push([loc.lat, loc.lng, count])
+  }
+  if (heatData.length === 0) return
+
+  heatLayer = L.heatLayer(heatData, {
+    radius: 35,
+    blur: 25,
+    maxZoom: 17,
+    gradient: { 0.2: '#1da1f2', 0.5: '#17bf63', 0.8: '#FFD700', 1.0: '#e0245e' },
+  })
+  heatLayer.addTo(map)
+}
+
+watch(showHeatmap, updateHeatmap)
+watch(() => store.locationPosts, updateHeatmap, { deep: true })
+
+// Zones rendering
+function renderZones() {
+  if (!map) return
+  if (zonesLayer) { map.removeLayer(zonesLayer); zonesLayer = null }
+  if (store.zones.length === 0) return
+
+  zonesLayer = L.layerGroup()
+  for (const zone of store.zones) {
+    const style = ZONE_STYLES[zone.zone_type] || ZONE_STYLES.neutral
+    const polygon = L.polygon(zone.coordinates, { ...style })
+    polygon.bindTooltip(zone.name, { className: 'map-tooltip', sticky: true })
+    polygon.on('click', () => {
+      selectedZone.value = zone
+      store.clearSelection()
+    })
+    zonesLayer.addLayer(polygon)
+  }
+  zonesLayer.addTo(map)
+}
+
+watch(() => store.zones, renderZones, { deep: true })
+
+// Zone drawing tool
+function startDrawingZone() {
+  drawingZone.value = true
+  drawingPoints.value = []
+  selectedZone.value = null
+  store.clearSelection()
+  showForm.value = false
+  addMode.value = false
+}
+
+function cancelDrawing() {
+  drawingZone.value = false
+  drawingPoints.value = []
+  if (drawingPolyline) { map.removeLayer(drawingPolyline); drawingPolyline = null }
+}
+
+function addDrawingPoint(latlng) {
+  drawingPoints.value.push([latlng.lat, latlng.lng])
+  if (drawingPolyline) map.removeLayer(drawingPolyline)
+  if (drawingPoints.value.length >= 2) {
+    drawingPolyline = L.polygon(drawingPoints.value, {
+      color: '#1da1f2', fillOpacity: 0.1, weight: 2, dashArray: '6 4',
+    }).addTo(map)
+  }
+}
+
+function finishDrawing() {
+  if (drawingPoints.value.length < 3) return
+  if (drawingPolyline) { map.removeLayer(drawingPolyline); drawingPolyline = null }
+  drawingZone.value = false
+  zoneFormData.value = { name: '', zoneType: 'safe', description: '' }
+  showZoneForm.value = true
+}
+
+async function saveZone() {
+  if (!zoneFormData.value.name.trim()) return
+  try {
+    await store.createZone({
+      name: zoneFormData.value.name.trim(),
+      zoneType: zoneFormData.value.zoneType,
+      coordinates: drawingPoints.value,
+      description: zoneFormData.value.description.trim(),
+    })
+    showZoneForm.value = false
+    drawingPoints.value = []
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
+
+async function deleteSelectedZone() {
+  if (!selectedZone.value || !confirm(`Supprimer la zone "${selectedZone.value.name}" ?`)) return
+  try {
+    await store.deleteZone(selectedZone.value.id)
+    selectedZone.value = null
+  } catch (e) {
+    alert('Erreur: ' + e.message)
+  }
+}
 
 // Add mode
 function toggleAddMode() {
@@ -667,6 +897,12 @@ async function handleDelete(location) {
   gap: 0.75rem;
 }
 
+.map-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .back-btn {
   background: none;
   border: none;
@@ -681,6 +917,16 @@ async function handleDelete(location) {
   font-size: 1rem;
   font-weight: 700;
 }
+
+.heatmap-btn {
+  width: 34px; height: 34px;
+  border: 1px solid var(--border); border-radius: 50%;
+  background: none; color: var(--text-secondary);
+  font-size: 1rem; cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.heatmap-btn:hover { border-color: #e0245e; background: rgba(224,36,94,0.1); }
+.heatmap-btn.active { border-color: #e0245e; background: rgba(224,36,94,0.2); box-shadow: 0 0 8px rgba(224,36,94,0.3); }
 
 .add-btn {
   padding: 0.35rem 0.75rem;
@@ -789,6 +1035,38 @@ async function handleDelete(location) {
   50% { opacity: 0.7; }
 }
 
+/* Zone drawing */
+.zone-drawing-hint {
+  display: flex; align-items: center; gap: 0.75rem;
+  animation: none;
+  background: #9b59b6;
+}
+.zone-drawing-actions {
+  display: flex; gap: 0.35rem;
+}
+.zone-finish-btn, .zone-cancel-btn {
+  padding: 0.25rem 0.65rem; border-radius: 12px; border: none;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit;
+}
+.zone-finish-btn { background: #fff; color: #9b59b6; }
+.zone-cancel-btn { background: rgba(255,255,255,0.2); color: #fff; }
+
+.zone-btn {
+  padding: 0.35rem 0.75rem; border: 1px solid #9b59b6; border-radius: 20px;
+  background: none; color: #9b59b6; font-size: 0.8rem; font-weight: 600;
+  cursor: pointer; transition: all 0.15s; font-family: inherit;
+}
+.zone-btn:hover { background: #9b59b6; color: #fff; }
+
+.zone-type-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35rem;
+}
+.zone-type-btn {
+  padding: 0.45rem 0.5rem; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--bg-primary); color: var(--text-secondary); cursor: pointer;
+  font-size: 0.82rem; font-family: inherit; transition: all 0.15s; font-weight: 600;
+}
+
 /* Leaflet overrides */
 .map-container :deep(.leaflet-tile-pane) {
   filter: brightness(0.7) contrast(1.2) saturate(0.6);
@@ -850,6 +1128,35 @@ async function handleDelete(location) {
 .map-container :deep(.marker-emoji) {
   font-size: 16px;
   line-height: 1;
+}
+
+/* Pulse animations for active markers */
+.map-container :deep(.marker-pin.pulse-low),
+.map-container :deep(.marker-pin.pulse-mid),
+.map-container :deep(.marker-pin.pulse-high) {
+  position: relative;
+}
+
+.map-container :deep(.marker-pin.pulse-low::after),
+.map-container :deep(.marker-pin.pulse-mid::after),
+.map-container :deep(.marker-pin.pulse-high::after) {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+  z-index: -1;
+  animation: marker-pulse var(--pulse-duration) ease-out infinite;
+  opacity: 0;
+}
+
+.map-container :deep(.marker-pin.pulse-low) { --pulse-duration: 3s; }
+.map-container :deep(.marker-pin.pulse-mid) { --pulse-duration: 2s; }
+.map-container :deep(.marker-pin.pulse-high) { --pulse-duration: 1.2s; }
+
+@keyframes marker-pulse {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.5); opacity: 0; }
 }
 
 /* Tooltip override */

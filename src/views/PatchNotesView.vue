@@ -327,6 +327,19 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '3.4.0',
+    date: '8 avril 2026',
+    title: 'Carte vivante \u2014 Marqueurs anim\u00e9s, Heatmap & Zones',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Les marqueurs avec des posts r\u00e9cents pulsent proportionnellement \u00e0 l\u2019activit\u00e9 (3 niveaux d\u2019intensit\u00e9)' },
+      { type: 'new', text: 'Heatmap d\u2019activit\u00e9 : couche de chaleur montrant les zones les plus actives (toggle dans la toolbar)' },
+      { type: 'new', text: 'Zones admin : les admins peuvent dessiner des polygones sur la carte (safe, danger, neutre, contest\u00e9)' },
+      { type: 'new', text: 'Panel de d\u00e9tail pour les zones avec nom, type et description' },
+      { type: 'improved', text: 'Curseur crosshair en mode dessin de zone pour mieux visualiser le placement' },
+    ],
+  },
+  {
     version: '3.3.1',
     date: '8 avril 2026',
     title: 'Inventaire — images custom & fix doublon',

@@ -9,6 +9,8 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
   const filterCategory = ref(null)
   const locationPosts = ref([])
   const loadingPosts = ref(false)
+  const zones = ref([])
+  const loadingZones = ref(false)
 
   const CATEGORIES = {
     residence: { label: 'Residence', color: '#1da1f2', emoji: '\u{1F3E0}' },
@@ -150,6 +152,38 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     selectedLocation.value = null
   }
 
+  // Zones
+  async function fetchZones() {
+    loadingZones.value = true
+    try {
+      const { data, error } = await supabase
+        .from('map_zones')
+        .select('*')
+        .order('created_at')
+      if (error) { console.error('fetchZones error:', error.message); return }
+      zones.value = data || []
+    } finally {
+      loadingZones.value = false
+    }
+  }
+
+  async function createZone({ name, zoneType, coordinates, description }) {
+    const { data, error } = await supabase
+      .from('map_zones')
+      .insert({ name, zone_type: zoneType, coordinates, description: description || '' })
+      .select()
+      .single()
+    if (error) throw error
+    zones.value.push(data)
+    return data
+  }
+
+  async function deleteZone(id) {
+    const { error } = await supabase.from('map_zones').delete().eq('id', id)
+    if (error) throw error
+    zones.value = zones.value.filter(z => z.id !== id)
+  }
+
   return {
     locations,
     loading,
@@ -166,5 +200,10 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
     deleteLocation,
     selectLocation,
     clearSelection,
+    zones,
+    loadingZones,
+    fetchZones,
+    createZone,
+    deleteZone,
   }
 })
