@@ -126,6 +126,7 @@ function labelAnchor(i) {
 <style scoped>
 .radar-chart {
   display: block;
+  overflow: visible;
 }
 
 .radar-grid {

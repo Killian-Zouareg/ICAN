@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '3.2.1',
+    date: '9 avril 2026',
+    icon: '\u{2709}',
+    color: '#1da1f2',
+    title: 'Fix Chart iCHARACTER',
+    description: 'Correction de l\'affichage de la stat d\'intelligence du radar chart dans les fiches personnage iCHARACTER.',
+    tags: ['Fix', 'Chart', 'iCHARACTER', 'Radar', 'Stats'],
+  },
+  {
     version: '3.2.0',
     date: '7 avril 2026',
     icon: '\u{2709}',
