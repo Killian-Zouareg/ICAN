@@ -1,0 +1,198 @@
+.trending-panel {
+  width: 280px;
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  padding: 0.75rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Search shortcut */
+.trending-search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.trending-search:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.trending-search-icon {
+  font-size: 0.85rem;
+}
+
+/* Sections */
+.trending-section {
+  background: var(--bg-secondary);
+  border-radius: 16px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.trending-title {
+  padding: 0.75rem 1rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.trending-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.trending-empty {
+  padding: 1rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* Scrollable trending list */
+.trending-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.trending-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.trending-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.trending-list::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+/* Trend items */
+.trending-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.trending-item:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.trending-rank {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.trending-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.trending-word {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trending-count {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* Active users */
+.active-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+  color: var(--text-primary);
+  transition: background 0.15s;
+}
+
+.active-user:hover {
+  background: var(--bg-hover);
+  text-decoration: none;
+}
+
+.active-user-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.active-user-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-user-handle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.active-user-posts {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+/* Hide on mobile and small screens */
+@media (max-width: 1100px) {
+  .trending-panel {
+    display: none;
+  }
+}

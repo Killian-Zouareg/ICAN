@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '3.3.0',
+    date: '11 avril 2026',
+    icon: '\u{1F5FA}',
+    color: '#17bf63',
+    title: 'Clustering carte & navigation filtres',
+    description: 'Les lieux proches sur la carte se regroupent automatiquement en bulles. Survolez un cluster pour d\u00e9ployer les marqueurs en \u00e9ventail. Chaque filtre de cat\u00e9gorie affiche d\u00e9sormais la liste des lieux au survol, avec navigation directe en un clic.',
+    tags: ['Carte', 'Clustering', 'Filtres', 'Navigation', 'UX'],
+  },
+  {
     version: '3.2.1',
     date: '9 avril 2026',
     icon: '\u{2709}',
@@ -335,6 +344,18 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '3.5.0',
+    date: '11 avril 2026',
+    title: 'Clustering carte & navigation filtres',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Les marqueurs proches se regroupent en bulles avec compteur (clustering spatial)' },
+      { type: 'new', text: 'Au survol d\u2019un cluster, les marqueurs se d\u00e9ploient en \u00e9ventail anim\u00e9' },
+      { type: 'new', text: 'Chaque filtre de cat\u00e9gorie affiche la liste des lieux au survol avec navigation directe' },
+      { type: 'improved', text: 'Recalcul automatique des clusters au zoom et d\u00e9placement de la carte' },
+    ],
+  },
   {
     version: '3.4.0',
     date: '8 avril 2026',
@@ -899,325 +920,4 @@ const patches = [
 ]
 </script>
 
-<style scoped>
-.updates-page {
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  min-height: calc(100vh - var(--header-height));
-  padding-bottom: var(--page-bottom-padding);
-}
-
-/* ============ HEADER & TABS ============ */
-.up-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
-  position: sticky;
-  top: 52px;
-  z-index: 5;
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-}
-.back-btn:hover { text-decoration: underline; }
-
-.up-tabs {
-  display: flex;
-  gap: 0;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.up-tab {
-  padding: 0.4rem 1.1rem;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.up-tab:hover { color: var(--text-primary); background: var(--bg-hover); }
-.up-tab.active {
-  background: var(--accent);
-  color: white;
-}
-
-/* ============ HIGHLIGHTS TIMELINE ============ */
-.hl-container {
-  padding: 0;
-}
-
-.hl-intro {
-  text-align: center;
-  padding: 2.5rem 1.5rem 1.5rem;
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, rgba(29, 161, 242, 0.06) 0%, transparent 100%);
-}
-
-.hl-intro-title {
-  font-size: 1.6rem;
-  font-weight: 800;
-  margin: 0 0 0.4rem;
-  background: linear-gradient(135deg, var(--accent), #9b59b6);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hl-intro-sub {
-  font-size: 0.92rem;
-  color: var(--text-secondary);
-  max-width: 400px;
-  margin: 0 auto;
-  line-height: 1.5;
-}
-
-.hl-timeline {
-  position: relative;
-  padding: 2rem 1rem 3rem;
-  max-width: 700px;
-  margin: 0 auto;
-}
-
-.hl-line {
-  position: absolute;
-  left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: linear-gradient(180deg, var(--accent), var(--border) 90%, transparent);
-  transform: translateX(-50%);
-}
-
-.hl-item {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  margin-bottom: 2rem;
-  padding-right: calc(50% + 24px);
-}
-
-.hl-item.right {
-  padding-right: 0;
-  padding-left: calc(50% + 24px);
-  flex-direction: row-reverse;
-}
-
-.hl-item.hl-start {
-  padding-right: 0;
-  padding-left: 0;
-  justify-content: center;
-  margin-bottom: 0;
-}
-
-.hl-dot {
-  position: absolute;
-  left: 50%;
-  top: 18px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  transform: translateX(-50%);
-  z-index: 2;
-  border: 3px solid var(--bg-primary);
-  box-shadow: 0 0 0 2px var(--border);
-}
-
-.hl-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 1.1rem;
-  width: 100%;
-  transition: transform 0.2s, box-shadow 0.2s;
-  display: flex;
-  gap: 0.9rem;
-  align-items: flex-start;
-}
-
-.hl-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
-}
-
-.hl-card-start {
-  max-width: 320px;
-  margin: 0 auto;
-  opacity: 0.7;
-  border-style: dashed;
-}
-
-.hl-card-icon {
-  width: 42px;
-  height: 42px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  flex-shrink: 0;
-}
-
-.hl-card-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.hl-card-version {
-  font-family: 'SF Mono', 'Fira Code', monospace;
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--accent);
-  margin-right: 0.5rem;
-}
-
-.hl-card-date {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.hl-card-title {
-  font-size: 1rem;
-  font-weight: 700;
-  margin: 0.25rem 0 0.35rem;
-  line-height: 1.3;
-}
-
-.hl-card-desc {
-  font-size: 0.83rem;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  margin: 0 0 0.5rem;
-}
-
-.hl-card-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.hl-tag {
-  font-size: 0.68rem;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 6px;
-  white-space: nowrap;
-}
-
-/* ============ PATCH NOTES ============ */
-.pn-container {
-  padding: 0;
-}
-
-.pn-list { padding: 0; }
-
-.pn-entry {
-  padding: 1.25rem 1rem;
-  border-bottom: 1px solid var(--border);
-}
-.pn-entry:last-child { border-bottom: none; }
-
-.pn-entry-header {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.4rem;
-}
-
-.pn-version {
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--accent);
-  font-family: 'SF Mono', 'Fira Code', monospace;
-}
-
-.pn-date {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.pn-tag {
-  font-size: 0.65rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-.pn-tag.major { background: var(--accent); color: white; }
-.pn-tag.minor { background: var(--repost); color: white; }
-.pn-tag.hotfix { background: var(--danger); color: white; }
-
-.pn-entry-title {
-  font-size: 1.05rem;
-  margin: 0 0 0.6rem;
-  font-weight: 600;
-}
-
-.pn-changes {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.pn-change {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
-.pn-change-badge {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  padding: 1px 6px;
-  border-radius: 3px;
-  white-space: nowrap;
-  margin-top: 2px;
-  flex-shrink: 0;
-}
-
-.pn-change.new .pn-change-badge { background: rgba(29, 161, 242, 0.15); color: var(--accent); }
-.pn-change.improved .pn-change-badge { background: rgba(23, 191, 99, 0.15); color: var(--repost); }
-.pn-change.fixed .pn-change-badge { background: rgba(224, 36, 94, 0.15); color: var(--danger); }
-.pn-change.changed .pn-change-badge { background: rgba(255, 173, 31, 0.15); color: #ffad1f; }
-.pn-change.removed .pn-change-badge { background: rgba(136, 153, 166, 0.15); color: var(--text-secondary); }
-.pn-change.security .pn-change-badge { background: rgba(121, 75, 196, 0.15); color: #794bc4; }
-
-/* ============ RESPONSIVE ============ */
-@media (max-width: 600px) {
-  .hl-line { left: 20px; }
-  .hl-dot { left: 20px; }
-  .hl-item,
-  .hl-item.right {
-    padding-left: 48px;
-    padding-right: 0;
-    flex-direction: row;
-  }
-  .hl-item.hl-start {
-    padding-left: 48px;
-    justify-content: flex-start;
-  }
-  .hl-card-start { margin: 0; }
-  .hl-intro-title { font-size: 1.3rem; }
-}
-</style>
+<style scoped src="./PatchNotesView.css"></style>

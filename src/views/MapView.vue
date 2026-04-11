@@ -43,16 +43,45 @@
       >
         Tous
       </button>
-      <button
+      <div
         v-for="(cat, key) in store.CATEGORIES"
         :key="key"
-        class="filter-chip"
-        :class="{ active: store.filterCategory === key }"
-        :style="store.filterCategory === key ? { background: cat.color + '30', color: cat.color, borderColor: cat.color } : {}"
-        @click="store.filterCategory = store.filterCategory === key ? null : key"
+        class="filter-chip-wrapper"
+        @mouseenter="showCategoryDropdown(key, $event)"
+        @mouseleave="scheduleCategoryDropdownHide"
       >
-        {{ cat.emoji }} {{ cat.label }}
-      </button>
+        <button
+          class="filter-chip"
+          :class="{ active: store.filterCategory === key }"
+          :style="store.filterCategory === key ? { background: cat.color + '30', color: cat.color, borderColor: cat.color } : {}"
+          @click="store.filterCategory = store.filterCategory === key ? null : key"
+        >
+          {{ cat.emoji }} {{ cat.label }}
+        </button>
+        <Teleport to="body">
+          <Transition name="dropdown">
+            <div
+              v-if="hoveredCategory === key"
+              class="filter-dropdown"
+              :style="dropdownStyle"
+              @mouseenter="cancelCategoryDropdownHide"
+              @mouseleave="scheduleCategoryDropdownHide"
+            >
+              <div
+                v-for="loc in locationsByCategory(key)"
+                :key="loc.id"
+                class="filter-dropdown-item"
+                @click="flyToLocation(loc)"
+              >
+                {{ cat.emoji }} {{ loc.name }}
+              </div>
+              <div v-if="locationsByCategory(key).length === 0" class="filter-dropdown-empty">
+                Aucun lieu
+              </div>
+            </div>
+          </Transition>
+        </Teleport>
+      </div>
     </div>
 
     <!-- Map container -->
@@ -328,8 +357,21 @@ const imageInput = ref(null)
 let map = null
 let markersLayer = null
 let heatLayer = null
-const showHeatmap = ref(false)
+const showHeatmap = ref(true)
 let zonesLayer = null
+
+// Clustering
+const CLUSTER_PIXEL_THRESHOLD = 50
+let expandedCluster = null
+let expandedMarkers = []
+let clusterData = []
+let collapseTimeout = null
+let renderMarkersTimer = null
+
+// Filter dropdown
+const hoveredCategory = ref(null)
+const dropdownStyle = ref({})
+let dropdownHideTimeout = null
 
 // Zone drawing
 const drawingZone = ref(false)
@@ -476,6 +518,10 @@ function initMap() {
     if (!addMode.value) return
     openAddForm(e.latlng.lat, e.latlng.lng)
   })
+
+  // Recalculate clusters on zoom/pan
+  map.on('zoomend', debouncedRenderMarkers)
+  map.on('moveend', debouncedRenderMarkers)
 }
 
 // Build a map of locationId -> posts[] for badge counts + hover tooltips
@@ -551,41 +597,253 @@ function buildPostsTooltipHtml(posts) {
   return `<div class="loc-posts-list">${items}${moreHtml}</div>`
 }
 
+// --- Clustering helpers ---
+
+function computeClusters(locations) {
+  if (!map || locations.length === 0) return []
+
+  const assigned = new Set()
+  const clusters = []
+
+  for (let i = 0; i < locations.length; i++) {
+    if (assigned.has(i)) continue
+    const group = [locations[i]]
+    assigned.add(i)
+    const pixA = map.latLngToContainerPoint([locations[i].lat, locations[i].lng])
+
+    for (let j = i + 1; j < locations.length; j++) {
+      if (assigned.has(j)) continue
+      const pixB = map.latLngToContainerPoint([locations[j].lat, locations[j].lng])
+      const dist = Math.sqrt((pixA.x - pixB.x) ** 2 + (pixA.y - pixB.y) ** 2)
+      if (dist < CLUSTER_PIXEL_THRESHOLD) {
+        group.push(locations[j])
+        assigned.add(j)
+      }
+    }
+
+    const avgLat = group.reduce((s, l) => s + l.lat, 0) / group.length
+    const avgLng = group.reduce((s, l) => s + l.lng, 0) / group.length
+    clusters.push({ locations: group, center: { lat: avgLat, lng: avgLng } })
+  }
+  return clusters
+}
+
+function getDominantColor(locations) {
+  const freq = {}
+  for (const loc of locations) {
+    freq[loc.category] = (freq[loc.category] || 0) + 1
+  }
+  let maxCat = locations[0].category
+  for (const cat in freq) {
+    if (freq[cat] > (freq[maxCat] || 0)) maxCat = cat
+  }
+  return getCategoryColor(maxCat)
+}
+
+function createClusterIcon(count, dominantColor) {
+  return L.divIcon({
+    className: 'map-custom-marker',
+    html: `<div class="cluster-bubble" style="background:${dominantColor}; box-shadow: 0 0 14px ${dominantColor}80, 0 0 6px ${dominantColor}60;">
+             <span class="cluster-count">${count}</span>
+           </div>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+  })
+}
+
+function bindMarkerTooltipAndClick(marker, loc, locPosts) {
+  if (locPosts.length > 0) {
+    const tooltipContent = `<div class="loc-tooltip-name">${escapeHtml(loc.name)}</div>${buildPostsTooltipHtml(locPosts)}`
+    marker.bindTooltip(tooltipContent, {
+      direction: 'top',
+      offset: [0, -20],
+      className: 'map-tooltip-posts',
+      interactive: true,
+      sticky: false,
+    })
+  } else {
+    marker.bindTooltip(loc.name, {
+      direction: 'top',
+      offset: [0, -20],
+      className: 'map-tooltip',
+    })
+  }
+  marker.on('click', () => {
+    store.selectLocation(loc)
+    if (addMode.value) addMode.value = false
+  })
+}
+
+function expandCluster(entry, postsByLoc) {
+  if (expandedCluster === entry) return
+  collapseExpandedCluster()
+
+  expandedCluster = entry
+  entry.marker.setOpacity(0)
+
+  const count = entry.locations.length
+  const radius = Math.max(40, count * 14)
+  const centerLatLng = L.latLng(entry.center.lat, entry.center.lng)
+  const centerPx = map.latLngToContainerPoint(centerLatLng)
+
+  expandedMarkers = entry.locations.map((loc, i) => {
+    const angle = (2 * Math.PI * i) / count - Math.PI / 2
+    const targetPx = L.point(
+      centerPx.x + radius * Math.cos(angle),
+      centerPx.y + radius * Math.sin(angle)
+    )
+    const targetLatLng = map.containerPointToLatLng(targetPx)
+
+    const locPosts = postsByLoc[loc.id] || []
+    const m = L.marker([entry.center.lat, entry.center.lng], {
+      icon: createMarkerIcon(loc.category, locPosts.length),
+      zIndexOffset: 1000,
+    })
+
+    bindMarkerTooltipAndClick(m, loc, locPosts)
+    markersLayer.addLayer(m)
+
+    const el = m.getElement()
+    if (el) {
+      // Disable pointer events during animation to avoid spurious mouseout
+      el.style.pointerEvents = 'none'
+      el.style.transition = 'transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)'
+    }
+    requestAnimationFrame(() => {
+      m.setLatLng(targetLatLng)
+    })
+
+    return m
+  })
+
+  // Wait for animation to finish before activating collapse listeners
+  setTimeout(() => {
+    if (expandedCluster !== entry) return // already collapsed
+    for (const m of expandedMarkers) {
+      const el = m.getElement()
+      if (el) el.style.pointerEvents = ''
+    }
+    setupCollapseListener(entry)
+  }, 400)
+}
+
+function setupCollapseListener(entry) {
+  const scheduleCollapse = () => {
+    collapseTimeout = setTimeout(() => {
+      collapseExpandedCluster()
+    }, 300)
+  }
+
+  for (const m of expandedMarkers) {
+    m.on('mouseover', () => { clearTimeout(collapseTimeout) })
+    m.on('mouseout', scheduleCollapse)
+  }
+
+  // Track cluster marker mouseout too (it's transparent but still emits events)
+  entry._collapseHandler = scheduleCollapse
+  entry.marker.on('mouseout', scheduleCollapse)
+}
+
+function collapseExpandedCluster() {
+  clearTimeout(collapseTimeout)
+  if (!expandedCluster) return
+
+  // Clean up the mouseout listener on the cluster marker
+  if (expandedCluster._collapseHandler) {
+    expandedCluster.marker.off('mouseout', expandedCluster._collapseHandler)
+    expandedCluster._collapseHandler = null
+  }
+
+  for (const m of expandedMarkers) {
+    markersLayer.removeLayer(m)
+  }
+  expandedMarkers = []
+
+  expandedCluster.marker.setOpacity(1)
+  expandedCluster = null
+}
+
+function debouncedRenderMarkers() {
+  clearTimeout(renderMarkersTimer)
+  renderMarkersTimer = setTimeout(renderMarkers, 150)
+}
+
+// --- Filter dropdown helpers ---
+
+function locationsByCategory(catKey) {
+  return store.locations.filter(l => l.category === catKey).sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function showCategoryDropdown(key, event) {
+  clearTimeout(dropdownHideTimeout)
+  hoveredCategory.value = key
+  const rect = event.currentTarget.getBoundingClientRect()
+  dropdownStyle.value = {
+    position: 'fixed',
+    top: rect.bottom + 4 + 'px',
+    left: Math.max(8, rect.left) + 'px',
+    zIndex: 9999,
+  }
+}
+
+function scheduleCategoryDropdownHide() {
+  dropdownHideTimeout = setTimeout(() => {
+    hoveredCategory.value = null
+  }, 250)
+}
+
+function cancelCategoryDropdownHide() {
+  clearTimeout(dropdownHideTimeout)
+}
+
+function flyToLocation(loc) {
+  hoveredCategory.value = null
+  store.selectLocation(loc)
+  if (map) map.flyTo([loc.lat, loc.lng], 16, { duration: 0.8 })
+}
+
+// --- Render markers with clustering ---
+
 function renderMarkers() {
   if (!markersLayer) return
   markersLayer.clearLayers()
+  collapseExpandedCluster()
 
   const postsByLoc = getPostsByLocation()
+  const clusters = computeClusters(store.filteredLocations)
 
-  for (const loc of store.filteredLocations) {
-    const locPosts = postsByLoc[loc.id] || []
-    const marker = L.marker([loc.lat, loc.lng], {
-      icon: createMarkerIcon(loc.category, locPosts.length),
-    })
+  clusterData = []
 
-    if (locPosts.length > 0) {
-      const tooltipContent = `<div class="loc-tooltip-name">${escapeHtml(loc.name)}</div>${buildPostsTooltipHtml(locPosts)}`
-      marker.bindTooltip(tooltipContent, {
-        direction: 'top',
-        offset: [0, -20],
-        className: 'map-tooltip-posts',
-        interactive: true,
-        sticky: false,
+  for (const cluster of clusters) {
+    if (cluster.locations.length === 1) {
+      // Single marker — same as before
+      const loc = cluster.locations[0]
+      const locPosts = postsByLoc[loc.id] || []
+      const marker = L.marker([loc.lat, loc.lng], {
+        icon: createMarkerIcon(loc.category, locPosts.length),
       })
+      bindMarkerTooltipAndClick(marker, loc, locPosts)
+      markersLayer.addLayer(marker)
     } else {
-      marker.bindTooltip(loc.name, {
+      // Cluster bubble
+      const dominantColor = getDominantColor(cluster.locations)
+      const marker = L.marker([cluster.center.lat, cluster.center.lng], {
+        icon: createClusterIcon(cluster.locations.length, dominantColor),
+      })
+
+      const entry = { center: cluster.center, locations: cluster.locations, marker }
+      clusterData.push(entry)
+
+      marker.bindTooltip(`${cluster.locations.length} lieux`, {
         direction: 'top',
-        offset: [0, -20],
+        offset: [0, -24],
         className: 'map-tooltip',
       })
+
+      marker.on('mouseover', () => expandCluster(entry, postsByLoc))
+
+      markersLayer.addLayer(marker)
     }
-
-    marker.on('click', () => {
-      store.selectLocation(loc)
-      if (addMode.value) addMode.value = false
-    })
-
-    markersLayer.addLayer(marker)
   }
 }
 
@@ -869,975 +1127,42 @@ async function handleDelete(location) {
 }
 </script>
 
-<style scoped>
-.map-page {
-  /* Break out of .container (max-width: 600px) */
-  position: fixed;
-  top: var(--header-height);
-  left: 220px;
-  right: 280px;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: visible;
-  background: var(--bg-primary);
-  z-index: 2;
-}
+<style scoped src="./MapView.css">
+/* styles in MapView.css */
+</style>
 
-/* Toolbar */
-.map-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-secondary);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
+<style>
+/* Filter dropdown — unscoped because rendered via Teleport outside component scope */
+.filter-dropdown {
+  min-width: 180px;
+  max-width: 260px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid var(--border, #2a2a4a);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  padding: 4px 0;
 }
-
-.map-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.map-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.back-btn {
-  background: none;
-  border: none;
-  color: var(--accent);
-  cursor: pointer;
-  font-size: 1.1rem;
-  padding: 0;
-}
-
-.map-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.heatmap-btn {
-  width: 34px; height: 34px;
-  border: 1px solid var(--border); border-radius: 50%;
-  background: none; color: var(--text-secondary);
-  font-size: 1rem; cursor: pointer; transition: all 0.15s;
-  display: flex; align-items: center; justify-content: center;
-}
-.heatmap-btn:hover { border-color: #e0245e; background: rgba(224,36,94,0.1); }
-.heatmap-btn.active { border-color: #e0245e; background: rgba(224,36,94,0.2); box-shadow: 0 0 8px rgba(224,36,94,0.3); }
-
-.add-btn {
-  padding: 0.35rem 0.75rem;
-  border: 1px solid var(--accent);
-  border-radius: 20px;
-  background: none;
-  color: var(--accent);
+.filter-dropdown::-webkit-scrollbar { width: 4px; }
+.filter-dropdown::-webkit-scrollbar-thumb { background: var(--border, #2a2a4a); border-radius: 2px; }
+.filter-dropdown-item {
+  padding: 6px 12px;
   font-size: 0.8rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.add-btn:hover,
-.add-btn.active {
-  background: var(--accent);
-  color: #fff;
-}
-
-/* Filters */
-.map-filters {
-  display: flex;
-  gap: 0.35rem;
-  padding: 0.5rem 1rem;
-  overflow-x: auto;
-  background: var(--bg-primary);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-  position: relative;
-  z-index: 10;
-}
-
-.map-filters::-webkit-scrollbar {
-  display: none;
-}
-
-.filter-chip {
-  padding: 0.25rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  background: none;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
+  color: var(--text-primary, #e1e1e6);
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s;
-}
-
-.filter-chip.active {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: rgba(29, 161, 242, 0.1);
-}
-
-.filter-chip:hover {
-  border-color: var(--text-secondary);
-}
-
-/* Map wrapper */
-.map-wrapper {
-  flex: 1;
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-  z-index: 0;
-}
-
-.map-container {
-  width: 100%;
-  height: 100%;
-  background: #15202b;
-}
-
-.map-container.add-mode {
-  cursor: crosshair !important;
-}
-
-/* Vignette overlay */
-.map-vignette {
-  position: absolute;
-  inset: 0;
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-  z-index: 5;
-}
-
-/* Add mode hint */
-.add-mode-hint {
-  position: absolute;
-  top: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--accent);
-  color: #fff;
-  padding: 0.5rem 1.25rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  z-index: 10;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  animation: hint-pulse 2s ease-in-out infinite;
-}
-
-@keyframes hint-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* Zone drawing */
-.zone-drawing-hint {
-  display: flex; align-items: center; gap: 0.75rem;
-  animation: none;
-  background: #9b59b6;
-}
-.zone-drawing-actions {
-  display: flex; gap: 0.35rem;
-}
-.zone-finish-btn, .zone-cancel-btn {
-  padding: 0.25rem 0.65rem; border-radius: 12px; border: none;
-  font-size: 0.78rem; font-weight: 600; cursor: pointer; font-family: inherit;
-}
-.zone-finish-btn { background: #fff; color: #9b59b6; }
-.zone-cancel-btn { background: rgba(255,255,255,0.2); color: #fff; }
-
-.zone-btn {
-  padding: 0.35rem 0.75rem; border: 1px solid #9b59b6; border-radius: 20px;
-  background: none; color: #9b59b6; font-size: 0.8rem; font-weight: 600;
-  cursor: pointer; transition: all 0.15s; font-family: inherit;
-}
-.zone-btn:hover { background: #9b59b6; color: #fff; }
-
-.zone-type-grid {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.35rem;
-}
-.zone-type-btn {
-  padding: 0.45rem 0.5rem; border: 1px solid var(--border); border-radius: 8px;
-  background: var(--bg-primary); color: var(--text-secondary); cursor: pointer;
-  font-size: 0.82rem; font-family: inherit; transition: all 0.15s; font-weight: 600;
-}
-
-/* Leaflet overrides */
-.map-container :deep(.leaflet-tile-pane) {
-  filter: brightness(0.7) contrast(1.2) saturate(0.6);
-}
-
-.map-container :deep(.leaflet-tile) {
-  box-sizing: content-box;
-}
-
-.map-container :deep(.leaflet-control-zoom) {
-  border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
-  overflow: hidden;
-}
-
-.map-container :deep(.leaflet-control-zoom a) {
-  background: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  border-color: var(--border) !important;
-  width: 32px !important;
-  height: 32px !important;
-  line-height: 32px !important;
-}
-
-.map-container :deep(.leaflet-control-zoom a:hover) {
-  background: var(--bg-hover) !important;
-}
-
-.map-container :deep(.leaflet-control-attribution) {
-  background: rgba(21, 32, 43, 0.8) !important;
-  color: var(--text-secondary) !important;
-  font-size: 0.65rem !important;
-}
-
-.map-container :deep(.leaflet-control-attribution a) {
-  color: var(--text-secondary) !important;
-}
-
-/* Custom markers (global via deep) */
-.map-container :deep(.map-custom-marker) {
-  background: none !important;
-  border: none !important;
-}
-
-.map-container :deep(.marker-pin) {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.15s;
-}
-
-.map-container :deep(.marker-pin:hover) {
-  transform: scale(1.2);
-}
-
-.map-container :deep(.marker-emoji) {
-  font-size: 16px;
-  line-height: 1;
-}
-
-/* Pulse animations for active markers */
-.map-container :deep(.marker-pin.pulse-low),
-.map-container :deep(.marker-pin.pulse-mid),
-.map-container :deep(.marker-pin.pulse-high) {
-  position: relative;
-}
-
-.map-container :deep(.marker-pin.pulse-low::after),
-.map-container :deep(.marker-pin.pulse-mid::after),
-.map-container :deep(.marker-pin.pulse-high::after) {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: inherit;
-  z-index: -1;
-  animation: marker-pulse var(--pulse-duration) ease-out infinite;
-  opacity: 0;
-}
-
-.map-container :deep(.marker-pin.pulse-low) { --pulse-duration: 3s; }
-.map-container :deep(.marker-pin.pulse-mid) { --pulse-duration: 2s; }
-.map-container :deep(.marker-pin.pulse-high) { --pulse-duration: 1.2s; }
-
-@keyframes marker-pulse {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(2.5); opacity: 0; }
-}
-
-/* Tooltip override */
-.map-container :deep(.map-tooltip) {
-  background: var(--bg-secondary) !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 6px !important;
-  padding: 0.3rem 0.6rem !important;
-  font-size: 0.8rem !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-}
-
-.map-container :deep(.map-tooltip::before) {
-  border-top-color: var(--border) !important;
-}
-
-/* Post count badge on location marker */
-.map-container :deep(.marker-badge) {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 700;
-  min-width: 16px;
-  height: 16px;
-  line-height: 16px;
-  text-align: center;
-  border-radius: 8px;
-  padding: 0 3px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-  pointer-events: none;
-}
-
-/* Tooltip with posts list */
-.map-container :deep(.map-tooltip-posts) {
-  background: var(--bg-secondary) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-  padding: 0 !important;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5) !important;
-  color: var(--text-primary) !important;
-  max-width: 380px !important;
-  width: 360px;
-}
-
-.map-container :deep(.map-tooltip-posts::before) {
-  border-top-color: var(--border) !important;
-}
-
-.map-container :deep(.loc-tooltip-name) {
-  padding: 0.55rem 0.75rem;
-  font-weight: 700;
-  font-size: 0.85rem;
-  border-bottom: 1px solid var(--border);
-}
-
-.map-container :deep(.loc-posts-list) {
-  display: flex;
-  flex-direction: column;
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.map-container :deep(.loc-post-item) {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.55rem 0.75rem;
-  text-decoration: none;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border);
-  transition: background 0.12s;
-  cursor: pointer;
-}
-
-.map-container :deep(.loc-post-item:last-child) {
-  border-bottom: none;
-}
-
-.map-container :deep(.loc-post-item:hover) {
-  background: var(--bg-hover);
-  text-decoration: none;
-}
-
-.map-container :deep(.loc-post-avatar) {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.map-container :deep(.loc-post-avatar-fallback) {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.6rem;
-  font-weight: 700;
-}
-
-.map-container :deep(.loc-post-body) {
-  flex: 1;
-  min-width: 0;
-}
-
-.map-container :deep(.loc-post-meta) {
-  display: flex;
-  align-items: center;
-  gap: 0.3rem;
-  margin-bottom: 0.15rem;
-}
-
-.map-container :deep(.loc-post-author) {
-  font-size: 0.78rem;
-  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+  transition: background 0.1s;
 }
-
-.map-container :deep(.loc-post-time) {
-  font-size: 0.65rem;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.map-container :deep(.loc-post-text) {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-}
-
-.map-container :deep(.loc-post-more) {
-  text-align: center;
-  padding: 0.4rem;
-  font-size: 0.72rem;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* Detail panel */
-.detail-panel {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 320px;
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border);
-  z-index: 20;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-close {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-  background: rgba(0, 0, 0, 0.5);
-  border: none;
-  color: #fff;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 1.1rem;
-  cursor: pointer;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.panel-image {
-  width: 100%;
-  max-height: 200px;
-  overflow: hidden;
-}
-
-.panel-image img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  display: block;
-}
-
-.panel-body {
-  padding: 1rem;
-  flex: 1;
-}
-
-.panel-header {
-  margin-bottom: 0.5rem;
-}
-
-.panel-category-badge {
-  display: inline-block;
-  padding: 0.15rem 0.5rem;
-  border-radius: 10px;
+.filter-dropdown-item:hover { background: rgba(255, 255, 255, 0.06); }
+.filter-dropdown-empty {
+  padding: 8px 12px;
   font-size: 0.75rem;
-  font-weight: 600;
+  color: var(--text-secondary, #8899a6);
+  font-style: italic;
 }
-
-.panel-name {
-  margin: 0.25rem 0 0.5rem;
-  font-size: 1.15rem;
-  font-weight: 700;
-}
-
-.panel-desc {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-  line-height: 1.45;
-  margin: 0 0 0.75rem;
-  white-space: pre-wrap;
-}
-
-.panel-profile-link {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  text-decoration: none;
-  color: var(--text-primary);
-  transition: background 0.15s;
-  margin-bottom: 0.75rem;
-}
-
-.panel-profile-link:hover {
-  background: var(--bg-hover);
-  text-decoration: none;
-}
-
-.panel-profile-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.panel-profile-name {
-  font-weight: 600;
-  font-size: 0.85rem;
-}
-
-.panel-profile-handle {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.panel-admin-actions {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--border);
-}
-
-.panel-edit-btn {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  background: none;
-  color: var(--accent);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.panel-edit-btn:hover {
-  background: var(--accent);
-  color: #fff;
-}
-
-.panel-delete-btn {
-  flex: 1;
-  padding: 0.5rem;
-  border: 1px solid var(--danger);
-  border-radius: 8px;
-  background: none;
-  color: var(--danger);
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-
-.panel-delete-btn:hover {
-  background: var(--danger);
-  color: #fff;
-}
-
-/* Panel posts */
-.panel-posts {
-  margin-top: 1rem;
-  border-top: 1px solid var(--border);
-  padding-top: 0.75rem;
-}
-
-.panel-posts-title {
-  font-size: 0.88rem;
-  font-weight: 700;
-  margin: 0 0 0.6rem;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-}
-
-.panel-posts-count {
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  min-width: 18px;
-  height: 18px;
-  line-height: 18px;
-  text-align: center;
-  border-radius: 9px;
-  padding: 0 5px;
-}
-
-.panel-post-card {
-  display: flex;
-  gap: 0.6rem;
-  padding: 0.6rem;
-  border-radius: 10px;
-  text-decoration: none;
-  color: var(--text-primary);
-  transition: background 0.12s;
-  margin-bottom: 0.25rem;
-}
-
-.panel-post-card:hover {
-  background: var(--bg-hover);
-  text-decoration: none;
-}
-
-.panel-post-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.panel-post-meta {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  margin-bottom: 0.2rem;
-}
-
-.panel-post-author {
-  font-size: 0.82rem;
-  font-weight: 700;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
-}
-
-.panel-post-time {
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  flex-shrink: 0;
-}
-
-.panel-post-text {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-  line-height: 1.4;
-  margin: 0;
-  word-break: break-word;
-  white-space: pre-wrap;
-}
-
-.panel-post-image {
-  max-width: 100%;
-  max-height: 140px;
-  border-radius: 8px;
-  margin-top: 0.4rem;
-  object-fit: cover;
-}
-
-/* Form overlay */
-.form-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.form-modal {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
-  width: 100%;
-  max-width: 480px;
-  max-height: 90%;
-  overflow-y: auto;
-}
-
-.form-title {
-  margin: 0 0 1rem;
-  font-size: 1.05rem;
-}
-
-.form-field {
-  margin-bottom: 0.85rem;
-}
-
-.form-field label {
-  display: block;
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 0.25rem;
-}
-
-.form-field input[type="text"],
-.form-field input[type="number"],
-.form-field textarea {
-  width: 100%;
-  padding: 0.5rem 0.6rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 0.9rem;
-  box-sizing: border-box;
-}
-
-.form-field input:focus,
-.form-field textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.form-field textarea {
-  resize: vertical;
-  min-height: 60px;
-}
-
-.form-field input[type="file"] {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-}
-
-.form-coords {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.form-coords input {
-  flex: 1;
-}
-
-.form-categories {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
-
-.form-cat-btn {
-  padding: 0.2rem 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: none;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.15s;
-}
-
-.form-image-preview {
-  position: relative;
-  margin-top: 0.5rem;
-  border-radius: 8px;
-  overflow: hidden;
-  display: inline-block;
-}
-
-.form-image-preview img {
-  max-width: 100%;
-  max-height: 150px;
-  display: block;
-  border-radius: 8px;
-}
-
-.remove-image-btn {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  background: rgba(0, 0, 0, 0.6);
-  border: none;
-  color: #fff;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Profile search in form */
-.profile-results {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin-top: 0.3rem;
-  max-height: 150px;
-  overflow-y: auto;
-  background: var(--bg-primary);
-}
-
-.profile-result-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.6rem;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-
-.profile-result-item:hover {
-  background: var(--bg-hover);
-}
-
-.profile-result-item .muted {
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-}
-
-.selected-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-top: 0.3rem;
-  padding: 0.35rem 0.5rem;
-  border: 1px solid var(--accent);
-  border-radius: 8px;
-  font-size: 0.85rem;
-}
-
-.remove-profile-btn {
-  margin-left: auto;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 1.1rem;
-}
-
-.form-error {
-  color: var(--danger);
-  font-size: 0.85rem;
-  margin-bottom: 0.5rem;
-}
-
-.form-actions {
-  display: flex;
-  gap: 0.75rem;
-  margin-top: 0.5rem;
-}
-
-.form-save-btn {
-  flex: 1;
-  padding: 0.55rem;
-  border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.form-save-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.form-cancel-btn {
-  padding: 0.55rem 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-/* Transitions */
-.panel-enter-active,
-.panel-leave-active {
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.panel-enter-from {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-.panel-leave-to {
-  transform: translateX(100%);
-  opacity: 0;
-}
-
-/* Mobile */
-@media (max-width: 1100px) {
-  .map-page {
-    right: 0;
-  }
-}
-
-@media (max-width: 768px) {
-  .map-page {
-    left: 0;
-    right: 0;
-    bottom: 56px;
-  }
-
-  .map-toolbar {
-    padding: 0.4rem 0.75rem;
-  }
-
-  .map-title {
-    font-size: 0.9rem;
-  }
-
-  .add-btn {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.6rem;
-  }
-
-  .detail-panel {
-    top: auto;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    max-height: 55%;
-    border-left: none;
-    border-top: 1px solid var(--border);
-    border-radius: 16px 16px 0 0;
-  }
-
-  .panel-enter-from,
-  .panel-leave-to {
-    transform: translateY(100%);
-  }
-
-  .form-modal {
-    max-width: 100%;
-    max-height: 85%;
-    border-radius: 12px 12px 0 0;
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-}
+.dropdown-enter-active, .dropdown-leave-active { transition: opacity 0.15s, transform 0.15s; }
+.dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>

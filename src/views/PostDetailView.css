@@ -1,0 +1,136 @@
+.post-detail {
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  min-height: calc(100vh - var(--header-height));
+  padding-bottom: var(--page-bottom-padding);
+}
+
+.back-bar {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+/* Likes section */
+.likes-section {
+  border-top: 1px solid var(--border);
+}
+
+.likes-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem 1rem;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.likes-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.likes-icon {
+  color: var(--danger);
+  font-size: 1rem;
+}
+
+.likes-label {
+  font-weight: 600;
+}
+
+.likes-chevron {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+
+.likes-chevron.open {
+  transform: rotate(90deg);
+}
+
+.likes-list {
+  border-bottom: 1px solid var(--border);
+}
+
+.loading-small,
+.empty-small {
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.liked-user {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 1rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.liked-user:hover {
+  background: var(--bg-hover);
+}
+
+.liked-user-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.liked-user-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.liked-user-handle {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+/* Comments section */
+.comments-section {
+  margin-top: 0;
+}
+
+.comments-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.comments-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.comments-count {
+  background: var(--accent);
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.5rem;
+  border-radius: 10px;
+}

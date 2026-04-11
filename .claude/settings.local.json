@@ -20,7 +20,8 @@
       "Bash(ls -la /c/Users/killi/Desktop/ICAN/*.sql)",
       "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
       "Bash(npx vite:*)",
-      "Bash(find /c/Users/killi/Desktop/ICAN -name *.sql -o -name *schema* -o -name *supabase*)"
+      "Bash(find /c/Users/killi/Desktop/ICAN -name *.sql -o -name *schema* -o -name *supabase*)",
+      "Bash(node -e ':*)"
     ]
   }
 }
