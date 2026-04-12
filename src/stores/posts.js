@@ -464,11 +464,26 @@ export const usePostsStore = defineStore('posts', () => {
     return userLikes.value.has(postId)
   }
 
+  // Realtime: pending new posts (not yet shown in feed)
+  const newPostIds = ref([])
+
+  function addPendingPost(postId) {
+    if (!posts.value.find(p => p.id === postId) && !newPostIds.value.includes(postId)) {
+      newPostIds.value.push(postId)
+    }
+  }
+
+  async function loadNewPosts() {
+    await fetchFeed()
+    newPostIds.value = []
+  }
+
   return {
     posts,
     loading,
     userLikes,
     userReposts,
+    newPostIds,
     fetchFeed,
     fetchUserPosts,
     createPost,
@@ -483,5 +498,7 @@ export const usePostsStore = defineStore('posts', () => {
     deleteComment,
     hasLiked,
     createQuotePost,
+    addPendingPost,
+    loadNewPosts,
   }
 })

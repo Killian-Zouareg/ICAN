@@ -75,7 +75,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase } from '../lib/supabase'
 import { usePostsStore } from '../stores/posts'
+import { useAuthStore } from '../stores/auth'
 import { useGhostEngagementStore } from '../stores/ghostEngagement'
+import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
 import PostCard from '../components/PostCard.vue'
 import CommentList from '../components/CommentList.vue'
 import CommentForm from '../components/CommentForm.vue'
@@ -257,9 +259,24 @@ async function handleDeleteComment(commentId) {
   if (post.value) post.value.comment_count -= removedCount
 }
 
+// Realtime: live comments from other users
+const auth = useAuthStore()
+const { subscribe: subscribeComments } = useRealtimeSubscription('comments-' + route.params.id, [
+  {
+    event: 'INSERT',
+    table: 'comments',
+    filter: `post_id=eq.${route.params.id}`,
+    callback: (payload) => {
+      if (payload.new.author_id === auth.activeProfile?.id) return
+      fetchComments()
+    },
+  },
+])
+
 onMounted(async () => {
   await Promise.all([fetchPost(), fetchComments()])
   loading.value = false
+  subscribeComments()
 })
 </script>
 

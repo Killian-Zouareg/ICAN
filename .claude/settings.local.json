@@ -21,7 +21,9 @@
       "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
       "Bash(npx vite:*)",
       "Bash(find /c/Users/killi/Desktop/ICAN -name *.sql -o -name *schema* -o -name *supabase*)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(node -e \"const p = require\\('C:/Users/killi/Desktop/ICAN/package.json'\\); const deps = {...p.dependencies, ...p.devDependencies}; for \\(const [k,v] of Object.entries\\(deps\\)\\) console.log\\(k+'@'+v\\);\")",
+      "Bash(ls C:/Users/killi/Desktop/ICAN/src/*.css C:/Users/killi/Desktop/ICAN/src/*.js)"
     ]
   }
 }

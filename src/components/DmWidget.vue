@@ -233,6 +233,7 @@ import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
 import { checkRateLimit } from '../lib/rateLimit'
 import UserAvatar from './UserAvatar.vue'
+import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
 
 const auth = useAuthStore()
 const messagesStore = useMessagesStore()
@@ -277,6 +278,11 @@ let groupSearchTimeout = null
 // Polling
 let convPollInterval = null
 let msgPollInterval = null
+
+// Realtime for conversation list (new messages from others)
+const { subscribe: subscribeDmConvList } = useRealtimeSubscription('dm-conv-list', [
+  { event: 'INSERT', table: 'messages', callback: () => { fetchConversations(); fetchUnreadCount() } },
+])
 
 // Members cache for group sender names
 const membersCache = ref({})
@@ -613,8 +619,32 @@ async function handleSend() {
   window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConv.value.id } }))
 }
 
-function startMsgPolling() { stopMsgPolling(); msgPollInterval = setInterval(fetchMessages, 5000) }
-function stopMsgPolling() { if (msgPollInterval) { clearInterval(msgPollInterval); msgPollInterval = null } }
+let dmRealtimeSub = null
+
+function setupDmRealtime(conversationId) {
+  teardownDmRealtime()
+  const { subscribe, unsubscribe } = useRealtimeSubscription(
+    'dm-widget-' + conversationId,
+    [{
+      event: 'INSERT',
+      table: 'messages',
+      filter: `conversation_id=eq.${conversationId}`,
+      callback: async (payload) => {
+        if (payload.new.sender_id === auth.activeProfile?.id) return
+        await fetchMessages()
+      },
+    }]
+  )
+  dmRealtimeSub = { unsubscribe }
+  subscribe()
+}
+
+function teardownDmRealtime() {
+  if (dmRealtimeSub) { dmRealtimeSub.unsubscribe(); dmRealtimeSub = null }
+}
+
+function startMsgPolling() { stopMsgPolling(); setupDmRealtime(activeConv.value?.id); msgPollInterval = setInterval(fetchMessages, 30000) }
+function stopMsgPolling() { if (msgPollInterval) { clearInterval(msgPollInterval); msgPollInterval = null }; teardownDmRealtime() }
 
 // =========================================
 // Search / New 1-on-1 conversation
@@ -756,10 +786,11 @@ function onExternalReadUpdate() {
 
 onMounted(() => {
   fetchUnreadCount()
+  subscribeDmConvList()
   convPollInterval = setInterval(() => {
     if (isExpanded.value && !activeConv.value) fetchConversations()
     else fetchUnreadCount()
-  }, 15000)
+  }, 30000)
   window.addEventListener('dm-message-sent', onExternalMessageSent)
   window.addEventListener('dm-read-update', onExternalReadUpdate)
 })

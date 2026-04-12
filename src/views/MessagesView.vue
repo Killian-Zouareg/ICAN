@@ -86,6 +86,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMessagesStore } from '../stores/messages'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
+import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
 import ConversationList from '../components/ConversationList.vue'
 import NewConversation from '../components/NewConversation.vue'
 import MessageBubble from '../components/MessageBubble.vue'
@@ -102,6 +103,37 @@ const activeConvOtherUser = ref(null)
 const messagesContainer = ref(null)
 const loadingMessages = ref(false)
 let pollInterval = null
+let msgRealtimeSub = null
+
+// Realtime subscription for conversation list updates
+const { subscribe: subscribeConvList, unsubscribe: unsubscribeConvList } = useRealtimeSubscription('conv-list', [
+  {
+    event: 'INSERT',
+    table: 'messages',
+    callback: () => messagesStore.fetchConversations(),
+  },
+])
+
+function setupMessageRealtime(conversationId) {
+  if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
+
+  const { subscribe, unsubscribe } = useRealtimeSubscription(
+    'messages-conv-' + conversationId,
+    [{
+      event: 'INSERT',
+      table: 'messages',
+      filter: `conversation_id=eq.${conversationId}`,
+      callback: async (payload) => {
+        if (payload.new.sender_id === auth.activeProfile?.id) return
+        await messagesStore.fetchMessages(conversationId)
+        await messagesStore.markAsRead(conversationId)
+        scrollToBottom()
+      },
+    }]
+  )
+  msgRealtimeSub = { unsubscribe }
+  subscribe()
+}
 
 function openConversation(conv) {
   activeConvId.value = conv.id
@@ -115,6 +147,7 @@ function closeConversation() {
   activeConvOtherUser.value = null
   clearInterval(pollInterval)
   pollInterval = null
+  if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
   router.replace('/messages')
 }
 
@@ -125,14 +158,17 @@ async function loadMessages() {
   loadingMessages.value = false
   scrollToBottom()
 
-  // Start polling
+  // Realtime subscription for this conversation
+  setupMessageRealtime(activeConvId.value)
+
+  // Polling fallback (30s)
   clearInterval(pollInterval)
   pollInterval = setInterval(async () => {
     if (!activeConvId.value) return
     await messagesStore.fetchMessages(activeConvId.value)
     await messagesStore.markAsRead(activeConvId.value)
     scrollToBottom()
-  }, 8000)
+  }, 30000)
 }
 
 function scrollToBottom() {
@@ -226,10 +262,11 @@ function onExternalReadUpdate() {
 
 onMounted(() => {
   initFromRoute()
-  // Poll conversation list every 20s
+  // Realtime for conversation list + polling fallback 30s
+  subscribeConvList()
   convPollInterval = setInterval(() => {
     messagesStore.fetchConversations()
-  }, 20000)
+  }, 30000)
   window.addEventListener('dm-message-sent', onExternalMessageSent)
   window.addEventListener('dm-read-update', onExternalReadUpdate)
 })
@@ -237,6 +274,8 @@ onMounted(() => {
 onUnmounted(() => {
   clearInterval(pollInterval)
   clearInterval(convPollInterval)
+  if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
+  // unsubscribeConvList handled by composable onUnmounted
   window.removeEventListener('dm-message-sent', onExternalMessageSent)
   window.removeEventListener('dm-read-update', onExternalReadUpdate)
 })

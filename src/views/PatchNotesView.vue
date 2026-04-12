@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '3.4.0',
+    date: '12 avril 2026',
+    icon: '\u{26A1}',
+    color: '#e0245e',
+    title: 'Temps r\u00e9el — Supabase Realtime',
+    description: 'L\u2019app est d\u00e9sormais r\u00e9active en temps r\u00e9el ! Les messages arrivent instantan\u00e9ment, le feed affiche un bandeau \u00ab Nouveaux posts \u00bb quand d\u2019autres publient, et les commentaires apparaissent en direct sur les posts.',
+    tags: ['Realtime', 'Messages', 'Feed', 'Commentaires', 'WebSocket'],
+  },
+  {
     version: '3.3.0',
     date: '11 avril 2026',
     icon: '\u{1F5FA}',
@@ -344,6 +353,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '3.6.0',
+    date: '12 avril 2026',
+    title: 'Temps r\u00e9el \u2014 Supabase Realtime',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Messages en temps r\u00e9el via WebSocket (remplacement du polling 8s)' },
+      { type: 'new', text: 'Bandeau \u00ab Nouveaux posts \u00bb sur le feed quand d\u2019autres utilisateurs publient' },
+      { type: 'new', text: 'Commentaires en direct sur la page de d\u00e9tail d\u2019un post' },
+      { type: 'new', text: 'Composable r\u00e9utilisable useRealtimeSubscription pour les abonnements Supabase' },
+      { type: 'improved', text: 'Polling r\u00e9duit \u00e0 30s en fallback (au lieu de 5-20s)' },
+    ],
+  },
   {
     version: '3.5.0',
     date: '11 avril 2026',
