@@ -450,7 +450,10 @@ async function doAdminAdjust() {
 
 function txDirection(tx) {
   if (!tx.receiver_id) return 'outgoing' // spend transaction
-  if (tx.sender_id === tx.receiver_id) return tx.amount >= 0 ? 'incoming' : 'outgoing' // admin adjustment
+  if (tx.sender_id === tx.receiver_id) {
+    // Admin adjustment: negative amount = debit
+    return tx.amount >= 0 ? 'incoming' : 'outgoing'
+  }
   return tx.receiver_id === auth.activeProfile?.id ? 'incoming' : 'outgoing'
 }
 

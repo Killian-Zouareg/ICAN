@@ -66,6 +66,9 @@
       <router-link to="/bank" class="mobile-more-item" @click="showMore = false">
         <span>&#x1F3E6;</span> iBank
       </router-link>
+      <router-link to="/wiki" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F4D6;</span> iWiki
+      </router-link>
       <router-link to="/settings" class="mobile-more-item" @click="showMore = false">
         <span>&#x2699;</span> Param&egrave;tres
       </router-link>

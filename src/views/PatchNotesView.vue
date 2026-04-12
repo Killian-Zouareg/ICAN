@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.0.0',
+    date: '12 avril 2026',
+    icon: '\u{1F4D6}',
+    color: '#ffd700',
+    title: 'iWiki \u2014 Encyclop\u00e9die des H\u00e9ros & Vilains',
+    description: 'D\u00e9couvrez l\u2019iWiki ! Une vitrine stylis\u00e9e pr\u00e9sente les H\u00e9ros et Vilains de la Nation avec des animations comic/Marvel, des particules et des effets 3D. Un r\u00e9pertoire complet permet de rechercher et parcourir tous les personnages. Les admins peuvent cr\u00e9er et g\u00e9rer les fiches (pouvoirs, stats, histoire, alli\u00e9s/ennemis).',
+    tags: ['Wiki', 'H\u00e9ros', 'Vilains', 'Animations', 'Admin'],
+  },
+  {
     version: '3.4.0',
     date: '12 avril 2026',
     icon: '\u{26A1}',
@@ -353,6 +362,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.0.0',
+    date: '12 avril 2026',
+    title: 'iWiki \u2014 Encyclop\u00e9die des H\u00e9ros & Vilains',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Nouvelle page iWiki accessible depuis la sidebar' },
+      { type: 'new', text: 'Vitrine stylis\u00e9e H\u00e9ros/Vilains avec animations comic, particules et hover 3D' },
+      { type: 'new', text: 'R\u00e9pertoire complet avec recherche et filtres (h\u00e9ros/vilain/tous)' },
+      { type: 'new', text: 'Fiches d\u00e9taill\u00e9es : stats radar, pouvoirs, histoire, alli\u00e9s/ennemis' },
+      { type: 'new', text: 'Gestion admin : cr\u00e9ation, modification, suppression, upload photo' },
+    ],
+  },
   {
     version: '3.6.0',
     date: '12 avril 2026',

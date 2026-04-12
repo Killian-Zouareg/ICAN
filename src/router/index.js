@@ -64,6 +64,16 @@ const routes = [
     component: () => import('../views/BankView.vue'),
   },
   {
+    path: '/wiki',
+    name: 'Wiki',
+    component: () => import('../views/WikiView.vue'),
+  },
+  {
+    path: '/wiki/:id',
+    name: 'WikiHero',
+    component: () => import('../views/WikiHeroView.vue'),
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),

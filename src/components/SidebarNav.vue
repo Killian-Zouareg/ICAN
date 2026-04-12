@@ -38,6 +38,10 @@
           <span class="sidebar-icon">&#x1F3E6;</span>
           <span class="sidebar-label">iBank</span>
         </router-link>
+        <router-link to="/wiki" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F4D6;</span>
+          <span class="sidebar-label">iWiki</span>
+        </router-link>
         <router-link to="/settings" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2699;</span>
           <span class="sidebar-label">Param&egrave;tres</span>
