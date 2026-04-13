@@ -58,6 +58,8 @@ src/
 | `/map` | Map | MapView | auth |
 | `/character/:username` | Character | CharacterView | auth |
 | `/bank` | Bank | BankView | auth |
+| `/wiki` | Wiki | WikiView | auth |
+| `/wiki/:id` | WikiHero | WikiHeroView | auth |
 | `/admin` | Admin | AdminView | **admin only** |
 | `/ghost/:id` | GhostProfile | GhostProfileView | auth |
 
@@ -93,6 +95,10 @@ src/
 - **State :** `sheet`, `loading`, `saving`
 - **Actions :** `fetchSheet(profileId)`, `saveSheet()`, `uploadPhoto()`
 
+### `wiki.js` — `useWikiStore`
+- **State :** `heroes[]`, `currentHero`, `loading`, `saving`
+- **Actions :** `fetchAll()`, `fetchOne(id)`, `create(data)`, `update(id, data)`, `remove(id)`, `uploadPhoto(id, file)`
+
 ### `ghostEngagement.js` — `useGhostEngagementStore`
 - Gestion des profils fantômes (PNJ) et de leurs interactions automatisées
 
@@ -108,6 +114,8 @@ src/
 | `MessagesView.vue` | DM style X/Twitter — split-view conversations |
 | `CharacterView.vue` | Fiche personnage JDR — stats radar chart, inventaire |
 | `BankView.vue` | Compte bancaire fictif, transactions, virements |
+| `WikiView.vue` | iWiki — vitrine héros/vilains (particules, 3D hover) + répertoire |
+| `WikiHeroView.vue` | Fiche héros immersive plein écran (canvas particules, stats, pouvoirs, relations) |
 | `AdminView.vue` | Modération, gestion utilisateurs/lieux/zones |
 | `SearchView.vue` | Recherche posts, profils, lieux |
 | `PostDetailView.vue` | Post individuel + fil de commentaires |
@@ -204,6 +212,7 @@ inventory_items       — objets inventaire
 avatars               — storage bucket avatars
 ghost_profiles        — profils PNJ fantômes
 ghost_likes / ghost_comments — interactions PNJ
+wiki_heroes             — fiches wiki héros/vilains (name, alias, side, powers[], stats, story, allies[], enemies[], featured)
 ```
 
 **RPCs Supabase utilisées :**
