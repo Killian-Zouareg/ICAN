@@ -74,6 +74,11 @@ const routes = [
     component: () => import('../views/WikiHeroView.vue'),
   },
   {
+    path: '/igames',
+    name: 'iGames',
+    component: () => import('../views/IGamesView.vue'),
+  },
+  {
     path: '/wiki/articles',
     name: 'WikiArticles',
     component: () => import('../views/WikiArticlesView.vue'),

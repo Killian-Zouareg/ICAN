@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.2.0',
+    date: '13 avril 2026',
+    icon: '\u{1F3AE}',
+    color: '#9b59b6',
+    title: 'iGames \u2014 Mini-jeu iRunner',
+    description: 'Uploadez votre photo et incarnez-la dans un mini-jeu inspir\u00e9 du dinosaure Chrome ! Sautez par-dessus les bombes et les vilains, battez votre record et d\u00e9fiez vos amis.',
+    tags: ['Jeu', 'Canvas', 'Fun', 'iRunner'],
+  },
+  {
     version: '4.1.0',
     date: '13 avril 2026',
     icon: '\u{1F4D6}',
@@ -371,6 +380,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.2.0',
+    date: '13 avril 2026',
+    title: 'iGames \u2014 Mini-jeu iRunner',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Nouvel onglet iGames dans la navigation' },
+      { type: 'new', text: 'Mini-jeu iRunner : uploadez une photo qui devient votre personnage' },
+      { type: 'new', text: 'Saut avec Espace / Clic / Tap, obstacles bombes et vilains' },
+      { type: 'new', text: 'Score en temps r\u00e9el et meilleur score sauvegard\u00e9 localement' },
+      { type: 'new', text: 'Responsive : jouable sur mobile et desktop' },
+    ],
+  },
   {
     version: '4.1.0',
     date: '13 avril 2026',
