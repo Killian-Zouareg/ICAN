@@ -1,0 +1,263 @@
+.wiki-article-detail {
+  max-width: 800px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+.loading, .not-found {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 60px 0;
+  font-size: 1.1rem;
+}
+
+/* Header */
+.article-header {
+  position: relative;
+  min-height: 220px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-secondary);
+  border-radius: 0 0 16px 16px;
+  overflow: hidden;
+}
+.header-overlay {
+  position: relative;
+  z-index: 1;
+  padding: 24px 20px 20px;
+  background: linear-gradient(to bottom, rgba(21,32,43,0.5) 0%, rgba(21,32,43,0.92) 100%);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.back-btn {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(21,32,43,0.7);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.2s;
+}
+.back-btn:hover {
+  background: rgba(21,32,43,0.9);
+}
+
+.header-cat-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+.header-cat-badge.lieu { color: #1da1f2; }
+.header-cat-badge.pnj { color: #e0245e; }
+.header-cat-badge.objet { color: #f5a623; }
+.header-cat-badge.evenement { color: #7b61ff; }
+.header-cat-badge.faction { color: #17bf63; }
+.header-cat-badge.general { color: var(--text-secondary); }
+
+.header-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.header-summary {
+  font-size: 0.95rem;
+  color: rgba(255,255,255,0.8);
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.header-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-pill {
+  font-size: 0.75rem;
+  background: rgba(29,161,242,0.15);
+  color: var(--accent);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(29,161,242,0.25);
+}
+
+/* Admin controls */
+.admin-controls {
+  display: flex;
+  gap: 10px;
+  padding: 12px 20px;
+  justify-content: center;
+}
+.ctrl-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.ctrl-btn.edit { color: var(--accent); }
+.ctrl-btn.edit:hover { background: rgba(29,161,242,0.1); border-color: var(--accent); }
+.ctrl-btn.delete { color: var(--danger); }
+.ctrl-btn.delete:hover { background: rgba(224,36,94,0.1); border-color: var(--danger); }
+.ctrl-btn.save { color: var(--success); }
+.ctrl-btn.save:hover { background: rgba(23,191,99,0.1); border-color: var(--success); }
+.ctrl-btn.save:disabled { opacity: 0.5; cursor: not-allowed; }
+.ctrl-btn.cancel { color: var(--text-secondary); }
+
+/* Article body */
+.article-body {
+  padding: 20px;
+}
+
+.article-content {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+
+.wiki-rendered :deep(.wiki-link) {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+  transition: opacity 0.2s;
+}
+.wiki-rendered :deep(.wiki-link:hover) {
+  opacity: 0.8;
+}
+.wiki-rendered :deep(.wiki-link-missing) {
+  color: var(--danger);
+  border-bottom: 1px dashed var(--danger);
+  cursor: help;
+}
+
+.empty-content {
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 40px 0;
+}
+
+/* Related articles */
+.related-section {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.related-section h3 {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin: 0 0 12px;
+}
+.related-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.related-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.related-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
+.related-emoji { font-size: 1.1rem; }
+.related-title {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Edit mode */
+.article-edit {
+  padding: 20px;
+}
+.edit-field {
+  margin-bottom: 14px;
+}
+.edit-field label {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.edit-field .hint {
+  font-weight: 400;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  margin-left: 6px;
+}
+.edit-field input[type="text"],
+.edit-field select,
+.edit-field textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.edit-field textarea {
+  resize: vertical;
+  font-family: inherit;
+}
+.edit-field input[type="file"] {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.tags-editor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.tag-pill.editable {
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.tag-pill.editable:hover {
+  background: rgba(224,36,94,0.15);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.tags-editor input {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 600px) {
+  .article-header { min-height: 180px; }
+  .header-overlay { min-height: 180px; padding: 16px; }
+  .header-title { font-size: 1.4rem; }
+  .article-body, .article-edit { padding: 14px; }
+}

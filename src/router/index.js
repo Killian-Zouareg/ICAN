@@ -74,6 +74,16 @@ const routes = [
     component: () => import('../views/WikiHeroView.vue'),
   },
   {
+    path: '/wiki/articles',
+    name: 'WikiArticles',
+    component: () => import('../views/WikiArticlesView.vue'),
+  },
+  {
+    path: '/wiki/article/:slug',
+    name: 'WikiArticleDetail',
+    component: () => import('../views/WikiArticleDetailView.vue'),
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),

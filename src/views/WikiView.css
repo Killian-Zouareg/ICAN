@@ -190,11 +190,15 @@
 
 /* ═══════════ SHOWCASE GRID ═══════════ */
 .showcase-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 1.5rem;
   position: relative;
   z-index: 1;
+}
+.showcase-card {
+  width: 200px;
 }
 
 /* ═══════════ SHOWCASE CARDS ═══════════ */
@@ -551,7 +555,9 @@
     letter-spacing: 1.5px;
   }
   .showcase-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 1rem;
+  }
+  .showcase-card {
+    width: 150px;
   }
 }

@@ -14,6 +14,9 @@
       <button class="wiki-tab" :class="{ active: tab === 'directory' }" @click="tab = 'directory'">
         &#x1F4DA; R&eacute;pertoire
       </button>
+      <button class="wiki-tab" :class="{ active: tab === 'encyclopedia' }" @click="goEncyclopedia">
+        &#x1F4D6; Encyclop&eacute;die
+      </button>
     </div>
 
     <div v-if="loading" class="loading">Chargement...</div>
@@ -179,9 +182,11 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
+import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWikiStore } from '../stores/wiki'
 
+const router = useRouter()
 const auth = useAuthStore()
 const wiki = useWikiStore()
 
@@ -255,6 +260,10 @@ async function createHero() {
   } catch (err) {
     alert(err.message)
   }
+}
+
+function goEncyclopedia() {
+  router.push('/wiki/articles')
 }
 
 onMounted(async () => {

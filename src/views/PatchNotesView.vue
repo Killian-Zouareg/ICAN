@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.1.0',
+    date: '13 avril 2026',
+    icon: '\u{1F4D6}',
+    color: '#1da1f2',
+    title: 'iWiki \u2014 Encyclop\u00e9die compl\u00e8te',
+    description: 'L\u2019iWiki s\u2019enrichit d\u2019une encyclop\u00e9die compl\u00e8te ! Cr\u00e9ez des articles pour les lieux, PNJ, objets, \u00e9v\u00e9nements et factions. Reliez-les entre eux avec des liens hypertexte [[Nom de l\u2019article]]. Chaque article dispose d\u2019une page d\u00e9di\u00e9e avec image, tags et contenu riche.',
+    tags: ['Wiki', 'Encyclop\u00e9die', 'Articles', 'Hyperlinks'],
+  },
+  {
     version: '4.0.0',
     date: '12 avril 2026',
     icon: '\u{1F4D6}',
@@ -362,6 +371,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.1.0',
+    date: '13 avril 2026',
+    title: 'iWiki \u2014 Encyclop\u00e9die compl\u00e8te',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Onglet Encyclop\u00e9die dans iWiki avec articles par cat\u00e9gorie (lieu, PNJ, objet, \u00e9v\u00e9nement, faction)' },
+      { type: 'new', text: 'Pages d\u00e9taill\u00e9es pour chaque article avec image, tags, et contenu riche' },
+      { type: 'new', text: 'Syst\u00e8me de liens [[Nom]] entre articles (style Wikip\u00e9dia)' },
+      { type: 'new', text: 'Recherche et filtres par cat\u00e9gorie dans le r\u00e9pertoire des articles' },
+      { type: 'new', text: 'Gestion admin : cr\u00e9ation, \u00e9dition, suppression et upload d\u2019images' },
+    ],
+  },
   {
     version: '4.0.0',
     date: '12 avril 2026',
