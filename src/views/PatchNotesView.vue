@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.3.0',
+    date: '13 avril 2026',
+    icon: '\u2694\uFE0F',
+    color: '#e0245e',
+    title: 'iArena \u2014 Combat PvP',
+    description: 'D\u00e9fiez d\u2019autres joueurs en combat PvP ! Les stats iCharacter d\u00e9terminent l\u2019issue en 3 rounds avec une part d\u2019al\u00e9atoire. Misez vos iCoins, grimpez le classement ELO et maintenez votre win streak.',
+    tags: ['PvP', 'Arena', 'ELO', 'iCoins', 'Combat'],
+  },
+  {
     version: '4.2.0',
     date: '13 avril 2026',
     icon: '\u{1F3AE}',
@@ -380,6 +389,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.3.0',
+    date: '13 avril 2026',
+    title: 'iArena \u2014 Combat PvP',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Mode iArena : combat PvP asynchrone bas\u00e9 sur les stats iCharacter' },
+      { type: 'new', text: '3 rounds (Attaque, D\u00e9fense, Final) avec jets al\u00e9atoires' },
+      { type: 'new', text: 'Mise d\u2019iCoins optionnelle sur les combats' },
+      { type: 'new', text: 'Classement ELO avec win/loss et streak' },
+      { type: 'new', text: 'Replay d\u00e9taill\u00e9 round par round des combats' },
+      { type: 'new', text: 'Syst\u00e8me de d\u00e9fis : envoyer, accepter ou d\u00e9cliner' },
+    ],
+  },
   {
     version: '4.2.0',
     date: '13 avril 2026',

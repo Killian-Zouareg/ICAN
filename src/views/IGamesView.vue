@@ -6,6 +6,12 @@
       <span v-if="bestScore > 0" class="best-score">&#x1F3C6; {{ bestScore }}</span>
     </div>
 
+    <!-- Game tabs -->
+    <div class="game-tabs">
+      <button class="game-tab active">&#x1F3C3; iRunner</button>
+      <button class="game-tab" @click="$router.push('/igames/arena')">&#x2694; iArena</button>
+    </div>
+
     <!-- Upload zone -->
     <div v-if="!playerImg" class="upload-zone">
       <div class="upload-card">
