@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.4.0',
+    date: '14 avril 2026',
+    icon: '\u{1F3F0}',
+    color: '#f5a623',
+    title: 'Territoires \u2014 Jeu de strat\u00e9gie quotidien',
+    description: 'Chaque jour, 7 joueurs choisissent secr\u00e8tement une case. Les cases rapportent plus ou moins de points selon le nombre de joueurs dessus. Bluff, anticipation et th\u00e9orie des jeux au rendez-vous !',
+    tags: ['Strat\u00e9gie', 'Quotidien', 'Bluff', 'Leaderboard'],
+  },
+  {
     version: '4.3.0',
     date: '13 avril 2026',
     icon: '\u2694\uFE0F',
@@ -389,6 +398,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.4.0',
+    date: '14 avril 2026',
+    title: 'Territoires \u2014 Jeu de strat\u00e9gie quotidien',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: '4 cases avec r\u00e8gles de scoring diff\u00e9rentes (Jackpot 5pts si seul, Risque 3pts si \u2264 2, Partage 2pts si \u2264 3, Refuge 1pt pour tous)' },
+      { type: 'new', text: 'Vote quotidien verrouill\u00e9 apr\u00e8s choix, r\u00e9sultats r\u00e9v\u00e9l\u00e9s quand tous ont vot\u00e9' },
+      { type: 'new', text: 'Leaderboard cumul\u00e9 avec points totaux et jours jou\u00e9s' },
+      { type: 'new', text: 'Historique des jours pr\u00e9c\u00e9dents' },
+      { type: 'new', text: 'Gestion admin des 7 joueurs' },
+    ],
+  },
   {
     version: '4.3.0',
     date: '13 avril 2026',

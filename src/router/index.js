@@ -84,6 +84,11 @@ const routes = [
     component: () => import('../views/ArenaView.vue'),
   },
   {
+    path: '/igames/territory',
+    name: 'Territory',
+    component: () => import('../views/TerritoryView.vue'),
+  },
+  {
     path: '/wiki/articles',
     name: 'WikiArticles',
     component: () => import('../views/WikiArticlesView.vue'),

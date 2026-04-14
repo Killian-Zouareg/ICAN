@@ -10,6 +10,7 @@
     <div class="game-tabs">
       <button class="game-tab active">&#x1F3C3; iRunner</button>
       <button class="game-tab" @click="$router.push('/igames/arena')">&#x2694; iArena</button>
+      <button class="game-tab" @click="$router.push('/igames/territory')">&#x1F3F0; Territoires</button>
     </div>
 
     <!-- Upload zone -->
