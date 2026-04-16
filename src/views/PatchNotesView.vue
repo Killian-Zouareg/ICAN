@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.5.0',
+    date: '14 avril 2026',
+    icon: '\u2694\uFE0F',
+    color: '#ff6b35',
+    title: 'iArena \u2014 Refonte en tournois automatiques',
+    description: 'iArena devient un tournoi en \u00e9limination directe qui d\u00e9marre automatiquement toutes les 5 heures. L\u2019admin s\u00e9lectionne le pool de combattants, les combats s\u2019encha\u00eenent avec des PV d\u00e9riv\u00e9s de la vigueur et un syst\u00e8me tour par tour bas\u00e9 sur les stats. Toute la communaut\u00e9 peut parier gratuitement sur le vainqueur de chaque combat.',
+    tags: ['Arena', 'Tournois', 'PvP', 'Paris', 'Automatique'],
+  },
+  {
     version: '4.4.0',
     date: '14 avril 2026',
     icon: '\u{1F3F0}',
@@ -398,6 +407,24 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.5.0',
+    date: '14 avril 2026',
+    title: 'iArena \u2014 Refonte en tournois automatiques',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Tournois en \u00e9limination directe d\u00e9marr\u00e9s automatiquement toutes les 5 heures' },
+      { type: 'new', text: 'Pool de joueurs g\u00e9r\u00e9 par l\u2019admin (2, 4 ou 8 combattants par tournoi)' },
+      { type: 'new', text: 'Combats tour par tour : une stat al\u00e9atoire par tour, jet attaquant vs jet d\u00e9fenseur, d\u00e9g\u00e2ts = diff\u00e9rence' },
+      { type: 'new', text: 'PV d\u00e9riv\u00e9s de la vigueur (20 + vigueur \u00d7 10)' },
+      { type: 'new', text: 'Affichage en grand du combat en cours avec barres de PV anim\u00e9es et log tour par tour' },
+      { type: 'new', text: 'Paris gratuits sur chaque combat : +10 pts par pari correct' },
+      { type: 'new', text: 'Vainqueur du tournoi : +100 pts au classement' },
+      { type: 'new', text: 'Mini-bracket visuel avec les r\u00e9sultats de chaque round' },
+      { type: 'removed', text: 'Syst\u00e8me de d\u00e9fis 1v1 \u00e0 la demande remplac\u00e9 par les tournois' },
+      { type: 'removed', text: 'Mises en iCoins retir\u00e9es au profit des paris gratuits' },
+    ],
+  },
   {
     version: '4.4.0',
     date: '14 avril 2026',

@@ -185,9 +185,29 @@ export const useTerritoryStore = defineStore('territory', () => {
     await fetchVotes()
   }
 
+  // Résout tous les jours passés qui n'ont jamais été scorés (journée expirée sans que tous aient voté)
+  async function resolvePastDaysIfNeeded() {
+    const today = getToday()
+    const { data: resolvedRows } = await supabase.from('territory_resolved_days').select('day')
+    const resolvedSet = new Set((resolvedRows || []).map(r => r.day))
+    const pastDays = new Set(
+      votes.value
+        .filter(v => v.day < today)
+        .map(v => v.day)
+    )
+    for (const day of pastDays) {
+      if (resolvedSet.has(day)) continue
+      const dayVotes = votes.value.filter(v => v.day === day)
+      if (!dayVotes.length) continue
+      await resolveDay(day, dayVotes)
+      await supabase.from('territory_resolved_days').insert({ day }).select()
+    }
+  }
+
   async function init() {
     loading.value = true
     await Promise.all([fetchLocations(), fetchPlayers(), fetchVotes(), fetchLeaderboard()])
+    try { await resolvePastDaysIfNeeded() } catch (e) { console.warn('Resolve past days:', e.message) }
     loading.value = false
   }
 
