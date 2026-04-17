@@ -133,10 +133,10 @@ export const useArenaStore = defineStore('arena', () => {
   }
 
   // ═══════════════════════════════════════════════════════════
-  async function maybeStartNewTournament() {
+  async function maybeStartNewTournament(opts = {}) {
     const last = currentTournament.value
-    // Laisser une pause après la finalisation pour montrer le vainqueur
-    if (last?.status === 'finished' && last.finalized_at) {
+    // Laisser une pause après la finalisation pour montrer le vainqueur (sauf si forcé)
+    if (!opts.force && last?.status === 'finished' && last.finalized_at) {
       const elapsed = Date.now() - new Date(last.finalized_at).getTime()
       if (elapsed < INTER_TOURNAMENT_PAUSE_SECONDS * 1000) return false
     }
@@ -283,7 +283,7 @@ export const useArenaStore = defineStore('arena', () => {
         .eq('id', currentTournament.value.id)
     }
     await fetchCurrentTournament()
-    return maybeStartNewTournament()
+    return maybeStartNewTournament({ force: true })
   }
 
   // Accélère le tournoi en cours : marque le tournoi comme terminé et finalise directement
