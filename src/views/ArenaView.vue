@@ -17,6 +17,7 @@
           <li>D&eacute;g&acirc;ts = diff&eacute;rence des jets.</li>
           <li>Vainqueur du tournoi : <strong>+{{ store.POINTS_WINNER }} pts</strong></li>
           <li>Pari correct : <strong>+{{ store.POINTS_BET_CORRECT }} pts</strong></li>
+          <li>Les non-participants peuvent <strong>soutenir</strong> un combattant : +{{ store.HP_BONUS_PER_SUPPORTER }} PV par soutien, +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu remporte le tournoi.</li>
         </ul>
         <button class="rules-close" @click="showRules = false">Compris</button>
       </div>
@@ -68,10 +69,10 @@
               :class="{ current: f.id === currentFight?.id, done: isFightDone(f) }"
             >
               <div class="bracket-slot" :class="{ winner: f.winner_id === f.player_a_id && isFightDone(f) }">
-                <span class="bracket-name">{{ getName(f.player_a_id) || '?' }}</span>
+                <span class="bracket-name">{{ isRevealed(f) ? (getName(f.player_a_id) || '?') : '?' }}</span>
               </div>
               <div class="bracket-slot" :class="{ winner: f.winner_id === f.player_b_id && isFightDone(f) }">
-                <span class="bracket-name">{{ getName(f.player_b_id) || '?' }}</span>
+                <span class="bracket-name">{{ isRevealed(f) ? (getName(f.player_b_id) || '?') : '?' }}</span>
               </div>
             </div>
           </div>
@@ -170,6 +171,39 @@
           </div>
         </div>
 
+        <!-- Supports panel -->
+        <div v-if="store.currentTournament.status === 'active'" class="supports-section">
+          <h3>&#x1F4AA; Soutiens <span class="supports-hint">+{{ store.HP_BONUS_PER_SUPPORTER }} PV par soutien &middot; +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu gagne le tournoi</span></h3>
+          <div v-if="!canSupport && !isParticipant" class="muted-sm">Connectez-vous pour soutenir.</div>
+          <div v-if="isParticipant" class="muted-sm">Vous participez &agrave; ce tournoi, vous ne pouvez pas soutenir.</div>
+          <div class="supports-grid">
+            <div
+              v-for="pid in store.currentTournament.player_ids"
+              :key="pid"
+              class="support-card"
+              :class="{ mine: store.mySupport?.fighter_id === pid }"
+            >
+              <div class="support-avatar">
+                <img v-if="getAvatar(pid)" :src="getAvatar(pid)" />
+                <span v-else class="avatar-ph">{{ (getName(pid) || '?')[0] }}</span>
+              </div>
+              <div class="support-name">{{ getName(pid) }}</div>
+              <div class="support-count">
+                {{ store.supportCountsByFighter[pid] || 0 }} soutien(s)
+                <span class="support-hp">+{{ (store.supportCountsByFighter[pid] || 0) * store.HP_BONUS_PER_SUPPORTER }} PV</span>
+              </div>
+              <button
+                v-if="canSupport"
+                class="support-btn"
+                :class="{ active: store.mySupport?.fighter_id === pid }"
+                @click="toggleSupport(pid)"
+              >
+                {{ store.mySupport?.fighter_id === pid ? 'Retirer' : 'Soutenir' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
         <!-- Leaderboard -->
         <div class="lb-section">
           <h2>&#x1F3C6; Classement</h2>
@@ -179,7 +213,7 @@
             <img v-if="r.profiles?.avatar_url" :src="r.profiles.avatar_url" class="lb-av" />
             <span v-else class="lb-av lb-av-ph">{{ (r.profiles?.display_name || '?')[0] }}</span>
             <span class="lb-name">{{ r.profiles?.display_name }}</span>
-            <span class="lb-stats">{{ r.tournaments_won || 0 }}&#x1F3C6; &middot; {{ r.correct_bets || 0 }}&#x1F3AF;</span>
+            <span class="lb-stats">{{ r.tournaments_won || 0 }}&#x1F3C6; &middot; {{ r.correct_bets || 0 }}&#x1F3AF; &middot; {{ r.correct_supports || 0 }}&#x1F4AA;</span>
             <span class="lb-pts">{{ r.points_total }} pts</span>
           </div>
         </div>
@@ -248,20 +282,21 @@ const fightsByRound = computed(() => {
 })
 
 // Current fight = prochain combat dont scheduled_start_at + duration >= now
+// On exige aussi que le combat soit "révélé" (prérequis terminés) pour qu'il s'affiche en grand
 const currentFight = computed(() => {
   const sorted = [...store.currentFights].sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
   const fd = store.currentTournament?.fight_duration_seconds || 0
   for (const f of sorted) {
     const start = new Date(f.scheduled_start_at).getTime()
     const end = start + fd * 1000
-    if (now.value < end) return f
+    if (now.value < end && isRevealed(f)) return f
   }
   return sorted[sorted.length - 1] || null
 })
 
 const fightStarted = computed(() => currentFight.value && now.value >= new Date(currentFight.value.scheduled_start_at).getTime())
 
-// Simulation du combat courant
+// Simulation du combat courant (avec bonus HP des supports)
 const currentSim = computed(() => {
   if (!currentFight.value || !store.currentTournament) return null
   const f = currentFight.value
@@ -269,7 +304,9 @@ const currentSim = computed(() => {
   const pA = { id: f.player_a_id, sheet: store.sheets[f.player_a_id] || {} }
   const pB = { id: f.player_b_id, sheet: store.sheets[f.player_b_id] || {} }
   if (!f.player_a_id || !f.player_b_id) return null
-  return simulateFight(seed, pA, pB)
+  const bonusA = store.hpBonusFor(f.player_a_id, f.scheduled_start_at)
+  const bonusB = store.hpBonusFor(f.player_b_id, f.scheduled_start_at)
+  return simulateFight(seed, pA, pB, bonusA, bonusB)
 })
 
 const maxHpA = computed(() => currentSim.value?.max_hp_a || 0)
@@ -368,6 +405,27 @@ const betCountB = computed(() =>
   currentFight.value ? store.currentBets.filter(b => b.fight_id === currentFight.value.id && b.picked_winner_id === currentFight.value.player_b_id).length : 0
 )
 
+// Supports
+const isParticipant = computed(() => {
+  const ids = store.currentTournament?.player_ids || []
+  return myId.value && ids.includes(myId.value)
+})
+const canSupport = computed(() => {
+  if (!myId.value) return false
+  if (isParticipant.value) return false
+  if (store.currentTournament?.status !== 'active') return false
+  return true
+})
+async function toggleSupport(fighterId) {
+  try {
+    if (store.mySupport?.fighter_id === fighterId) {
+      await store.cancelSupport()
+    } else {
+      await store.supportFighter(fighterId)
+    }
+  } catch (e) { alert(e.message) }
+}
+
 async function bet(pickedId) {
   try { await store.placeBet(currentFight.value.id, pickedId) } catch (e) { alert(e.message) }
 }
@@ -377,8 +435,19 @@ async function cancelBet() {
 
 // Bracket helpers
 function isFightDone(f) {
+  if (!f) return false
   const end = new Date(f.scheduled_start_at).getTime() + (store.currentTournament?.fight_duration_seconds || 0) * 1000
   return now.value >= end
+}
+// Une fight est révélable (noms visibles) si ses combats prérequis sont terminés.
+// Round 1 : toujours révélé. Round r > 1 : il faut que les deux fights de position 2p et 2p+1 au round r-1 soient done.
+function isRevealed(f) {
+  if (!f) return false
+  if (f.round === 1) return true
+  const prevRound = fightsByRound.value[f.round - 1] || []
+  const prev1 = prevRound.find(x => x.bracket_position === f.bracket_position * 2)
+  const prev2 = prevRound.find(x => x.bracket_position === f.bracket_position * 2 + 1)
+  return isFightDone(prev1) && isFightDone(prev2)
 }
 function roundLabel(r) {
   const max = rounds.value[rounds.value.length - 1]

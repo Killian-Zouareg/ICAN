@@ -24,12 +24,13 @@ function rollForStat(rng, statValue) {
 /**
  * simulateFight — déterministe depuis `seed`.
  * playerA / playerB = { id, sheet: {force, vigueur, mobilite, intelligence, charisme} }
- * Retourne { winner_id, turns: [{turn_index, stat, attacker_id, defender_id, attacker_roll, defender_roll, damage, hp_a_after, hp_b_after}], total_turns }
+ * hpBonusA / hpBonusB = bonus de PV additionnel (ex: supports communautaires, +2 par supporter)
+ * Retourne { winner_id, turns: [...], total_turns, max_hp_a, max_hp_b }
  */
-export function simulateFight(seed, playerA, playerB) {
+export function simulateFight(seed, playerA, playerB, hpBonusA = 0, hpBonusB = 0) {
   const rng = createRng(seed)
-  const maxHpA = computeMaxHp(playerA.sheet)
-  const maxHpB = computeMaxHp(playerB.sheet)
+  const maxHpA = computeMaxHp(playerA.sheet) + (hpBonusA || 0)
+  const maxHpB = computeMaxHp(playerB.sheet) + (hpBonusB || 0)
   let hpA = maxHpA
   let hpB = maxHpB
 
@@ -114,10 +115,9 @@ export function generateBracket(seed, playerIds) {
  * Résout tous les combats d'un bracket déterministiquement.
  * Retourne la liste complète avec winner_id et joueurs remplis pour tous les rounds.
  */
-export function resolveBracket(tournamentSeed, bracketFights, playerSheets) {
-  // Map: { playerId: sheet }
+export function resolveBracket(tournamentSeed, bracketFights, playerSheets, hpBonuses = {}) {
+  // hpBonuses = { [playerId]: bonusHp }
   const fights = bracketFights.map(f => ({ ...f }))
-  // Group by round
   const byRound = {}
   for (const f of fights) {
     if (!byRound[f.round]) byRound[f.round] = []
@@ -127,7 +127,6 @@ export function resolveBracket(tournamentSeed, bracketFights, playerSheets) {
   for (const r of rounds) {
     const rFights = byRound[r].sort((a, b) => a.bracket_position - b.bracket_position)
     for (const f of rFights) {
-      // Fill players from previous round winners if needed
       if (!f.player_a_id || !f.player_b_id) {
         const prev = byRound[r - 1].sort((a, b) => a.bracket_position - b.bracket_position)
         const pos = f.bracket_position
@@ -137,7 +136,9 @@ export function resolveBracket(tournamentSeed, bracketFights, playerSheets) {
       const seed = hashSeed('fight', tournamentSeed, r, f.bracket_position)
       const pA = { id: f.player_a_id, sheet: playerSheets[f.player_a_id] || {} }
       const pB = { id: f.player_b_id, sheet: playerSheets[f.player_b_id] || {} }
-      const sim = simulateFight(seed, pA, pB)
+      const bonusA = hpBonuses[f.player_a_id] || 0
+      const bonusB = hpBonuses[f.player_b_id] || 0
+      const sim = simulateFight(seed, pA, pB, bonusA, bonusB)
       f.winner_id = sim.winner_id
       f.simulation = sim
     }

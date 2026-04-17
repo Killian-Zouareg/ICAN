@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.6.0',
+    date: '17 avril 2026',
+    icon: '\u{1F4AA}',
+    color: '#17bf63',
+    title: 'iArena \u2014 Soutiens des combattants',
+    description: 'Les non-participants peuvent d\u00e9sormais soutenir un combattant du tournoi. Chaque soutien ajoute +2 PV max au combattant pour ses combats \u00e0 venir. Si le soutenu remporte le tournoi, le supporter gagne +5 points au classement.',
+    tags: ['Arena', 'Soutiens', 'PV', 'Communaut\u00e9'],
+  },
+  {
     version: '4.5.0',
     date: '14 avril 2026',
     icon: '\u2694\uFE0F',
@@ -407,6 +416,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.6.0',
+    date: '17 avril 2026',
+    title: 'iArena \u2014 Soutiens des combattants',
+    tag: 'feature',
+    changes: [
+      { type: 'new', text: 'Les non-participants peuvent soutenir un combattant du tournoi en cours' },
+      { type: 'new', text: 'Chaque soutien ajoute +2 PV max au combattant pour ses combats \u00e0 venir' },
+      { type: 'new', text: 'Les soutiens sont fig\u00e9s au d\u00e9but de chaque combat (scheduled_start_at)' },
+      { type: 'new', text: '+5 pts au classement si le combattant soutenu remporte le tournoi' },
+      { type: 'new', text: 'Panneau \u00ab Soutiens \u00bb dans la vue iArena avec compteur par combattant' },
+      { type: 'improved', text: 'Bracket recalcul\u00e9 en live pour les combats non commenc\u00e9s quand les soutiens changent' },
+    ],
+  },
   {
     version: '4.5.0',
     date: '14 avril 2026',
