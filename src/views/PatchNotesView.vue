@@ -83,12 +83,12 @@ const tab = ref('highlights')
 const highlights = [
   {
     version: '4.6.0',
-    date: '17 avril 2026',
+    date: '18 avril 2026',
     icon: '\u{1F4AA}',
     color: '#17bf63',
-    title: 'iArena \u2014 Soutiens des combattants',
-    description: 'Les non-participants peuvent d\u00e9sormais soutenir un combattant du tournoi. Chaque soutien ajoute +2 PV max au combattant pour ses combats \u00e0 venir. Si le soutenu remporte le tournoi, le supporter gagne +5 points au classement.',
-    tags: ['Arena', 'Soutiens', 'PV', 'Communaut\u00e9'],
+    title: 'iArena \u2014 Rondes suisses & soutiens',
+    description: 'iArena passe au format <strong>rondes suisses</strong> : chaque joueur combat plusieurs adversaires (pairings par classement \u00e0 chaque ronde), fini l\u2019\u00e9limination directe. Les nombres impairs de joueurs sont g\u00e9r\u00e9s par des byes rotatifs. Les non-participants peuvent soutenir un combattant en un clic sous le combat en cours : +2 au max des jets (attaque et d\u00e9fense) par soutien, +5 pts si le soutenu remporte le tournoi.',
+    tags: ['Arena', 'Swiss', 'Soutiens', 'Tournois'],
   },
   {
     version: '4.5.0',
@@ -418,16 +418,20 @@ const changeBadges = {
 const patches = [
   {
     version: '4.6.0',
-    date: '17 avril 2026',
-    title: 'iArena \u2014 Soutiens des combattants',
-    tag: 'feature',
+    date: '18 avril 2026',
+    title: 'iArena \u2014 Rondes suisses & soutiens',
+    tag: 'major',
     changes: [
-      { type: 'new', text: 'Les non-participants peuvent soutenir un combattant du tournoi en cours' },
-      { type: 'new', text: 'Chaque soutien ajoute +2 PV max au combattant pour ses combats \u00e0 venir' },
-      { type: 'new', text: 'Les soutiens sont fig\u00e9s au d\u00e9but de chaque combat (scheduled_start_at)' },
+      { type: 'new', text: 'Format rondes suisses : chaque joueur combat plusieurs adversaires, pairings par classement' },
+      { type: 'new', text: 'Nombre de rondes = min(N-1, 5) pour garantir \u00ab tout le monde se bat contre tout le monde \u00bb dans les petits tournois' },
+      { type: 'new', text: 'Classement Swiss en direct : V (victoires), D (d\u00e9faites), byes' },
+      { type: 'new', text: 'Gestion native des nombres impairs : un joueur diff\u00e9rent re\u00e7oit un bye (+1V) \u00e0 chaque ronde' },
+      { type: 'new', text: 'Vainqueur du tournoi = t\u00eate du classement apr\u00e8s toutes les rondes' },
+      { type: 'new', text: 'Bouton \u00ab Soutenir \u00bb compact sous chaque combattant du combat en cours' },
+      { type: 'new', text: 'Chaque soutien ajoute +2 au max des jets (attaque ET d\u00e9fense) du combattant soutenu' },
       { type: 'new', text: '+5 pts au classement si le combattant soutenu remporte le tournoi' },
-      { type: 'new', text: 'Panneau \u00ab Soutiens \u00bb dans la vue iArena avec compteur par combattant' },
-      { type: 'improved', text: 'Bracket recalcul\u00e9 en live pour les combats non commenc\u00e9s quand les soutiens changent' },
+      { type: 'removed', text: 'Bracket single-elim remplac\u00e9 par les rondes suisses' },
+      { type: 'fix', text: 'Fini les joueurs ignor\u00e9s : tous les joueurs du pool participent (pool de 5 \u2192 5 joueurs actifs)' },
     ],
   },
   {

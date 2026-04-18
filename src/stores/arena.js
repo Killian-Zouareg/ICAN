@@ -2,14 +2,16 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
-import { generateBracket, resolveBracket, computeMaxHp, simulateFight } from '../lib/arenaFight'
+import { resolveSwiss, computeStandings, swissRoundsFor, computeMaxHp, simulateFight } from '../lib/arenaFight'
 import { hashSeed } from '../lib/seededRandom'
 
 const TOURNAMENT_DURATION_HOURS = 10
 const POINTS_WINNER = 100
 const POINTS_BET_CORRECT = 10
 const POINTS_SUPPORT_CORRECT = 5
-const HP_BONUS_PER_SUPPORTER = 2
+// Chaque soutien ajoute +2 au max des jets du soutenu (attaque + défense),
+// ce qui améliore statistiquement ses chances sans être déterministe.
+const ROLL_BONUS_PER_SUPPORTER = 2
 // Pause minimale entre 2 tournois pour afficher l'écran vainqueur
 const INTER_TOURNAMENT_PAUSE_SECONDS = 30
 
@@ -17,9 +19,9 @@ function randomSeed() {
   return Math.floor(Math.random() * 2_000_000_000)
 }
 
-function largestPowerOfTwo(n) {
+function nextPowerOfTwo(n) {
   let p = 1
-  while (p * 2 <= n) p *= 2
+  while (p < n) p *= 2
   return p
 }
 
@@ -47,6 +49,21 @@ export const useArenaStore = defineStore('arena', () => {
     return map
   })
 
+  // Classement Swiss en direct (seulement fights terminés)
+  const currentStandings = computed(() => {
+    const t = currentTournament.value
+    if (!t?.player_ids?.length) return []
+    const nowMs = Date.now()
+    const fightDurMs = (t.fight_duration_seconds || 0) * 1000
+    // On ne compte que les fights dont la fenêtre est passée (résultat "révélé")
+    const doneFights = currentFights.value.filter(f => {
+      if (f.is_bye) return true
+      const end = new Date(f.scheduled_start_at).getTime() + fightDurMs
+      return nowMs >= end
+    })
+    return computeStandings(t.player_ids, doneFights).standings
+  })
+
   // Totaux actuels de supporters par fighter (toute la durée du tournoi)
   const supportCountsByFighter = computed(() => {
     const map = {}
@@ -63,8 +80,9 @@ export const useArenaStore = defineStore('arena', () => {
     return currentSupports.value.find(s => s.supporter_id === pid) || null
   })
 
-  // Calcule le bonus HP d'un combattant à l'instant t (supports créés avant un cutoff)
-  function hpBonusFor(fighterId, cutoffIso) {
+  // Calcule le bonus de jet d'un combattant à l'instant t (supports créés avant un cutoff)
+  // S'applique au max des jets de ce combattant (attaque + défense)
+  function rollBonusFor(fighterId, cutoffIso) {
     if (!fighterId) return 0
     const cutoff = cutoffIso ? new Date(cutoffIso).getTime() : Date.now()
     let n = 0
@@ -72,7 +90,7 @@ export const useArenaStore = defineStore('arena', () => {
       if (s.fighter_id !== fighterId) continue
       if (new Date(s.created_at).getTime() <= cutoff) n++
     }
-    return n * HP_BONUS_PER_SUPPORTER
+    return n * ROLL_BONUS_PER_SUPPORTER
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -190,17 +208,22 @@ export const useArenaStore = defineStore('arena', () => {
     if (!canStart) return false
 
     const poolIds = pool.value.map(p => p.profile_id)
-    const bracketSize = largestPowerOfTwo(poolIds.length)
-    if (bracketSize < 2) return false
+    if (poolIds.length < 2) return false
 
-    const playerIds = poolIds.slice(0, bracketSize)
+    const playerIds = [...poolIds]
     await fetchSheetsFor(playerIds)
 
     const seed = randomSeed()
-    // Nombre de combats dans un bracket single-elim = bracketSize - 1
-    const numberOfFights = bracketSize - 1
-    // Chaque combat s'étale sur (durée totale / nombre de combats)
-    const fightDuration = Math.floor((TOURNAMENT_DURATION_HOURS * 3600) / numberOfFights)
+    const numRounds = swissRoundsFor(playerIds.length)
+    const sheetsMap = {}
+    for (const pid of playerIds) sheetsMap[pid] = sheets.value[pid] || {}
+
+    // Résolution Swiss complète (pré-calcule toutes les rondes, déterministe)
+    const resolved = resolveSwiss(seed, playerIds, sheetsMap, {}, numRounds)
+
+    // Nombre de combats réels (non-byes) pour étaler la durée
+    const realFights = resolved.fights.filter(f => !f.is_bye).length
+    const fightDuration = Math.floor((TOURNAMENT_DURATION_HOURS * 3600) / Math.max(1, realFights))
     const startAt = new Date().toISOString()
 
     const { data: t, error: tErr } = await supabase.from('arena_tournaments').insert({
@@ -208,28 +231,34 @@ export const useArenaStore = defineStore('arena', () => {
       start_at: startAt,
       fight_duration_seconds: fightDuration,
       player_ids: playerIds,
-      bracket_size: bracketSize,
+      bracket_size: playerIds.length,
       seed,
     }).select().single()
     if (tErr) throw new Error(tErr.message)
 
-    const bracketFights = generateBracket(seed, playerIds)
-    const sheetsMap = {}
-    for (const pid of playerIds) sheetsMap[pid] = sheets.value[pid] || {}
-    const resolved = resolveBracket(seed, bracketFights, sheetsMap)
-
-    // fight_order chronologique : tous les round 1 d'abord, puis round 2, etc.
+    // Planification : byes instantanés, combats réels enchaînés chronologiquement.
+    // Les byes d'une ronde donnée sont placés au même instant que le 1er combat réel de cette ronde
+    // pour que la ronde soit cohérente.
     const tStart = new Date(startAt).getTime()
-    const sorted = [...resolved].sort((a, b) => a.round - b.round || a.bracket_position - b.bracket_position)
-    const fightRows = sorted.map((f, idx) => ({
-      tournament_id: t.id,
-      round: f.round,
-      bracket_position: f.bracket_position,
-      player_a_id: f.player_a_id,
-      player_b_id: f.player_b_id,
-      scheduled_start_at: new Date(tStart + idx * fightDuration * 1000).toISOString(),
-      winner_id: f.winner_id,
-    }))
+    const sorted = [...resolved.fights].sort((a, b) => a.round - b.round || a.bracket_position - b.bracket_position)
+    let realIdx = 0
+    const fightRows = sorted.map(f => {
+      const isBye = !!f.is_bye
+      const scheduled = isBye
+        ? new Date(tStart + realIdx * fightDuration * 1000).toISOString()
+        : new Date(tStart + realIdx * fightDuration * 1000).toISOString()
+      if (!isBye) realIdx++
+      return {
+        tournament_id: t.id,
+        round: f.round,
+        bracket_position: f.bracket_position,
+        player_a_id: f.player_a_id,
+        player_b_id: f.player_b_id,
+        scheduled_start_at: scheduled,
+        winner_id: f.winner_id,
+        is_bye: isBye,
+      }
+    })
     const { error: fErr } = await supabase.from('arena_fights').insert(fightRows)
     if (fErr) throw new Error(fErr.message)
 
@@ -248,18 +277,18 @@ export const useArenaStore = defineStore('arena', () => {
     const lastEnd = new Date(new Date(lastFight.scheduled_start_at).getTime() + t.fight_duration_seconds * 1000)
     if (now < lastEnd) return
 
-    const maxRound = Math.max(...allFights.map(f => f.round))
-    const finalFight = allFights.find(f => f.round === maxRound)
-    if (!finalFight?.winner_id) return
+    // Swiss : le vainqueur est le joueur en tête du classement (plus de victoires)
+    const { winner_id: tournamentWinnerId } = computeStandings(t.player_ids || [], allFights)
+    if (!tournamentWinnerId) return
 
     const { error: tErr } = await supabase
       .from('arena_tournaments')
-      .update({ status: 'finished', winner_id: finalFight.winner_id, finalized_at: new Date().toISOString() })
+      .update({ status: 'finished', winner_id: tournamentWinnerId, finalized_at: new Date().toISOString() })
       .eq('id', t.id)
       .is('finalized_at', null)
     if (tErr) { console.warn('Finalize:', tErr.message); return }
 
-    await incrementRating(finalFight.winner_id, { tournaments_won: 1 })
+    await incrementRating(tournamentWinnerId, { tournaments_won: 1 })
 
     const fightWinners = {}
     for (const f of allFights) fightWinners[f.id] = f.winner_id
@@ -271,7 +300,7 @@ export const useArenaStore = defineStore('arena', () => {
     }
 
     // Supports : +1 correct_support si le soutenu a gagné le tournoi
-    const correctSupporters = currentSupports.value.filter(s => s.fighter_id === finalFight.winner_id)
+    const correctSupporters = currentSupports.value.filter(s => s.fighter_id === tournamentWinnerId)
     for (const s of correctSupporters) {
       await incrementRating(s.supporter_id, { correct_supports: 1 })
     }
@@ -363,68 +392,36 @@ export const useArenaStore = defineStore('arena', () => {
     await recomputeUnlockedFights()
   }
 
-  // Recalcule le winner_id des combats non encore commencés (scheduled_start_at > now)
-  // en appliquant les bonus HP des supports (figés à scheduled_start_at de chaque combat).
+  // Swiss : les pairings sont pré-calculés à la création du tournoi. Les supports modifient
+  // uniquement les WINNERS des combats non encore commencés (les pairings restent figés).
   async function recomputeUnlockedFights() {
     const t = currentTournament.value
     if (!t || t.status !== 'active') return
     const fights = [...currentFights.value].sort((a, b) => a.round - b.round || a.bracket_position - b.bracket_position)
     if (!fights.length) return
 
-    const byRound = {}
-    for (const f of fights) {
-      if (!byRound[f.round]) byRound[f.round] = []
-      byRound[f.round].push(f)
-    }
-    const rounds = Object.keys(byRound).map(Number).sort((a, b) => a - b)
-    const updates = []
     const nowMs = Date.now()
+    const updates = []
 
-    for (const r of rounds) {
-      const rFights = byRound[r].sort((a, b) => a.bracket_position - b.bracket_position)
-      for (const f of rFights) {
-        const startMs = new Date(f.scheduled_start_at).getTime()
-        // Combat déjà commencé : on ne touche pas (résultat figé)
-        if (startMs <= nowMs) continue
+    for (const f of fights) {
+      const startMs = new Date(f.scheduled_start_at).getTime()
+      if (startMs <= nowMs) continue // combat déjà commencé
+      if (f.is_bye) continue
+      if (!f.player_a_id || !f.player_b_id) continue
 
-        // Remplir player_a/b_id depuis les winners du round précédent (éventuellement recalculés)
-        let playerAId = f.player_a_id
-        let playerBId = f.player_b_id
-        if (r > 1) {
-          const prev = byRound[r - 1].sort((a, b) => a.bracket_position - b.bracket_position)
-          const pos = f.bracket_position
-          playerAId = prev[pos * 2]?.winner_id || null
-          playerBId = prev[pos * 2 + 1]?.winner_id || null
-        }
-
-        if (!playerAId || !playerBId) continue
-
-        // Bonus HP = supports créés avant scheduled_start_at de CE combat
-        const bonusA = hpBonusFor(playerAId, f.scheduled_start_at)
-        const bonusB = hpBonusFor(playerBId, f.scheduled_start_at)
-        const seed = hashSeed('fight', t.seed, f.round, f.bracket_position)
-        const pA = { id: playerAId, sheet: sheets.value[playerAId] || {} }
-        const pB = { id: playerBId, sheet: sheets.value[playerBId] || {} }
-        const sim = simulateFight(seed, pA, pB, bonusA, bonusB)
-        f.player_a_id = playerAId
-        f.player_b_id = playerBId
-        f.winner_id = sim.winner_id
-
-        updates.push({
-          id: f.id,
-          player_a_id: playerAId,
-          player_b_id: playerBId,
-          winner_id: sim.winner_id,
-        })
+      const bonusA = rollBonusFor(f.player_a_id, f.scheduled_start_at)
+      const bonusB = rollBonusFor(f.player_b_id, f.scheduled_start_at)
+      const seed = hashSeed('fight', t.seed, f.round, f.bracket_position)
+      const pA = { id: f.player_a_id, sheet: sheets.value[f.player_a_id] || {} }
+      const pB = { id: f.player_b_id, sheet: sheets.value[f.player_b_id] || {} }
+      const sim = simulateFight(seed, pA, pB, bonusA, bonusB)
+      if (sim.winner_id !== f.winner_id) {
+        updates.push({ id: f.id, winner_id: sim.winner_id })
       }
     }
 
-    // Écrire les changements en DB
     for (const u of updates) {
-      await supabase
-        .from('arena_fights')
-        .update({ player_a_id: u.player_a_id, player_b_id: u.player_b_id, winner_id: u.winner_id })
-        .eq('id', u.id)
+      await supabase.from('arena_fights').update({ winner_id: u.winner_id }).eq('id', u.id)
     }
 
     if (updates.length) {
@@ -459,9 +456,9 @@ export const useArenaStore = defineStore('arena', () => {
     if (fErr) throw new Error('Fetch fights: ' + fErr.message)
     if (!fights?.length) throw new Error('Aucun combat dans ce tournoi')
 
-    const maxRound = Math.max(...fights.map(f => f.round))
-    const finalFight = fights.find(f => f.round === maxRound)
-    if (!finalFight?.winner_id) throw new Error('Pas de vainqueur d\u00e9termin\u00e9 dans la finale')
+    // Swiss : vainqueur = tête du classement
+    const { winner_id: tournamentWinnerId } = computeStandings(t.player_ids || [], fights)
+    if (!tournamentWinnerId) throw new Error('Pas de vainqueur d\u00e9termin\u00e9 dans le classement')
 
     // 2) Avance scheduled_start_at + durée = 1s (pour que l'UI affiche immédiatement la fin)
     const pastIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString()
@@ -482,7 +479,7 @@ export const useArenaStore = defineStore('arena', () => {
       .update({
         status: 'finished',
         fight_duration_seconds: 1,
-        winner_id: finalFight.winner_id,
+        winner_id: tournamentWinnerId,
         finalized_at: new Date().toISOString(),
       })
       .eq('id', t.id)
@@ -498,12 +495,12 @@ export const useArenaStore = defineStore('arena', () => {
     }
 
     // 5) Attribue les points (+100 au vainqueur, +10 par pari correct, +5 par soutien gagnant)
-    try { await incrementRating(finalFight.winner_id, { tournaments_won: 1 }) } catch (e) { console.warn('Winner rating:', e.message) }
+    try { await incrementRating(tournamentWinnerId, { tournaments_won: 1 }) } catch (e) { console.warn('Winner rating:', e.message) }
     for (const [bettorId, count] of Object.entries(byBettor)) {
       try { await incrementRating(bettorId, { correct_bets: count }) } catch (e) { console.warn('Bet rating:', e.message) }
     }
     // Supports du vainqueur
-    const { data: supports } = await supabase.from('arena_supports').select('*').eq('tournament_id', t.id).eq('fighter_id', finalFight.winner_id)
+    const { data: supports } = await supabase.from('arena_supports').select('*').eq('tournament_id', t.id).eq('fighter_id', tournamentWinnerId)
     for (const s of supports || []) {
       try { await incrementRating(s.supporter_id, { correct_supports: 1 }) } catch (e) { console.warn('Support rating:', e.message) }
     }
@@ -536,14 +533,14 @@ export const useArenaStore = defineStore('arena', () => {
 
   return {
     pool, currentTournament, currentFights, currentBets, currentSupports, ratings, sheets, loading,
-    myBetsByFight, supportCountsByFighter, mySupport,
-    TOURNAMENT_DURATION_HOURS, POINTS_WINNER, POINTS_BET_CORRECT, POINTS_SUPPORT_CORRECT, HP_BONUS_PER_SUPPORTER,
+    myBetsByFight, supportCountsByFighter, mySupport, currentStandings,
+    TOURNAMENT_DURATION_HOURS, POINTS_WINNER, POINTS_BET_CORRECT, POINTS_SUPPORT_CORRECT, ROLL_BONUS_PER_SUPPORTER,
     fetchPool, fetchRatings, fetchCurrentTournament,
     addToPool, removeFromPool, searchProfiles,
     maybeStartNewTournament, finalizeTournamentIfDone, forceNewTournament,
     endTournamentNow, resetLeaderboard,
     placeBet, cancelBet,
-    supportFighter, cancelSupport, hpBonusFor, recomputeUnlockedFights,
+    supportFighter, cancelSupport, rollBonusFor, recomputeUnlockedFights,
     computeMaxHp,
     init,
   }

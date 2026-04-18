@@ -10,14 +10,14 @@
     <div v-if="showRules" class="rules-popup" @click.self="showRules = false">
       <div class="rules-card">
         <h3>R&egrave;gles</h3>
-        <p>Tournoi en &eacute;limination directe d'une dur&eacute;e de {{ store.TOURNAMENT_DURATION_HOURS }}h. Les combattants sont s&eacute;lectionn&eacute;s par l'admin.</p>
+        <p>Tournoi en <strong>rondes suisses</strong> d'une dur&eacute;e de {{ store.TOURNAMENT_DURATION_HOURS }}h. Les combattants sont s&eacute;lectionn&eacute;s par l'admin. Chaque joueur combat plusieurs adversaires ; le vainqueur du tournoi est celui qui a le plus de victoires.</p>
         <ul>
           <li>PV = 20 + vigueur &times; 10</li>
           <li>Chaque tour, une stat est tir&eacute;e au sort. L'attaquant fait un jet, le d&eacute;fenseur doit &eacute;galer ou d&eacute;passer pour se prot&eacute;ger.</li>
           <li>D&eacute;g&acirc;ts = diff&eacute;rence des jets.</li>
           <li>Vainqueur du tournoi : <strong>+{{ store.POINTS_WINNER }} pts</strong></li>
           <li>Pari correct : <strong>+{{ store.POINTS_BET_CORRECT }} pts</strong></li>
-          <li>Les non-participants peuvent <strong>soutenir</strong> un combattant : +{{ store.HP_BONUS_PER_SUPPORTER }} PV par soutien, +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu remporte le tournoi.</li>
+          <li>Les non-participants peuvent <strong>soutenir</strong> un combattant du combat en cours : +{{ store.ROLL_BONUS_PER_SUPPORTER }} au max de ses jets (attaque et d&eacute;fense) par soutien. +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu remporte le tournoi.</li>
         </ul>
         <button class="rules-close" @click="showRules = false">Compris</button>
       </div>
@@ -58,22 +58,45 @@
           </div>
         </div>
 
-        <!-- Bracket mini -->
-        <div class="bracket">
-          <div v-for="r in rounds" :key="r" class="bracket-round">
-            <div class="round-label">{{ roundLabel(r) }}</div>
+        <!-- Classement Swiss en direct -->
+        <div class="swiss-standings">
+          <h3>&#x1F4CA; Classement de la ronde</h3>
+          <div class="standings-list">
+            <div v-for="(s, i) in store.currentStandings" :key="s.profile_id" class="standing-row" :class="{ leader: i === 0 }">
+              <span class="standing-rank">{{ i + 1 }}</span>
+              <img v-if="getAvatar(s.profile_id)" :src="getAvatar(s.profile_id)" class="standing-av" />
+              <span v-else class="standing-av standing-av-ph">{{ (getName(s.profile_id) || '?')[0] }}</span>
+              <span class="standing-name">{{ getName(s.profile_id) }}</span>
+              <span class="standing-wins">{{ s.wins }}V &middot; {{ s.losses }}D<span v-if="s.byes">  &middot; {{ s.byes }} bye</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Rondes (Swiss) -->
+        <div class="swiss-rounds">
+          <div v-for="r in rounds" :key="r" class="swiss-round">
+            <div class="round-label">Ronde {{ r }}</div>
             <div
               v-for="f in fightsByRound[r]"
               :key="f.id"
-              class="bracket-fight"
-              :class="{ current: f.id === currentFight?.id, done: isFightDone(f) }"
+              class="swiss-fight"
+              :class="{ current: f.id === currentFight?.id, done: isFightDone(f), bye: f.is_bye }"
             >
-              <div class="bracket-slot" :class="{ winner: f.winner_id === f.player_a_id && isFightDone(f) }">
-                <span class="bracket-name">{{ isRevealed(f) ? (getName(f.player_a_id) || '?') : '?' }}</span>
-              </div>
-              <div class="bracket-slot" :class="{ winner: f.winner_id === f.player_b_id && isFightDone(f) }">
-                <span class="bracket-name">{{ isRevealed(f) ? (getName(f.player_b_id) || '?') : '?' }}</span>
-              </div>
+              <template v-if="f.is_bye">
+                <div class="swiss-slot winner">
+                  <span class="swiss-name">{{ getName(f.player_a_id) || '?' }}</span>
+                  <span class="swiss-bye">bye (+1V)</span>
+                </div>
+              </template>
+              <template v-else>
+                <div class="swiss-slot" :class="{ winner: f.winner_id === f.player_a_id && isFightDone(f) }">
+                  <span class="swiss-name">{{ isRevealed(f) ? (getName(f.player_a_id) || '?') : '?' }}</span>
+                </div>
+                <span class="swiss-vs">vs</span>
+                <div class="swiss-slot" :class="{ winner: f.winner_id === f.player_b_id && isFightDone(f) }">
+                  <span class="swiss-name">{{ isRevealed(f) ? (getName(f.player_b_id) || '?') : '?' }}</span>
+                </div>
+              </template>
             </div>
           </div>
         </div>
@@ -96,6 +119,21 @@
               <div class="hp-bar">
                 <div class="hp-fill" :style="{ width: hpPctA + '%' }"></div>
                 <span class="hp-text">{{ animatedHpA }} / {{ maxHpA }}</span>
+              </div>
+              <div class="fighter-support">
+                <button
+                  v-if="canSupport"
+                  class="support-mini-btn"
+                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_a_id }"
+                  :title="supportTitle(currentFight.player_a_id)"
+                  @click="toggleSupport(currentFight.player_a_id)"
+                >
+                  &#x1F4AA; {{ store.mySupport?.fighter_id === currentFight.player_a_id ? 'Soutenu' : 'Soutenir' }}
+                </button>
+                <span class="support-mini-count" v-if="(store.supportCountsByFighter[currentFight.player_a_id] || 0) > 0">
+                  {{ store.supportCountsByFighter[currentFight.player_a_id] }} &#x1F4AA;
+                  <span class="support-mini-bonus">(+{{ (store.supportCountsByFighter[currentFight.player_a_id] || 0) * store.ROLL_BONUS_PER_SUPPORTER }} jet)</span>
+                </span>
               </div>
             </div>
 
@@ -127,6 +165,21 @@
               <div class="hp-bar">
                 <div class="hp-fill" :style="{ width: hpPctB + '%' }"></div>
                 <span class="hp-text">{{ animatedHpB }} / {{ maxHpB }}</span>
+              </div>
+              <div class="fighter-support">
+                <button
+                  v-if="canSupport"
+                  class="support-mini-btn"
+                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_b_id }"
+                  :title="supportTitle(currentFight.player_b_id)"
+                  @click="toggleSupport(currentFight.player_b_id)"
+                >
+                  &#x1F4AA; {{ store.mySupport?.fighter_id === currentFight.player_b_id ? 'Soutenu' : 'Soutenir' }}
+                </button>
+                <span class="support-mini-count" v-if="(store.supportCountsByFighter[currentFight.player_b_id] || 0) > 0">
+                  {{ store.supportCountsByFighter[currentFight.player_b_id] }} &#x1F4AA;
+                  <span class="support-mini-bonus">(+{{ (store.supportCountsByFighter[currentFight.player_b_id] || 0) * store.ROLL_BONUS_PER_SUPPORTER }} jet)</span>
+                </span>
               </div>
             </div>
           </div>
@@ -167,39 +220,6 @@
                 <span v-else class="log-parade">&#x2794; parade</span>
                 ({{ t.attacker_roll }} vs {{ t.defender_roll }})
               </span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Supports panel -->
-        <div v-if="store.currentTournament.status === 'active'" class="supports-section">
-          <h3>&#x1F4AA; Soutiens <span class="supports-hint">+{{ store.HP_BONUS_PER_SUPPORTER }} PV par soutien &middot; +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu gagne le tournoi</span></h3>
-          <div v-if="!canSupport && !isParticipant" class="muted-sm">Connectez-vous pour soutenir.</div>
-          <div v-if="isParticipant" class="muted-sm">Vous participez &agrave; ce tournoi, vous ne pouvez pas soutenir.</div>
-          <div class="supports-grid">
-            <div
-              v-for="pid in store.currentTournament.player_ids"
-              :key="pid"
-              class="support-card"
-              :class="{ mine: store.mySupport?.fighter_id === pid }"
-            >
-              <div class="support-avatar">
-                <img v-if="getAvatar(pid)" :src="getAvatar(pid)" />
-                <span v-else class="avatar-ph">{{ (getName(pid) || '?')[0] }}</span>
-              </div>
-              <div class="support-name">{{ getName(pid) }}</div>
-              <div class="support-count">
-                {{ store.supportCountsByFighter[pid] || 0 }} soutien(s)
-                <span class="support-hp">+{{ (store.supportCountsByFighter[pid] || 0) * store.HP_BONUS_PER_SUPPORTER }} PV</span>
-              </div>
-              <button
-                v-if="canSupport"
-                class="support-btn"
-                :class="{ active: store.mySupport?.fighter_id === pid }"
-                @click="toggleSupport(pid)"
-              >
-                {{ store.mySupport?.fighter_id === pid ? 'Retirer' : 'Soutenir' }}
-              </button>
             </div>
           </div>
         </div>
@@ -284,7 +304,9 @@ const fightsByRound = computed(() => {
 // Current fight = prochain combat dont scheduled_start_at + duration >= now
 // On exige aussi que le combat soit "révélé" (prérequis terminés) pour qu'il s'affiche en grand
 const currentFight = computed(() => {
-  const sorted = [...store.currentFights].sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
+  const sorted = [...store.currentFights]
+    .filter(f => !f.is_bye)
+    .sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
   const fd = store.currentTournament?.fight_duration_seconds || 0
   for (const f of sorted) {
     const start = new Date(f.scheduled_start_at).getTime()
@@ -304,8 +326,8 @@ const currentSim = computed(() => {
   const pA = { id: f.player_a_id, sheet: store.sheets[f.player_a_id] || {} }
   const pB = { id: f.player_b_id, sheet: store.sheets[f.player_b_id] || {} }
   if (!f.player_a_id || !f.player_b_id) return null
-  const bonusA = store.hpBonusFor(f.player_a_id, f.scheduled_start_at)
-  const bonusB = store.hpBonusFor(f.player_b_id, f.scheduled_start_at)
+  const bonusA = store.rollBonusFor(f.player_a_id, f.scheduled_start_at)
+  const bonusB = store.rollBonusFor(f.player_b_id, f.scheduled_start_at)
   return simulateFight(seed, pA, pB, bonusA, bonusB)
 })
 
@@ -416,6 +438,11 @@ const canSupport = computed(() => {
   if (store.currentTournament?.status !== 'active') return false
   return true
 })
+function supportTitle(pid) {
+  if (store.mySupport?.fighter_id === pid) return 'Retirer mon soutien'
+  if (store.mySupport) return 'Changer mon soutien pour ce combattant'
+  return `Soutenir ce combattant (+${store.ROLL_BONUS_PER_SUPPORTER} au max de ses jets)`
+}
 async function toggleSupport(fighterId) {
   try {
     if (store.mySupport?.fighter_id === fighterId) {
@@ -436,25 +463,14 @@ async function cancelBet() {
 // Bracket helpers
 function isFightDone(f) {
   if (!f) return false
+  if (f.is_bye) return true
   const end = new Date(f.scheduled_start_at).getTime() + (store.currentTournament?.fight_duration_seconds || 0) * 1000
   return now.value >= end
 }
-// Une fight est révélable (noms visibles) si ses combats prérequis sont terminés.
-// Round 1 : toujours révélé. Round r > 1 : il faut que les deux fights de position 2p et 2p+1 au round r-1 soient done.
+// Swiss : les pairings sont pré-calculés, donc les noms des combattants sont visibles dès la création.
+// Mais on masque le RÉSULTAT (winner) tant que le combat n'est pas terminé.
 function isRevealed(f) {
-  if (!f) return false
-  if (f.round === 1) return true
-  const prevRound = fightsByRound.value[f.round - 1] || []
-  const prev1 = prevRound.find(x => x.bracket_position === f.bracket_position * 2)
-  const prev2 = prevRound.find(x => x.bracket_position === f.bracket_position * 2 + 1)
-  return isFightDone(prev1) && isFightDone(prev2)
-}
-function roundLabel(r) {
-  const max = rounds.value[rounds.value.length - 1]
-  if (r === max) return 'Finale'
-  if (r === max - 1) return 'Demies'
-  if (r === max - 2) return 'Quarts'
-  return `R${r}`
+  return !!f
 }
 function getName(pid) {
   if (!pid) return null
