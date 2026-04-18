@@ -312,12 +312,12 @@ const myId = computed(() => auth.activeProfile?.id)
 
 // Rounds groupés
 const rounds = computed(() => {
-  const set = new Set(store.currentFights.map(f => f.round))
+  const set = new Set(store.resolvedFights.map(f => f.round))
   return [...set].sort((a, b) => a - b)
 })
 const fightsByRound = computed(() => {
   const map = {}
-  for (const f of store.currentFights) {
+  for (const f of store.resolvedFights) {
     if (!map[f.round]) map[f.round] = []
     map[f.round].push(f)
   }
@@ -328,7 +328,7 @@ const fightsByRound = computed(() => {
 // Current fight = prochain combat dont scheduled_start_at + duration >= now
 // On exige aussi que le combat soit "révélé" (prérequis terminés) pour qu'il s'affiche en grand
 const currentFight = computed(() => {
-  const sorted = [...store.currentFights]
+  const sorted = [...store.resolvedFights]
     .filter(f => !f.is_bye)
     .sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
   const fd = store.currentTournament?.fight_duration_seconds || 0
@@ -409,7 +409,7 @@ const timeUntilFightStart = computed(() => {
   return fmtDuration(new Date(currentFight.value.scheduled_start_at).getTime() - now.value)
 })
 const timeUntilNextFight = computed(() => {
-  const sorted = [...store.currentFights].sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
+  const sorted = [...store.resolvedFights].sort((a, b) => new Date(a.scheduled_start_at) - new Date(b.scheduled_start_at))
   for (const f of sorted) {
     const start = new Date(f.scheduled_start_at).getTime()
     if (start > now.value) return fmtDuration(start - now.value)
@@ -419,8 +419,8 @@ const timeUntilNextFight = computed(() => {
 
 // Fin du tournoi = dernier fight scheduled_start_at + fight_duration
 const tournamentEndMs = computed(() => {
-  if (!store.currentFights.length || !store.currentTournament) return 0
-  const last = [...store.currentFights].sort((a, b) => new Date(b.scheduled_start_at) - new Date(a.scheduled_start_at))[0]
+  if (!store.resolvedFights.length || !store.currentTournament) return 0
+  const last = [...store.resolvedFights].sort((a, b) => new Date(b.scheduled_start_at) - new Date(a.scheduled_start_at))[0]
   return new Date(last.scheduled_start_at).getTime() + (store.currentTournament.fight_duration_seconds || 0) * 1000
 })
 const timeUntilTournamentEnd = computed(() => {
@@ -518,10 +518,26 @@ function isFightDone(f) {
   const end = new Date(f.scheduled_start_at).getTime() + (store.currentTournament?.fight_duration_seconds || 0) * 1000
   return now.value >= end
 }
-// Swiss : les pairings sont pré-calculés, donc les noms des combattants sont visibles dès la création.
-// Mais on masque le RÉSULTAT (winner) tant que le combat n'est pas terminé.
+// Swiss : pairings pré-calculés → participants visibles dès le début (info publique).
+// Bracket top-cut : participants calculés à partir des standings Swiss → on les masque
+// tant que les prérequis ne sont pas résolus, pour ne pas spoiler le classement.
 function isRevealed(f) {
-  return !!f
+  if (!f) return false
+  if (f.is_bye) return true
+  const t = store.currentTournament
+  if (!t) return true
+  const sr = swissRoundsCount.value
+  // Rondes Swiss : toujours révélées (pairings publics)
+  if (f.round <= sr) return true
+  // Demi-finales : révélées quand toutes les rondes Swiss sont terminées
+  if (f.round === sr + 1) {
+    return store.resolvedFights.filter(ff => ff.round <= sr).every(ff => isFightDone(ff))
+  }
+  // Petite finale (3e place) et Finale : révélées quand les 2 demis sont terminées
+  if (f.round === sr + 2 || f.round === sr + 3) {
+    return store.resolvedFights.filter(ff => ff.round === sr + 1).every(ff => isFightDone(ff))
+  }
+  return true
 }
 function getName(pid) {
   if (!pid) return null
@@ -590,8 +606,9 @@ onMounted(async () => {
   await store.init()
   tickInterval = setInterval(async () => {
     now.value = Date.now()
-    // Tente finalisation si tournoi terminé
+    // Fige en DB les combats dont la fen\u00eatre a commenc\u00e9 (plus de spoiler winner_id dans la DB)
     if (store.currentTournament?.status === 'active') {
+      store.persistDueFights().catch(() => {})
       store.finalizeTournamentIfDone().catch(() => {})
     }
     // Si tournoi fini, tenter de démarrer le suivant (back-to-back)
