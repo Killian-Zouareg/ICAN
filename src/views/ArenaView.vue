@@ -17,7 +17,7 @@
           <li>D&eacute;g&acirc;ts = diff&eacute;rence des jets.</li>
           <li>Vainqueur du tournoi : <strong>+{{ store.POINTS_WINNER }} pts</strong></li>
           <li>Pari correct : <strong>+{{ store.POINTS_BET_CORRECT }} pts</strong></li>
-          <li>Les non-participants peuvent <strong>soutenir</strong> un combattant du combat en cours : +{{ store.ROLL_BONUS_PER_SUPPORTER }} au max de ses jets (attaque et d&eacute;fense) par soutien. +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu remporte le tournoi.</li>
+          <li>Les non-participants peuvent <strong>soutenir</strong> un combattant : +{{ store.ROLL_BONUS_PER_SUPPORTER }} au max de ses jets (attaque et d&eacute;fense) par soutien. +{{ store.POINTS_SUPPORT_CORRECT }} pts si le soutenu remporte le tournoi. <strong>Le soutien est d&eacute;finitif</strong> : une fois donn&eacute;, il ne peut plus &ecirc;tre retir&eacute; ni modifi&eacute;.</li>
         </ul>
         <button class="rules-close" @click="showRules = false">Compris</button>
       </div>
@@ -72,10 +72,10 @@
           </div>
         </div>
 
-        <!-- Rondes (Swiss) -->
+        <!-- Rondes (Swiss + bracket top-cut) -->
         <div class="swiss-rounds">
-          <div v-for="r in rounds" :key="r" class="swiss-round">
-            <div class="round-label">Ronde {{ r }}</div>
+          <div v-for="r in rounds" :key="r" class="swiss-round" :class="{ 'bracket-round': r > swissRoundsCount }">
+            <div class="round-label">{{ roundLabel(r) }}</div>
             <div
               v-for="f in fightsByRound[r]"
               :key="f.id"
@@ -124,7 +124,8 @@
                 <button
                   v-if="canSupport"
                   class="support-mini-btn"
-                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_a_id }"
+                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_a_id, locked: store.mySupport && store.mySupport.fighter_id !== currentFight.player_a_id }"
+                  :disabled="!!store.mySupport"
                   :title="supportTitle(currentFight.player_a_id)"
                   @click="toggleSupport(currentFight.player_a_id)"
                 >
@@ -134,6 +135,17 @@
                   {{ store.supportCountsByFighter[currentFight.player_a_id] }} &#x1F4AA;
                   <span class="support-mini-bonus">(+{{ (store.supportCountsByFighter[currentFight.player_a_id] || 0) * store.ROLL_BONUS_PER_SUPPORTER }} jet)</span>
                 </span>
+                <div v-if="(store.supportersByFighter[currentFight.player_a_id] || []).length" class="supporters-list">
+                  <img
+                    v-for="s in store.supportersByFighter[currentFight.player_a_id]"
+                    :key="s.id"
+                    :src="s.profiles?.avatar_url || ''"
+                    :title="s.profiles?.display_name || s.profiles?.username || ''"
+                    class="supporter-av"
+                    :class="{ 'supporter-av-ph': !s.profiles?.avatar_url }"
+                    @error="$event.target.style.display='none'"
+                  />
+                </div>
               </div>
             </div>
 
@@ -170,7 +182,8 @@
                 <button
                   v-if="canSupport"
                   class="support-mini-btn"
-                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_b_id }"
+                  :class="{ active: store.mySupport?.fighter_id === currentFight.player_b_id, locked: store.mySupport && store.mySupport.fighter_id !== currentFight.player_b_id }"
+                  :disabled="!!store.mySupport"
                   :title="supportTitle(currentFight.player_b_id)"
                   @click="toggleSupport(currentFight.player_b_id)"
                 >
@@ -180,6 +193,17 @@
                   {{ store.supportCountsByFighter[currentFight.player_b_id] }} &#x1F4AA;
                   <span class="support-mini-bonus">(+{{ (store.supportCountsByFighter[currentFight.player_b_id] || 0) * store.ROLL_BONUS_PER_SUPPORTER }} jet)</span>
                 </span>
+                <div v-if="(store.supportersByFighter[currentFight.player_b_id] || []).length" class="supporters-list">
+                  <img
+                    v-for="s in store.supportersByFighter[currentFight.player_b_id]"
+                    :key="s.id"
+                    :src="s.profiles?.avatar_url || ''"
+                    :title="s.profiles?.display_name || s.profiles?.username || ''"
+                    class="supporter-av"
+                    :class="{ 'supporter-av-ph': !s.profiles?.avatar_url }"
+                    @error="$event.target.style.display='none'"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -242,7 +266,7 @@
       <!-- ADMIN -->
       <div v-if="auth.isAdmin" class="admin-section">
         <h3>Pool de joueurs ({{ store.pool.length }})</h3>
-        <p class="admin-help">Les tournois utilisent la plus grande puissance de 2 joueurs &le; au pool (min 2, max 8).</p>
+        <p class="admin-help">Tournoi en rondes suisses : tous les joueurs du pool participent (min. 2). {{ swissRoundsHelpText }}</p>
         <div v-for="p in store.pool" :key="p.profile_id" class="admin-row">
           <img v-if="p.profiles?.avatar_url" :src="p.profiles.avatar_url" class="admin-av" />
           <span v-else class="admin-av admin-av-ph">{{ (p.profiles?.display_name || '?')[0] }}</span>
@@ -274,7 +298,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useArenaStore } from '../stores/arena'
-import { simulateFight, STAT_LABELS } from '../lib/arenaFight'
+import { simulateFight, STAT_LABELS, swissRoundsFor } from '../lib/arenaFight'
 import { hashSeed } from '../lib/seededRandom'
 
 const auth = useAuthStore()
@@ -438,18 +462,45 @@ const canSupport = computed(() => {
   if (store.currentTournament?.status !== 'active') return false
   return true
 })
+const swissRoundsHelpText = computed(() => {
+  const n = store.pool.length
+  if (n < 2) return ''
+  const r = swissRoundsFor(n)
+  const base = n % 2 === 1
+    ? `${r} rondes \u2014 chaque joueur combat ${r - 1} adversaires + 1 bye.`
+    : `${r} rondes \u2014 chaque joueur combat ${r} adversaires.`
+  if (n >= 4) return `${base} Puis les 4 meilleurs s'affrontent en demi-finales + finale.`
+  return base
+})
+
+// Nombre de rondes Swiss du tournoi en cours (pour distinguer Swiss vs bracket top-cut)
+const swissRoundsCount = computed(() => {
+  const n = store.currentTournament?.player_ids?.length || 0
+  return swissRoundsFor(n)
+})
+
+function roundLabel(r) {
+  const sr = swissRoundsCount.value
+  const n = store.currentTournament?.player_ids?.length || 0
+  if (n >= 4) {
+    if (r === sr + 1) return 'Demi-finales'
+    if (r === sr + 2) return 'Petite finale (3e place)'
+    if (r === sr + 3) return 'Finale'
+  }
+  return `Ronde ${r}`
+}
+
 function supportTitle(pid) {
-  if (store.mySupport?.fighter_id === pid) return 'Retirer mon soutien'
-  if (store.mySupport) return 'Changer mon soutien pour ce combattant'
-  return `Soutenir ce combattant (+${store.ROLL_BONUS_PER_SUPPORTER} au max de ses jets)`
+  if (store.mySupport?.fighter_id === pid) return 'Vous soutenez ce combattant (d\u00e9finitif)'
+  if (store.mySupport) return 'Soutien d\u00e9j\u00e0 attribu\u00e9 \u2014 impossible de changer'
+  return `Soutenir ce combattant (+${store.ROLL_BONUS_PER_SUPPORTER} au max de ses jets) \u2014 d\u00e9finitif`
 }
 async function toggleSupport(fighterId) {
+  // Le soutien est d\u00e9finitif : une fois donn\u00e9, on ne peut plus l\u2019annuler ni le changer.
+  if (store.mySupport) return
+  if (!confirm('Soutenir ce combattant ? Ce choix est d\u00e9finitif pour tout le tournoi.')) return
   try {
-    if (store.mySupport?.fighter_id === fighterId) {
-      await store.cancelSupport()
-    } else {
-      await store.supportFighter(fighterId)
-    }
+    await store.supportFighter(fighterId)
   } catch (e) { alert(e.message) }
 }
 
@@ -517,9 +568,11 @@ async function removeP(pid) {
 async function forceTournament() {
   if (!confirm('D\u00e9marrer un nouveau tournoi maintenant ?')) return
   try {
-    const ok = await store.forceNewTournament()
-    if (!ok) alert('Impossible : au moins 2 joueurs requis dans le pool.')
-  } catch (e) { alert(e.message) }
+    await store.forceNewTournament()
+  } catch (e) {
+    alert(e.message)
+    console.error('forceNewTournament:', e)
+  }
 }
 
 async function endTournament() {

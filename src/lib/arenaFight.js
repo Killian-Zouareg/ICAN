@@ -79,7 +79,7 @@ export function simulateFight(seed, playerA, playerB, rollBonusA = 0, rollBonusB
   return { winner_id, turns, total_turns: turns.length, max_hp_a: maxHpA, max_hp_b: maxHpB }
 }
 
-function nextPowerOfTwo(n) {
+export function nextPowerOfTwo(n) {
   let p = 1
   while (p < n) p *= 2
   return p
@@ -87,12 +87,14 @@ function nextPowerOfTwo(n) {
 
 /**
  * Détermine le nombre de rondes suisses pour N joueurs.
- * Pour les petits tournois : N-1 rondes (tout le monde se bat contre tout le monde),
- * plafonné à 5 rondes pour rester jouable.
+ * - N pair : N-1 rondes (round-robin complet possible pour N ≤ 6).
+ * - N impair : N rondes, pour que chaque joueur reçoive exactement 1 bye (distribution équitable).
+ * Plafonné à 5 rondes pour rester jouable.
  */
 export function swissRoundsFor(n) {
   if (n < 2) return 0
-  return Math.max(1, Math.min(n - 1, 5))
+  const target = n % 2 === 1 ? n : n - 1
+  return Math.max(1, Math.min(target, 5))
 }
 
 /**
@@ -217,16 +219,19 @@ export function resolveSwiss(seed, playerIds, playerSheets = {}, rollBonuses = {
 }
 
 /**
- * Re-calcule le classement à partir d'une liste de fights (ex. persistés en DB).
+ * Re-calcule le classement à partir d'une liste de fights Swiss (on ignore les fights du bracket top-cut).
  * Retourne { standings, winner_id }.
  */
-export function computeStandings(playerIds, fights) {
+export function computeStandings(playerIds, fights, swissRoundsCount = null) {
   const wins = {}, losses = {}, byes = {}
   for (const pid of playerIds) { wins[pid] = 0; losses[pid] = 0; byes[pid] = 0 }
-  // Ordre initial stable : par ordre d'apparition dans fights de R1
   const initialIndex = {}
   playerIds.forEach((pid, i) => { initialIndex[pid] = i })
-  for (const f of fights) {
+  // Si swissRoundsCount est fourni, on ne compte que les fights round <= swissRoundsCount
+  const swissFights = swissRoundsCount == null
+    ? fights
+    : fights.filter(f => f.round <= swissRoundsCount)
+  for (const f of swissFights) {
     if (f.is_bye) {
       if (f.winner_id) { wins[f.winner_id] = (wins[f.winner_id] || 0) + 1; byes[f.winner_id] = (byes[f.winner_id] || 0) + 1 }
     } else if (f.winner_id) {
@@ -240,6 +245,70 @@ export function computeStandings(playerIds, fights) {
     return (initialIndex[a] || 0) - (initialIndex[b] || 0)
   }).map(pid => ({ profile_id: pid, wins: wins[pid] || 0, losses: losses[pid] || 0, byes: byes[pid] || 0 }))
   return { standings, winner_id: standings[0]?.profile_id || null }
+}
+
+/**
+ * Bracket top-cut après Swiss : top 4 du classement s'affrontent en demi-finales, puis
+ * petite finale (3e place) et grande finale.
+ * Seeding standard : #1 vs #4, #2 vs #3.
+ *
+ * Structure des rounds :
+ *  - swissRoundsCount + 1 : demi-finales (2 combats)
+ *  - swissRoundsCount + 2 : petite finale (3e place) entre les perdants des demis
+ *  - swissRoundsCount + 3 : finale
+ *
+ * Retourne { fights, winner_id, third_id }.
+ * Si < 4 joueurs, retourne un bracket vide et winner_id = #1 du classement.
+ */
+export function resolveTopCutBracket(tournamentSeed, standings, playerSheets = {}, rollBonuses = {}, swissRoundsCount = 0) {
+  if (!standings || standings.length < 4) {
+    return { fights: [], winner_id: standings?.[0]?.profile_id || null, third_id: null }
+  }
+  const top4 = standings.slice(0, 4).map(s => s.profile_id)
+  const [s1, s2, s3, s4] = top4
+
+  const semi1Seed = hashSeed('topcut-semi', tournamentSeed, 0)
+  const semi2Seed = hashSeed('topcut-semi', tournamentSeed, 1)
+
+  const semi1 = simulateFight(
+    semi1Seed,
+    { id: s1, sheet: playerSheets[s1] || {} },
+    { id: s4, sheet: playerSheets[s4] || {} },
+    rollBonuses[s1] || 0, rollBonuses[s4] || 0,
+  )
+  const semi2 = simulateFight(
+    semi2Seed,
+    { id: s2, sheet: playerSheets[s2] || {} },
+    { id: s3, sheet: playerSheets[s3] || {} },
+    rollBonuses[s2] || 0, rollBonuses[s3] || 0,
+  )
+  const semi1Loser = semi1.winner_id === s1 ? s4 : s1
+  const semi2Loser = semi2.winner_id === s2 ? s3 : s2
+
+  const thirdSeed = hashSeed('topcut-third', tournamentSeed)
+  const thirdSim = simulateFight(
+    thirdSeed,
+    { id: semi1Loser, sheet: playerSheets[semi1Loser] || {} },
+    { id: semi2Loser, sheet: playerSheets[semi2Loser] || {} },
+    rollBonuses[semi1Loser] || 0, rollBonuses[semi2Loser] || 0,
+  )
+
+  const finalSeed = hashSeed('topcut-final', tournamentSeed)
+  const finalSim = simulateFight(
+    finalSeed,
+    { id: semi1.winner_id, sheet: playerSheets[semi1.winner_id] || {} },
+    { id: semi2.winner_id, sheet: playerSheets[semi2.winner_id] || {} },
+    rollBonuses[semi1.winner_id] || 0, rollBonuses[semi2.winner_id] || 0,
+  )
+
+  const fights = [
+    { round: swissRoundsCount + 1, bracket_position: 0, player_a_id: s1, player_b_id: s4, is_bye: false, winner_id: semi1.winner_id, simulation: semi1 },
+    { round: swissRoundsCount + 1, bracket_position: 1, player_a_id: s2, player_b_id: s3, is_bye: false, winner_id: semi2.winner_id, simulation: semi2 },
+    { round: swissRoundsCount + 2, bracket_position: 0, player_a_id: semi1Loser, player_b_id: semi2Loser, is_bye: false, winner_id: thirdSim.winner_id, simulation: thirdSim },
+    { round: swissRoundsCount + 3, bracket_position: 0, player_a_id: semi1.winner_id, player_b_id: semi2.winner_id, is_bye: false, winner_id: finalSim.winner_id, simulation: finalSim },
+  ]
+
+  return { fights, winner_id: finalSim.winner_id, third_id: thirdSim.winner_id }
 }
 
 /**

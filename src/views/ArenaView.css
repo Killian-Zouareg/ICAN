@@ -585,6 +585,13 @@
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
+.swiss-round.bracket-round {
+  background: linear-gradient(135deg, rgba(255,215,0,0.08), rgba(255,107,0,0.04));
+  border-color: rgba(255,215,0,0.35);
+}
+.swiss-round.bracket-round .round-label {
+  color: var(--hero-primary);
+}
 .swiss-fight {
   background: var(--bg-primary);
   border: 1px solid var(--border);
@@ -649,6 +656,15 @@
   background: var(--accent);
   color: #fff;
 }
+.support-mini-btn.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+.support-mini-btn:disabled {
+  cursor: not-allowed;
+}
 .support-mini-count {
   font-size: 0.75rem;
   color: var(--text-secondary);
@@ -656,6 +672,25 @@
 .support-mini-bonus {
   color: var(--success);
   font-weight: 600;
+}
+.supporters-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 4px;
+  max-width: 220px;
+}
+.supporter-av {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--accent);
+  background: var(--bg-secondary);
+}
+.supporter-av-ph {
+  border-color: var(--text-secondary);
 }
 
 /* Responsive */
