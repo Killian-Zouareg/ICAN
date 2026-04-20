@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.7.4',
+    date: '20 avril 2026',
+    icon: '\u{1F6B6}',
+    color: '#2ecc71',
+    title: 'Hub 3D \u2014 Pi\u00e9tons dans la ville',
+    description: 'La ville n\u2019est plus d\u00e9serte ! Une trentaine de <strong>pi\u00e9tons PNJ</strong> d\u00e9ambulent en permanence dans les rues, chacun avec sa propre couleur de v\u00eatement, teinte de peau, vitesse et d\u00e9marche. Ils choisissent des destinations al\u00e9atoires, font des pauses, \u00e9vitent les b\u00e2timents. De quoi donner \u00e2me au Hub m\u00eame quand aucun autre joueur n\u2019est connect\u00e9.',
+    tags: ['3D', 'PNJ', 'Ambiance', 'IA'],
+  },
+  {
     version: '4.7.3',
     date: '20 avril 2026',
     icon: '\u{1F697}',
@@ -452,6 +461,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.7.4',
+    date: '20 avril 2026',
+    title: 'Hub 3D \u2014 Pi\u00e9tons',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: '28 pi\u00e9tons PNJ d\u00e9ambulent dans la ville (seed fixe pour coh\u00e9rence)' },
+      { type: 'new', text: 'Palettes de couleurs vari\u00e9es : 10 teintes de v\u00eatements, 5 pantalons, 5 carnations' },
+      { type: 'new', text: 'Comportement wander : cible al\u00e9atoire, marche vers elle, pause occasionnelle \u00e0 l\u2019arriv\u00e9e' },
+      { type: 'new', text: '\u00c9vitement basique des b\u00e2timents (re-ciblage si chemin bloqu\u00e9)' },
+      { type: 'new', text: 'Animation de marche (balancement bras / jambes) avec phase individuelle par pi\u00e9ton' },
+      { type: 'new', text: 'Rotation fluide vers la direction de d\u00e9placement' },
+    ],
+  },
   {
     version: '4.7.3',
     date: '20 avril 2026',

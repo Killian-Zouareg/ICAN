@@ -1,6 +1,7 @@
 import * as THREE from 'three'
 import { createAvatar } from './avatars.js'
 import { createCity, CITY_HALF } from './city.js'
+import { createPedestrians } from './pedestrians.js'
 
 const MOVE_SPEED = 5.5
 const PLAYER_RADIUS = 0.5
@@ -86,6 +87,14 @@ export class GameEngine {
     this._disposables = city.disposables
     this.obstacles = city.obstacles
     this.cars = city.cars
+
+    this.pedestrians = createPedestrians({
+      count: 28,
+      obstacles: this.obstacles,
+      halfWorld: CITY_HALF,
+      seed: 1337,
+    })
+    this.scene.add(this.pedestrians.group)
 
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 500)
     this._resize()
@@ -384,6 +393,8 @@ export class GameEngine {
       this._setHint(near ? 'enter-car' : null)
     }
 
+    this.pedestrians?.update(dt, performance.now())
+
     this._updateCamera()
 
     for (const r of this.remotes.values()) {
@@ -448,6 +459,10 @@ export class GameEngine {
     for (const id of [...this.remotes.keys()]) this.removeRemote(id)
     if (this.player?.userData.dispose) this.player.userData.dispose()
     if (this.player) this.scene.remove(this.player)
+    if (this.pedestrians) {
+      this.scene.remove(this.pedestrians.group)
+      this.pedestrians.dispose()
+    }
     for (const d of this._disposables) d.dispose?.()
     this.renderer.dispose()
   }
