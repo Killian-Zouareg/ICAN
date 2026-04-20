@@ -1,7 +1,10 @@
 import * as THREE from 'three'
+import { Sky } from 'three-stdlib'
 import { createAvatar } from './avatars.js'
-import { createCity, CITY_HALF } from './city.js'
+import { createCampus, CAMPUS_HALF } from './campus.js'
 import { createPedestrians } from './pedestrians.js'
+
+const CITY_HALF = CAMPUS_HALF
 
 const MOVE_SPEED = 5.5
 const PLAYER_RADIUS = 0.5
@@ -56,6 +59,10 @@ export class GameEngine {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this._resize()
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    this.renderer.shadowMap.enabled = true
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping
+    this.renderer.toneMappingExposure = 1.0
   }
 
   _resize() {
@@ -71,22 +78,50 @@ export class GameEngine {
 
   _setupScene() {
     this.scene = new THREE.Scene()
-    this.scene.background = new THREE.Color(0x9cc7d6)
-    this.scene.fog = new THREE.Fog(0x9cc7d6, 60, 180)
+    this.scene.fog = new THREE.Fog(0xbfd7e8, 80, 220)
 
-    const ambient = new THREE.AmbientLight(0xffffff, 0.6)
+    // Procedural sky
+    this.sky = new Sky()
+    this.sky.scale.setScalar(1000)
+    const skyU = this.sky.material.uniforms
+    skyU.turbidity.value = 6
+    skyU.rayleigh.value = 1.2
+    skyU.mieCoefficient.value = 0.006
+    skyU.mieDirectionalG.value = 0.85
+    const sunPos = new THREE.Vector3()
+    const phi = THREE.MathUtils.degToRad(90 - 45)
+    const theta = THREE.MathUtils.degToRad(40)
+    sunPos.setFromSphericalCoords(1, phi, theta)
+    skyU.sunPosition.value.copy(sunPos)
+    this.scene.add(this.sky)
+
+    const ambient = new THREE.AmbientLight(0xffffff, 0.45)
     this.scene.add(ambient)
-    const sun = new THREE.DirectionalLight(0xfff2d6, 0.95)
-    sun.position.set(30, 60, 20)
+    const sun = new THREE.DirectionalLight(0xfff2d6, 1.2)
+    sun.position.copy(sunPos).multiplyScalar(80)
+    sun.castShadow = true
+    sun.shadow.mapSize.set(2048, 2048)
+    sun.shadow.camera.left = -80
+    sun.shadow.camera.right = 80
+    sun.shadow.camera.top = 80
+    sun.shadow.camera.bottom = -80
+    sun.shadow.camera.near = 1
+    sun.shadow.camera.far = 300
+    sun.shadow.bias = -0.0005
+    sun.shadow.normalBias = 0.02
     this.scene.add(sun)
+    this.scene.add(sun.target)
+    this.sun = sun
+
     const hemi = new THREE.HemisphereLight(0xbfd7ff, 0x3a5a2a, 0.35)
     this.scene.add(hemi)
 
-    const city = createCity()
-    this.scene.add(city.root)
-    this._disposables = city.disposables
-    this.obstacles = city.obstacles
-    this.cars = city.cars
+    const campus = createCampus()
+    this.scene.add(campus.root)
+    this._disposables = campus.disposables
+    this.obstacles = campus.obstacles
+    this.cars = campus.cars
+    this._campusAnimate = campus.root.userData.animate
 
     this.pedestrians = createPedestrians({
       count: 28,
@@ -94,6 +129,7 @@ export class GameEngine {
       halfWorld: CITY_HALF,
       seed: 1337,
     })
+    this.pedestrians.group.traverse((n) => { if (n.isMesh) { n.castShadow = true } })
     this.scene.add(this.pedestrians.group)
 
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 500)
@@ -208,7 +244,11 @@ export class GameEngine {
       username: p.username,
       avatarUrl: p.avatar_url,
     })
-    this.player.position.set(0, 0, 0)
+    // Spawn on the south path, looking north toward the library
+    this.player.position.set(0, 0, 22)
+    this.player.rotation.y = Math.PI
+    this.yaw = 0
+    this.player.traverse((n) => { if (n.isMesh) { n.castShadow = true } })
     this.scene.add(this.player)
     this._updateCamera()
   }
@@ -394,6 +434,15 @@ export class GameEngine {
     }
 
     this.pedestrians?.update(dt, performance.now())
+    this._campusAnimate?.(this.clock.elapsedTime)
+
+    // Keep the sun's shadow frustum focused on the player
+    if (this.sun) {
+      const tx = this.drive ? this.drive.car.position.x : this.player.position.x
+      const tz = this.drive ? this.drive.car.position.z : this.player.position.z
+      this.sun.target.position.set(tx, 0, tz)
+      this.sun.position.set(tx + 40, 80, tz + 25)
+    }
 
     this._updateCamera()
 
@@ -429,6 +478,7 @@ export class GameEngine {
     if (!entry) {
       const mesh = createAvatar({ profileId, username, avatarUrl })
       mesh.position.set(x ?? 0, 0, z ?? 0)
+      mesh.traverse((n) => { if (n.isMesh) { n.castShadow = true } })
       this.scene.add(mesh)
       entry = { mesh, target: new THREE.Vector3(x ?? 0, 0, z ?? 0), targetRot: rot ?? 0 }
       this.remotes.set(profileId, entry)

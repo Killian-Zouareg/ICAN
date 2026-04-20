@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.8.0',
+    date: '20 avril 2026',
+    icon: '\u{1F393}',
+    color: '#9b59b6',
+    title: 'Hub 3D \u2014 Campus universitaire iCAN',
+    description: 'Direction l\u2019<strong>universit\u00e9 iCAN</strong> : la ville proc\u00e9durale laisse place \u00e0 un campus enti\u00e8rement construit \u00e0 la main. Au centre, une <strong>fontaine</strong> avec jet d\u2019eau anim\u00e9 entour\u00e9e de bancs. Au nord, la grande <strong>biblioth\u00e8que</strong> avec colonnade classique, fronton et d\u00f4me. \u00c0 l\u2019est le b\u00e2timent des <strong>sciences</strong> (fa\u00e7ade vitr\u00e9e), \u00e0 l\u2019ouest les <strong>arts</strong>, au sud trois <strong>dortoirs</strong> en briques. Un <strong>stade</strong> avec piste et cages, un <strong>parking</strong> rempli de voitures, des arbres, lampadaires et all\u00e9es qui relient tout \u00e7a. C\u00f4t\u00e9 technique : <strong>three-stdlib</strong> int\u00e9gr\u00e9, mat\u00e9riaux PBR, <strong>ombres dynamiques</strong>, ciel atmosph\u00e9rique procédural et tone mapping ACES.',
+    tags: ['3D', 'Campus', 'PBR', 'Ombres', 'Sky'],
+  },
+  {
     version: '4.7.4',
     date: '20 avril 2026',
     icon: '\u{1F6B6}',
@@ -461,6 +470,28 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.8.0',
+    date: '20 avril 2026',
+    title: 'Hub 3D \u2014 Campus iCAN & moteur avanc\u00e9',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Carte enti\u00e8rement repens\u00e9e : campus universitaire iCAN (remplace la ville proc\u00e9durale)' },
+      { type: 'new', text: 'Biblioth\u00e8que avec colonnade, fronton triangulaire, d\u00f4me et escalier' },
+      { type: 'new', text: 'B\u00e2timents modernes (sciences, arts, salles de cours) avec fa\u00e7ades vitr\u00e9es' },
+      { type: 'new', text: 'Trois dortoirs en briques avec toits en pente et fen\u00eatres \u00e9missives' },
+      { type: 'new', text: 'Fontaine centrale avec jet anim\u00e9, vasque, colonne et bancs tout autour' },
+      { type: 'new', text: 'Stade avec piste rouge, pelouse ronde et cages de but' },
+      { type: 'new', text: 'Parking avec voitures stationn\u00e9es + voitures drivables dans les all\u00e9es' },
+      { type: 'new', text: 'All\u00e9es en X depuis la fontaine, lampadaires et arbres sur tout le campus' },
+      { type: 'new', text: 'Int\u00e9gration de three-stdlib (RoundedBoxGeometry, Sky procédural)' },
+      { type: 'new', text: 'Ciel atmosph\u00e9rique procédural (Rayleigh/Mie) avec soleil coh\u00e9rent' },
+      { type: 'new', text: 'Ombres dynamiques (PCF Soft) avec frustum de shadow qui suit le joueur' },
+      { type: 'new', text: 'Mat\u00e9riaux PBR (MeshStandardMaterial) avec roughness/metalness' },
+      { type: 'new', text: 'Tone mapping ACES Filmic pour des couleurs plus naturelles' },
+      { type: 'changed', text: 'Avatars, pi\u00e9tons et voitures projettent maintenant des ombres' },
+    ],
+  },
   {
     version: '4.7.4',
     date: '20 avril 2026',
