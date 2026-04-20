@@ -92,6 +92,17 @@ export function createAvatar({ profileId, username, avatarUrl }) {
   legR.position.set(0.18, hipHeight, 0)
   root.add(legR)
 
+  const capeColors = [0xb71c2c, 0x1e3a8a, 0x6b21a8, 0x166534, 0x78350f, 0x111827, 0xd97706, 0x0f766e]
+  const capeColor = capeColors[Math.abs(parseInt((profileId || 'x').replace(/[^0-9]/g, '').slice(0, 8) || '0', 10)) % capeColors.length]
+  const capeMat = new THREE.MeshLambertMaterial({ color: capeColor, side: THREE.DoubleSide })
+  const capeGeo = new THREE.PlaneGeometry(1.0, 1.3, 1, 4)
+  capeGeo.translate(0, -0.65, 0)
+  const cape = new THREE.Mesh(capeGeo, capeMat)
+  cape.position.set(0, shoulderHeight + 0.3, 0.22)
+  cape.rotation.x = -0.15
+  root.add(cape)
+  disposables.push(capeGeo, capeMat)
+
   const nametagMat = new THREE.SpriteMaterial({
     map: makeNametagTexture(username || 'anon'),
     depthTest: false,
@@ -104,9 +115,11 @@ export function createAvatar({ profileId, username, avatarUrl }) {
   disposables.push(nametagMat, nametagMat.map)
 
   let phase = 0
+  let idle = 0
   root.userData.animate = (dt, walking) => {
     const target = walking ? 1 : 0
     if (walking) phase += dt * 9
+    idle += dt
     const swing = Math.sin(phase) * 0.9 * target
     armL.rotation.x = swing
     armR.rotation.x = -swing
@@ -118,6 +131,9 @@ export function createAvatar({ profileId, username, avatarUrl }) {
       legL.rotation.x *= 0.85
       legR.rotation.x *= 0.85
     }
+    const capeWalk = walking ? 0.35 + Math.sin(phase * 0.8) * 0.15 : 0.15 + Math.sin(idle * 1.5) * 0.05
+    cape.rotation.x = -capeWalk
+    cape.rotation.z = walking ? Math.sin(phase * 0.5) * 0.08 : 0
   }
 
   root.userData.dispose = () => {

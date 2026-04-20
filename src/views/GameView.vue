@@ -32,12 +32,18 @@
             <div><kbd>Souris</kbd> &mdash; Regarder</div>
             <div><kbd>Entr&eacute;e</kbd> &mdash; Chat &nbsp;|&nbsp; <kbd>&Eacute;chap</kbd> &mdash; Lib&eacute;rer</div>
             <div><kbd>V</kbd> &mdash; Micro (proximit&eacute;)</div>
+            <div><kbd>E</kbd> &mdash; Entrer / sortir d'une voiture</div>
           </div>
           <button class="hud-play-btn" @click.stop="requestLock">Jouer</button>
         </div>
       </div>
 
       <div v-if="locked" class="hud-crosshair"></div>
+
+      <div v-if="locked && interactHint" class="hud-interact">
+        <kbd>E</kbd>
+        <span>{{ interactLabel }}</span>
+      </div>
 
       <div class="hud-chat" :class="{ focused: chatFocused }">
         <div class="hud-chat-log">
@@ -83,6 +89,13 @@ const chatText = ref('')
 const voiceOn = ref(false)
 const voiceMuted = ref(false)
 const voiceError = ref(null)
+const interactHint = ref(null)
+
+const interactLabel = computed(() => {
+  if (interactHint.value === 'enter-car') return 'Entrer dans la voiture'
+  if (interactHint.value === 'exit-car') return 'Sortir de la voiture'
+  return ''
+})
 
 let engine = null
 let voice = null
@@ -180,6 +193,7 @@ onMounted(async () => {
   engine = new GameEngine(canvasRef.value, {
     localProfile: auth.activeProfile,
     onMove: (pos) => store.sendMove(pos),
+    onHintChange: (hint) => { interactHint.value = hint },
   })
   engine.onLockChange((isLocked) => { locked.value = isLocked })
 

@@ -310,6 +310,7 @@ export function createCity() {
   const root = new THREE.Group()
   const disposables = []
   const obstacles = []
+  const cars = []
   const rng = mulberry32(42)
 
   const size = CITY_HALF * 2
@@ -438,13 +439,16 @@ export function createCity() {
     const laneIdx = Math.floor(rng() * (GRID_HALF * 2)) - GRID_HALF
     const pos = laneIdx * BLOCK + (rng() - 0.5) * (BLOCK - ROAD_WIDTH - 4)
     const roadPos = (Math.floor(rng() * (GRID_HALF * 2 + 1)) - GRID_HALF) * BLOCK
-    const car = horizontal
-      ? buildCar(rng, pos, roadPos + (rng() < 0.5 ? -1.5 : 1.5), Math.PI / 2)
-      : buildCar(rng, roadPos + (rng() < 0.5 ? -1.5 : 1.5), pos, 0)
+    const cx = horizontal ? pos : roadPos + (rng() < 0.5 ? -1.5 : 1.5)
+    const cz = horizontal ? roadPos + (rng() < 0.5 ? -1.5 : 1.5) : pos
+    const rot = horizontal ? Math.PI / 2 : 0
+    const car = buildCar(rng, cx, cz, rot)
     root.add(car.group)
     disposables.push(...car.disposables)
-    obstacles.push(car.obstacle)
+    const obstacle = car.obstacle
+    obstacles.push(obstacle)
+    cars.push({ group: car.group, obstacle, width: 2, length: 4 })
   }
 
-  return { root, disposables, obstacles }
+  return { root, disposables, obstacles, cars }
 }

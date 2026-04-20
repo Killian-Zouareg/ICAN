@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.7.3',
+    date: '20 avril 2026',
+    icon: '\u{1F697}',
+    color: '#f39c12',
+    title: 'Hub 3D \u2014 Voitures conduisibles & capes de h\u00e9ros',
+    description: 'Le Hub 3D devient un vrai terrain de jeu : approche n\u2019importe quelle voiture stationn\u00e9e, appuie sur <strong>E</strong> et prends le volant. Physique simple mais satisfaisante (acc\u00e9l\u00e9ration, marche arri\u00e8re, freinage, direction r\u00e9duite \u00e0 haute vitesse), collisions avec les b\u00e2timents et cam\u00e9ra orbitale d\u00e9di\u00e9e. C\u00f4t\u00e9 style : chaque avatar porte d\u00e9sormais une <strong>cape color\u00e9e</strong> qui flotte au vent pendant la marche. Parce qu\u2019iCAN est un univers de super-h\u00e9ros.',
+    tags: ['3D', 'V\u00e9hicules', 'Capes', 'Physique'],
+  },
+  {
     version: '4.7.2',
     date: '20 avril 2026',
     icon: '\u{1F3D9}',
@@ -443,6 +452,22 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.7.3',
+    date: '20 avril 2026',
+    title: 'Hub 3D \u2014 Voitures conduisibles & capes',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Voitures conduisibles : approche une voiture, appuie sur E pour embarquer, E de nouveau pour sortir' },
+      { type: 'new', text: 'Physique v\u00e9hicule : acc\u00e9l\u00e9ration progressive, marche arri\u00e8re, freinage, drag naturel' },
+      { type: 'new', text: 'Direction d\u00e9pendante de la vitesse (rayon de braquage plus large en pleine vitesse)' },
+      { type: 'new', text: 'Cam\u00e9ra orbitale d\u00e9di\u00e9e en conduite (recul\u00e9e et sur\u00e9lev\u00e9e)' },
+      { type: 'new', text: 'Collision v\u00e9hicule/b\u00e2timents avec rebond att\u00e9nu\u00e9' },
+      { type: 'new', text: 'Hint d\u2019interaction \u00e0 l\u2019\u00e9cran : touche E affich\u00e9e quand une voiture est \u00e0 port\u00e9e' },
+      { type: 'new', text: 'Capes pour tous les avatars : couleur d\u00e9riv\u00e9e du profile_id, animation de flottement pendant la marche' },
+      { type: 'improved', text: 'Obstacle de la voiture retir\u00e9 puis r\u00e9ins\u00e9r\u00e9 dynamiquement \u00e0 l\u2019entr\u00e9e/sortie' },
+    ],
+  },
   {
     version: '4.7.2',
     date: '20 avril 2026',

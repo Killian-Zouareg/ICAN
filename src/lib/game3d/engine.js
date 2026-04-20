@@ -7,13 +7,23 @@ const PLAYER_RADIUS = 0.5
 const CAM_DISTANCE = 5
 const CAM_HEIGHT = 2.2
 const MOUSE_SENS = 0.0025
-const PITCH_MIN = -0.9
-const PITCH_MAX = 0.5
+const PITCH_MIN = -1.2
+const PITCH_MAX = 0.6
+const CAR_CAM_DISTANCE = 9
+const CAR_CAM_HEIGHT = 4
+const CAR_ACCEL = 9
+const CAR_MAX_SPEED = 18
+const CAR_REVERSE_MAX = 8
+const CAR_DRAG = 0.92
+const CAR_BRAKE = 14
+const CAR_TURN_RATE = 2.0
+const INTERACT_DIST = 4
 
 export class GameEngine {
-  constructor(canvas, { localProfile, onMove } = {}) {
+  constructor(canvas, { localProfile, onMove, onHintChange } = {}) {
     this.canvas = canvas
     this.onMove = onMove || (() => {})
+    this.onHintChange = onHintChange || (() => {})
     this.remotes = new Map()
     this.keys = { forward: false, back: false, left: false, right: false }
     this.disposed = false
@@ -24,6 +34,8 @@ export class GameEngine {
     this.yaw = 0
     this.pitch = -0.2
     this._lockListeners = []
+    this.drive = null
+    this.currentHint = null
 
     this._setupRenderer()
     this._setupScene()
@@ -73,6 +85,7 @@ export class GameEngine {
     this.scene.add(city.root)
     this._disposables = city.disposables
     this.obstacles = city.obstacles
+    this.cars = city.cars
 
     this.camera = new THREE.PerspectiveCamera(70, 1, 0.1, 500)
     this._resize()
@@ -99,6 +112,86 @@ export class GameEngine {
     if (!this._collides(cur.x, z)) { cur.z = z; return }
   }
 
+  _carCollides(nx, nz) {
+    const halfW = 1.2
+    const halfL = 2.2
+    for (const o of this.obstacles) {
+      if (this.drive && o === this.drive.obstacle) continue
+      if (nx + halfW > o.minX && nx - halfW < o.maxX && nz + halfL > o.minZ && nz - halfL < o.maxZ) return true
+    }
+    return false
+  }
+
+  _nearestCar() {
+    if (!this.cars?.length) return null
+    let best = null
+    let bestDist = INTERACT_DIST
+    const px = this.player.position.x
+    const pz = this.player.position.z
+    for (const c of this.cars) {
+      const d = Math.hypot(c.group.position.x - px, c.group.position.z - pz)
+      if (d < bestDist) { best = c; bestDist = d }
+    }
+    return best
+  }
+
+  _setHint(hint) {
+    if (this.currentHint !== hint) {
+      this.currentHint = hint
+      this.onHintChange(hint)
+    }
+  }
+
+  _onInteract() {
+    if (this.drive) { this.exitCar(); return }
+    const car = this._nearestCar()
+    if (car) this.enterCar(car)
+  }
+
+  enterCar(carData) {
+    if (this.drive) return
+    const idx = this.obstacles.indexOf(carData.obstacle)
+    if (idx >= 0) this.obstacles.splice(idx, 1)
+    this.drive = {
+      car: carData.group,
+      data: carData,
+      obstacle: carData.obstacle,
+      speed: 0,
+      heading: carData.group.rotation.y,
+    }
+    this.player.visible = false
+    this._setHint('exit-car')
+  }
+
+  exitCar() {
+    if (!this.drive) return
+    const car = this.drive.car
+    const exitOffset = 1.8
+    this.player.position.set(
+      car.position.x + Math.cos(this.drive.heading) * exitOffset,
+      0,
+      car.position.z - Math.sin(this.drive.heading) * exitOffset,
+    )
+    const heading = this.drive.heading
+    const cosA = Math.abs(Math.cos(heading))
+    const sinA = Math.abs(Math.sin(heading))
+    const w = this.drive.data.width
+    const l = this.drive.data.length
+    const halfW = (cosA * w + sinA * l) / 2
+    const halfL = (sinA * w + cosA * l) / 2
+    const newObstacle = {
+      minX: car.position.x - halfW,
+      maxX: car.position.x + halfW,
+      minZ: car.position.z - halfL,
+      maxZ: car.position.z + halfL,
+    }
+    this.drive.data.obstacle = newObstacle
+    this.obstacles.push(newObstacle)
+    this.player.visible = true
+    this.drive = null
+    this._setHint(null)
+  }
+
   _setupLocalPlayer(profile) {
     const p = profile || { id: 'local', username: 'me', avatar_url: null }
     this.player = createAvatar({
@@ -112,21 +205,17 @@ export class GameEngine {
   }
 
   _updateCamera() {
+    const target = this.drive ? this.drive.car.position : this.player.position
+    const dist = this.drive ? CAR_CAM_DISTANCE : CAM_DISTANCE
+    const height = this.drive ? CAR_CAM_HEIGHT : CAM_HEIGHT
+    const lookY = this.drive ? 1.0 : 1.7
     const cosP = Math.cos(this.pitch)
     const sinP = Math.sin(this.pitch)
-    const ox = Math.sin(this.yaw) * CAM_DISTANCE * cosP
-    const oz = Math.cos(this.yaw) * CAM_DISTANCE * cosP
-    const oy = CAM_HEIGHT + CAM_DISTANCE * -sinP
-    this.camera.position.set(
-      this.player.position.x + ox,
-      this.player.position.y + oy,
-      this.player.position.z + oz,
-    )
-    this.camera.lookAt(
-      this.player.position.x,
-      this.player.position.y + 1.7,
-      this.player.position.z,
-    )
+    const ox = Math.sin(this.yaw) * dist * cosP
+    const oz = Math.cos(this.yaw) * dist * cosP
+    const oy = height + dist * -sinP
+    this.camera.position.set(target.x + ox, target.y + oy, target.z + oz)
+    this.camera.lookAt(target.x, target.y + lookY, target.z)
   }
 
   _setupAudio() {
@@ -180,6 +269,7 @@ export class GameEngine {
         case 'KeyS': case 'ArrowDown': this.keys.back = true; break
         case 'KeyA': case 'ArrowLeft': case 'KeyQ': this.keys.left = true; break
         case 'KeyD': case 'ArrowRight': this.keys.right = true; break
+        case 'KeyE': if (!e.repeat) this._onInteract(); break
       }
     }
     this._onKeyUp = (e) => {
@@ -232,7 +322,41 @@ export class GameEngine {
     const dt = Math.min(this.clock.getDelta(), 0.1)
 
     let walking = false
-    if (this.locked) {
+    if (this.drive) {
+      const d = this.drive
+      const accelInput = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0)
+      const steerInput = (this.keys.left ? 1 : 0) - (this.keys.right ? 1 : 0)
+      if (accelInput !== 0) {
+        d.speed += accelInput * CAR_ACCEL * dt
+      } else {
+        const drag = Math.pow(CAR_DRAG, dt * 60)
+        d.speed *= drag
+        if (Math.abs(d.speed) < 0.05) d.speed = 0
+      }
+      if (this.keys.forward && d.speed < 0) d.speed += CAR_BRAKE * dt
+      if (this.keys.back && d.speed > 0) d.speed -= CAR_BRAKE * dt
+      if (d.speed > CAR_MAX_SPEED) d.speed = CAR_MAX_SPEED
+      if (d.speed < -CAR_REVERSE_MAX) d.speed = -CAR_REVERSE_MAX
+
+      const speedFactor = Math.min(1, Math.abs(d.speed) / 5)
+      const dir = d.speed >= 0 ? 1 : -1
+      d.heading += steerInput * CAR_TURN_RATE * speedFactor * dir * dt
+
+      const dx = Math.sin(d.heading) * d.speed * dt
+      const dz = Math.cos(d.heading) * d.speed * dt
+      const halfWorld = CITY_HALF - 2
+      const nx = Math.max(-halfWorld, Math.min(halfWorld, d.car.position.x + dx))
+      const nz = Math.max(-halfWorld, Math.min(halfWorld, d.car.position.z + dz))
+      if (!this._carCollides(nx, nz)) {
+        d.car.position.x = nx
+        d.car.position.z = nz
+      } else {
+        d.speed *= -0.25
+      }
+      d.car.rotation.y = d.heading
+      this.player.position.copy(d.car.position)
+      this.player.rotation.y = d.heading
+    } else if (this.locked) {
       let mx = 0, mz = 0
       if (this.keys.forward) mz -= 1
       if (this.keys.back) mz += 1
@@ -254,6 +378,11 @@ export class GameEngine {
       }
     }
     this.player.userData.animate?.(dt, walking)
+
+    if (!this.drive) {
+      const near = this._nearestCar()
+      this._setHint(near ? 'enter-car' : null)
+    }
 
     this._updateCamera()
 
