@@ -60,17 +60,14 @@ export class VoiceManager {
     return entry
   }
 
-  async addPeer(peerId) {
+  async callPeer(peerId) {
     if (!this.started || this.peers.has(peerId)) return
-    const initiator = this.myId < peerId
     const entry = this._createPeer(peerId)
-    if (initiator) {
-      try {
-        const offer = await entry.pc.createOffer()
-        await entry.pc.setLocalDescription(offer)
-        this.onSignal(peerId, 'offer', entry.pc.localDescription)
-      } catch { /* ignore */ }
-    }
+    try {
+      const offer = await entry.pc.createOffer()
+      await entry.pc.setLocalDescription(offer)
+      this.onSignal(peerId, 'offer', entry.pc.localDescription)
+    } catch { /* ignore */ }
   }
 
   async handleSignal(from, kind, payload) {

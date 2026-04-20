@@ -18,10 +18,10 @@ export const useGame3dStore = defineStore('game3d', () => {
     peers.value = new Map(peers.value)
   }
 
-  async function joinRoom(profile, { onMove, onJoin, onLeave, onChat, onVoiceSignal } = {}) {
+  async function joinRoom(profile, { onMove, onJoin, onLeave, onPeerVoice, onChat, onVoiceSignal } = {}) {
     if (channel) await leaveRoom()
     myProfile = profile
-    handlers = { onMove, onJoin, onLeave, onChat, onVoiceSignal }
+    handlers = { onMove, onJoin, onLeave, onPeerVoice, onChat, onVoiceSignal }
     connected.value = false
     chatLog.value = []
 
@@ -60,7 +60,9 @@ export const useGame3dStore = defineStore('game3d', () => {
       }
       const prev = peers.value
       for (const [id, meta] of next) {
-        if (!prev.has(id)) onJoin?.(meta)
+        const prevMeta = prev.get(id)
+        if (!prevMeta) onJoin?.(meta)
+        else if (prevMeta.voiceActive !== meta.voiceActive) onPeerVoice?.(meta)
       }
       for (const id of prev.keys()) {
         if (!next.has(id)) onLeave?.(id)
@@ -75,10 +77,23 @@ export const useGame3dStore = defineStore('game3d', () => {
           profileId: profile.id,
           username: profile.username,
           avatarUrl: profile.avatar_url,
+          voiceActive: false,
         })
         connected.value = true
       }
     })
+  }
+
+  async function setVoiceActive(active) {
+    if (!channel || !myProfile) return
+    try {
+      await channel.track({
+        profileId: myProfile.id,
+        username: myProfile.username,
+        avatarUrl: myProfile.avatar_url,
+        voiceActive: !!active,
+      })
+    } catch { /* ignore */ }
   }
 
   function sendMove(pos) {
@@ -122,5 +137,5 @@ export const useGame3dStore = defineStore('game3d', () => {
     try { await supabase.removeChannel(c) } catch { /* ignore */ }
   }
 
-  return { connected, playerCount, chatLog, peers, joinRoom, sendMove, sendChat, sendVoiceSignal, leaveRoom }
+  return { connected, playerCount, chatLog, peers, joinRoom, sendMove, sendChat, sendVoiceSignal, setVoiceActive, leaveRoom }
 })

@@ -134,6 +134,13 @@ function onGlobalKey(e) {
   }
 }
 
+function maybeCall(peerId, peerMeta) {
+  if (!voiceOn.value || !voice) return
+  if (!peerMeta?.voiceActive) return
+  if (auth.activeProfile.id >= peerId) return
+  voice.callPeer(peerId)
+}
+
 async function toggleVoice() {
   voiceError.value = null
   if (!voice) return
@@ -144,8 +151,9 @@ async function toggleVoice() {
       engine?.resumeAudioContext()
       voiceOn.value = true
       voiceMuted.value = false
-      for (const peerId of store.peers.keys()) {
-        voice.addPeer(peerId)
+      await store.setVoiceActive(true)
+      for (const [peerId, meta] of store.peers) {
+        maybeCall(peerId, meta)
       }
     } catch (err) {
       voiceError.value = err?.message || 'Micro indisponible'
@@ -192,7 +200,7 @@ onMounted(async () => {
         avatarUrl: meta.avatarUrl,
         x: 0, y: 0, z: 0, rot: 0,
       })
-      if (voiceOn.value) voice.addPeer(meta.profileId)
+      maybeCall(meta.profileId, meta)
     },
     onLeave: (profileId) => {
       voice?.removePeer(profileId)
@@ -203,6 +211,9 @@ onMounted(async () => {
         profileId: payload.profileId,
         x: payload.x, y: payload.y, z: payload.z, rot: payload.rot,
       })
+    },
+    onPeerVoice: (meta) => {
+      maybeCall(meta.profileId, meta)
     },
     onVoiceSignal: (from, kind, data) => {
       voice?.handleSignal(from, kind, data)
