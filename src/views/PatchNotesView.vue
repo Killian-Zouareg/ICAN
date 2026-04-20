@@ -82,6 +82,33 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.7.2',
+    date: '20 avril 2026',
+    icon: '\u{1F3D9}',
+    color: '#3498db',
+    title: 'Hub 3D \u2014 Ville proc\u00e9durale & collisions',
+    description: 'Le Hub 3D prend vie avec un <strong>environnement urbain g\u00e9n\u00e9r\u00e9 proc\u00e9duralement</strong> : un quadrillage de routes asphalt\u00e9es (avec bandes jaunes), des trottoirs, et des dizaines de b\u00e2timents vari\u00e9s. Immeubles d\u2019habitation avec fen\u00eatres allum\u00e9es, maisons individuelles \u00e0 toit en pente, commerces color\u00e9s avec auvents et enseignes. Des arbres bordent les rues, des lampadaires illuminent les intersections, des voitures sont stationn\u00e9es \u00e7a et l\u00e0. Le tout avec <strong>d\u00e9tection de collisions</strong> : impossible de traverser les murs.',
+    tags: ['3D', 'Ville', 'Proc\u00e9dural', 'Collisions'],
+  },
+  {
+    version: '4.7.1',
+    date: '20 avril 2026',
+    icon: '\u{1F399}',
+    color: '#e74c3c',
+    title: 'Hub 3D \u2014 Avatars humano\u00efdes & chat vocal de proximit\u00e9',
+    description: 'Les cubes c\u00e8dent la place \u00e0 de v\u00e9ritables <strong>avatars humano\u00efdes</strong> (t\u00eate avec photo de profil, torse, bras et jambes articul\u00e9s) avec une animation de marche synchronis\u00e9e. Nouveau : un <strong>chat vocal 3D de proximit\u00e9</strong> en WebRTC pair-\u00e0-pair. Les voix s\u2019att\u00e9nuent avec la distance et viennent du bon c\u00f4t\u00e9 gr\u00e2ce \u00e0 la spatialisation HRTF du navigateur. Un bouton en haut \u00e0 droite active/coupe le micro.',
+    tags: ['3D', 'WebRTC', 'Voice', 'Humanoid', 'Multijoueur'],
+  },
+  {
+    version: '4.7.0',
+    date: '20 avril 2026',
+    icon: '\u{1F30D}',
+    color: '#9b59b6',
+    title: 'Hub Social 3D \u2014 Un monde partag\u00e9 en temps r\u00e9el',
+    description: 'iCAN prend une nouvelle dimension : un <strong>hub 3D multijoueur low-poly</strong> accessible via <code>/game</code>. Chaque utilisateur est incarn\u00e9 par un avatar color\u00e9 qui porte son pseudo et sa photo de profil. <strong>ZQSD</strong> pour se d\u00e9placer, la souris pour regarder autour, <strong>Entr\u00e9e</strong> pour tchatter avec les joueurs pr\u00e9sents. Les positions et messages sont synchronis\u00e9s en temps r\u00e9el via Supabase Realtime (broadcast \u00e9ph\u00e9m\u00e8re \u2014 aucune persistance). Six b\u00e2timents placeholder inspir\u00e9s d\u2019Allentown posent le d\u00e9cor pour les futurs ajouts.',
+    tags: ['3D', 'Multijoueur', 'Realtime', 'Three.js', 'Nouveau'],
+  },
+  {
     version: '4.6.0',
     date: '18 avril 2026',
     icon: '\u{1F4AA}',
@@ -416,6 +443,59 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.7.2',
+    date: '20 avril 2026',
+    title: 'Hub 3D \u2014 Ville proc\u00e9durale',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Environnement urbain proc\u00e9dural : quadrillage 7x7 de rues avec routes, trottoirs et intersections' },
+      { type: 'new', text: 'B\u00e2timents vari\u00e9s g\u00e9n\u00e9r\u00e9s al\u00e9atoirement (seed fixe pour coh\u00e9rence) : immeubles, maisons, commerces' },
+      { type: 'new', text: 'Immeubles d\u2019habitation : fa\u00e7ades textur\u00e9es avec fen\u00eatres allum\u00e9es (35% de chance par fen\u00eatre)' },
+      { type: 'new', text: 'Maisons avec toits en pente (prisme triangulaire extrud\u00e9), portes et fen\u00eatres' },
+      { type: 'new', text: 'Commerces color\u00e9s avec vitrines, auvents inclin\u00e9s et enseignes' },
+      { type: 'new', text: 'Arbres (tronc + feuillage icosaedrique) dispos\u00e9s le long des trottoirs' },
+      { type: 'new', text: 'Lampadaires avec bulbes \u00e9missifs aux intersections' },
+      { type: 'new', text: 'Voitures stationn\u00e9es (carrosserie + cabine + 4 roues) avec couleurs vari\u00e9es' },
+      { type: 'new', text: 'D\u00e9tection de collisions AABB : impossible de traverser b\u00e2timents, arbres, voitures' },
+      { type: 'new', text: 'Glissement le long des murs : le mouvement est conserv\u00e9 sur l\u2019axe non-bloqu\u00e9' },
+      { type: 'new', text: 'Lumi\u00e8re h\u00e9misph\u00e9rique ajout\u00e9e pour un ciel plus r\u00e9aliste, brouillard \u00e9loign\u00e9 (60\u2013180m)' },
+      { type: 'new', text: 'Monde agrandi \u00e0 ~180m de c\u00f4t\u00e9 pour accueillir la ville' },
+    ],
+  },
+  {
+    version: '4.7.1',
+    date: '20 avril 2026',
+    title: 'Hub 3D \u2014 Humano\u00efdes & vocal',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Avatars humano\u00efdes low-poly : t\u00eate (avec photo de profil plaqu\u00e9e), torse, bras et jambes articul\u00e9s' },
+      { type: 'new', text: 'Animation de marche : balancement bras/jambes quand le perso bouge (local et distant)' },
+      { type: 'new', text: 'Vue 3\u00e8me personne : cam\u00e9ra orbitale derri\u00e8re l\u2019avatar, contr\u00f4l\u00e9e \u00e0 la souris' },
+      { type: 'new', text: 'Chat vocal de proximit\u00e9 en WebRTC P2P (signaling via Supabase broadcast)' },
+      { type: 'new', text: 'Audio spatialis\u00e9 (THREE.PositionalAudio) : distance de r\u00e9f\u00e9rence 3m, port\u00e9e max 25m, rolloff lin\u00e9aire' },
+      { type: 'new', text: 'Bouton micro en haut \u00e0 droite : activer / mute / unmute avec feedback visuel' },
+      { type: 'new', text: 'Couleur de v\u00eatement d\u00e9riv\u00e9e du profile_id (unique par joueur)' },
+      { type: 'fix', text: 'PointerLockControls retir\u00e9 au profit d\u2019une gestion manuelle (fix de compatibilit\u00e9 avec Three.js r184)' },
+    ],
+  },
+  {
+    version: '4.7.0',
+    date: '20 avril 2026',
+    title: 'Hub Social 3D',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Nouvelle route /game : monde 3D multijoueur low-poly en temps r\u00e9el (Three.js + Supabase broadcast)' },
+      { type: 'new', text: 'Avatar personnel avec pseudo affich\u00e9 et photo de profil plaqu\u00e9e sur la t\u00eate' },
+      { type: 'new', text: 'Contr\u00f4les ZQSD + souris (PointerLock), collisions simples sur les bords du monde' },
+      { type: 'new', text: 'Pr\u00e9sence live des autres joueurs : join/leave via presence channel Supabase' },
+      { type: 'new', text: 'Positions synchronis\u00e9es \u00e0 10 Hz, interpolation c\u00f4t\u00e9 client pour un rendu fluide' },
+      { type: 'new', text: 'Chat de proximit\u00e9 int\u00e9gr\u00e9 (Entr\u00e9e pour \u00e9crire, \u00c9chap pour lib\u00e9rer le curseur)' },
+      { type: 'new', text: 'D\u00e9cor initial : 6 b\u00e2timents placeholder inspir\u00e9s d\u2019Allentown, sol herbeux, skybox et brouillard' },
+      { type: 'new', text: 'Lien \u00ab Hub 3D \u00bb ajout\u00e9 \u00e0 la sidebar desktop et au menu Plus mobile' },
+      { type: 'new', text: 'Lazy-loading strict : Three.js n\u2019est t\u00e9l\u00e9charg\u00e9 qu\u2019\u00e0 la visite de /game' },
+    ],
+  },
   {
     version: '4.6.0',
     date: '18 avril 2026',

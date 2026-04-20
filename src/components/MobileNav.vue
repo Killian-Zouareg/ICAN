@@ -69,6 +69,9 @@
       <router-link to="/igames" class="mobile-more-item" @click="showMore = false">
         <span>&#x1F3AE;</span> iGames
       </router-link>
+      <router-link to="/game" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F30D;</span> Hub 3D
+      </router-link>
       <router-link to="/wiki" class="mobile-more-item" @click="showMore = false">
         <span>&#x1F4D6;</span> iWiki
       </router-link>

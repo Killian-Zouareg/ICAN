@@ -1,0 +1,288 @@
+.game3d-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: #000;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.game3d-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+.game3d-hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.game3d-hud > * {
+  pointer-events: auto;
+}
+
+.hud-top {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  right: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.hud-back {
+  background: rgba(21, 32, 43, 0.85);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s;
+}
+
+.hud-back:hover {
+  background: var(--bg-hover);
+}
+
+.hud-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(21, 32, 43, 0.85);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hud-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}
+
+.hud-dot.online {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.hud-mic {
+  background: rgba(21, 32, 43, 0.85);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+
+.hud-mic:hover {
+  background: var(--bg-hover);
+}
+
+.hud-mic.on {
+  background: rgba(23, 191, 99, 0.2);
+  border-color: var(--success);
+  box-shadow: 0 0 10px rgba(23, 191, 99, 0.35);
+}
+
+.hud-mic.muted {
+  background: rgba(224, 36, 94, 0.15);
+  border-color: var(--danger);
+  box-shadow: none;
+}
+
+.hud-mic.error {
+  background: rgba(224, 36, 94, 0.2);
+  border-color: var(--danger);
+}
+
+.hud-mic-label {
+  font-size: 13px;
+}
+
+.hud-mic-hint {
+  display: inline-block;
+  padding: 1px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: 4px;
+}
+
+@media (max-width: 600px) {
+  .hud-mic-label, .hud-mic-hint {
+    display: none;
+  }
+}
+
+.hud-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.hud-overlay-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  padding: 32px 40px;
+  border-radius: 16px;
+  text-align: center;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.hud-overlay-card h1 {
+  color: var(--accent);
+  font-size: 28px;
+  margin: 0 0 8px;
+}
+
+.hud-subtitle {
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin: 0 0 20px;
+}
+
+.hud-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.hud-controls kbd {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  margin: 0 2px;
+}
+
+.hud-play-btn {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 9999px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.hud-play-btn:hover {
+  background: var(--accent-hover);
+}
+
+.hud-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  margin-top: -3px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+.hud-chat {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  background: rgba(21, 32, 43, 0.7);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: background 0.2s;
+}
+
+.hud-chat.focused {
+  background: rgba(21, 32, 43, 0.95);
+}
+
+.hud-chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.hud-chat-msg {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.hud-chat-name {
+  color: var(--accent);
+  font-weight: 600;
+  margin-right: 6px;
+}
+
+.hud-chat-input {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  outline: none;
+}
+
+.hud-chat-input:focus {
+  border-color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .hud-chat {
+    width: calc(100vw - 32px);
+  }
+  .hud-overlay-card {
+    padding: 24px 20px;
+    margin: 16px;
+  }
+}

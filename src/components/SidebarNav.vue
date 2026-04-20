@@ -42,6 +42,10 @@
           <span class="sidebar-icon">&#x1F3AE;</span>
           <span class="sidebar-label">iGames</span>
         </router-link>
+        <router-link to="/game" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F30D;</span>
+          <span class="sidebar-label">Hub 3D</span>
+        </router-link>
         <router-link to="/wiki" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F4D6;</span>
           <span class="sidebar-label">iWiki</span>

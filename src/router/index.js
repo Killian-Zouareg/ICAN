@@ -89,6 +89,11 @@ const routes = [
     component: () => import('../views/TerritoryView.vue'),
   },
   {
+    path: '/game',
+    name: 'Hub3D',
+    component: () => import('../views/GameView.vue'),
+  },
+  {
     path: '/wiki/articles',
     name: 'WikiArticles',
     component: () => import('../views/WikiArticlesView.vue'),
