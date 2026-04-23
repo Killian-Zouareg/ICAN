@@ -33,6 +33,8 @@
             <div><kbd>Entr&eacute;e</kbd> &mdash; Chat &nbsp;|&nbsp; <kbd>&Eacute;chap</kbd> &mdash; Lib&eacute;rer</div>
             <div><kbd>V</kbd> &mdash; Micro (proximit&eacute;)</div>
             <div><kbd>E</kbd> &mdash; Entrer / sortir d'une voiture</div>
+            <div><kbd>Espace</kbd> &mdash; Sauter &nbsp;|&nbsp; <kbd>R</kbd> &mdash; Respawn parkour</div>
+            <div class="hud-parkour-teaser">&#x1F9D7; Parkour extr&ecirc;me au sud-est du campus</div>
           </div>
           <button class="hud-play-btn" @click.stop="requestLock">Jouer</button>
         </div>
@@ -43,6 +45,39 @@
       <div v-if="locked && interactHint" class="hud-interact">
         <kbd>E</kbd>
         <span>{{ interactLabel }}</span>
+      </div>
+
+      <!-- Parkour HUD -->
+      <div v-if="parkour.active" class="hud-parkour">
+        <div class="hud-parkour-row">
+          <span class="hud-parkour-icon">&#x1F9D7;</span>
+          <span class="hud-parkour-timer">{{ formatTime(parkour.elapsed) }}</span>
+        </div>
+        <div class="hud-parkour-row secondary">
+          <span>&#x2620; {{ parkour.deaths }}</span>
+          <span>CP {{ parkour.currentCp }}</span>
+          <span v-if="parkour.bestMs">&#x1F3C6; {{ formatTime(parkour.bestMs / 1000) }}</span>
+        </div>
+        <div class="hud-parkour-hint">
+          <kbd>Espace</kbd> sauter &middot; <kbd>R</kbd> respawn
+        </div>
+      </div>
+
+      <!-- Parkour toast -->
+      <div v-if="parkour.toast" class="hud-parkour-toast" :class="parkour.toastKind">
+        {{ parkour.toast }}
+      </div>
+
+      <!-- Parkour victory overlay -->
+      <div v-if="parkour.finished" class="hud-parkour-victory" @click="parkour.finished = false">
+        <div class="hud-parkour-victory-card" @click.stop>
+          <div class="big-icon">&#x1F3C1;</div>
+          <h2>Parkour termin&eacute; !</h2>
+          <p>Temps : <strong>{{ formatTime(parkour.finalMs / 1000) }}</strong></p>
+          <p>Morts : <strong>{{ parkour.deaths }}</strong></p>
+          <p v-if="parkour.isRecord" class="record">&#x1F31F; Nouveau record !</p>
+          <button class="victory-btn" @click="closeVictory">Continuer</button>
+        </div>
       </div>
 
       <div class="hud-chat" :class="{ focused: chatFocused }">
@@ -76,6 +111,7 @@ import { useAuthStore } from '../stores/auth'
 import { useGame3dStore } from '../stores/game3d'
 import { GameEngine } from '../lib/game3d/engine'
 import { VoiceManager } from '../lib/game3d/voice'
+import { supabase } from '../lib/supabase'
 
 const auth = useAuthStore()
 const store = useGame3dStore()
@@ -91,9 +127,131 @@ const voiceMuted = ref(false)
 const voiceError = ref(null)
 const interactHint = ref(null)
 
+// Parkour state shown in the HUD
+const parkour = ref({
+  active: false,
+  elapsed: 0,
+  deaths: 0,
+  currentCp: 0,
+  bestMs: parseFloat(localStorage.getItem('parkour_best_ms') || 'NaN') || null,
+  finished: false,
+  finalMs: 0,
+  isRecord: false,
+  toast: '',
+  toastKind: '',
+})
+let parkourStartedAt = 0
+let parkourTimerId = null
+let toastTimerId = null
+
+function formatTime(s) {
+  if (!s && s !== 0) return '--:--'
+  const m = Math.floor(s / 60)
+  const sec = s - m * 60
+  return `${m.toString().padStart(2, '0')}:${sec.toFixed(2).padStart(5, '0')}`
+}
+
+function showToast(msg, kind = '') {
+  parkour.value.toast = msg
+  parkour.value.toastKind = kind
+  if (toastTimerId) clearTimeout(toastTimerId)
+  toastTimerId = setTimeout(() => { parkour.value.toast = '' }, 2200)
+}
+
+function handleParkourEvent(ev) {
+  if (ev.type === 'start') {
+    parkour.value.active = true
+    parkour.value.finished = false
+    parkour.value.elapsed = 0
+    parkourStartedAt = performance.now()
+    if (parkourTimerId) clearInterval(parkourTimerId)
+    parkourTimerId = setInterval(() => {
+      if (parkour.value.active && !parkour.value.finished) {
+        parkour.value.elapsed = (performance.now() - parkourStartedAt) / 1000
+      }
+    }, 80)
+    showToast('\u{1F9D7} Parkour lancé !')
+  } else if (ev.type === 'checkpoint') {
+    parkour.value.currentCp = ev.index
+    showToast(`Checkpoint ${ev.index} validé !`, 'cp')
+  } else if (ev.type === 'death') {
+    parkour.value.deaths = ev.deaths
+    showToast('\u{1F480} Mort — respawn', 'death')
+  } else if (ev.type === 'finish') {
+    parkour.value.finished = true
+    parkour.value.finalMs = ev.ms
+    const prev = parkour.value.bestMs
+    if (prev === null || ev.ms < prev) {
+      parkour.value.isRecord = true
+      parkour.value.bestMs = ev.ms
+    } else {
+      parkour.value.isRecord = false
+    }
+    if (parkourTimerId) { clearInterval(parkourTimerId); parkourTimerId = null }
+    // Submit to Supabase leaderboard + refresh billboard
+    submitParkourTime(ev.ms)
+  } else if (ev.type === 'reset') {
+    parkour.value.deaths = 0
+    parkour.value.elapsed = 0
+    parkour.value.currentCp = 0
+    parkour.value.finished = false
+  }
+}
+
+function closeVictory() {
+  parkour.value.finished = false
+  parkour.value.active = false
+}
+
+async function fetchParkourLeaderboard() {
+  try {
+    const { data, error } = await supabase
+      .from('game_scores')
+      .select('best_score, profiles(display_name, username)')
+      .eq('game', 'parkour')
+      .order('best_score', { ascending: true })
+      .limit(10)
+    if (error) throw error
+    const entries = (data || []).map((r) => ({
+      name: r.profiles?.display_name || r.profiles?.username || 'Inconnu',
+      timeMs: r.best_score,
+    }))
+    engine?.updateParkourLeaderboard(entries)
+  } catch { /* ignore */ }
+}
+
+async function submitParkourTime(ms) {
+  const pid = auth.activeProfile?.id
+  if (!pid || !ms) return
+  const score = Math.floor(ms)
+  try {
+    const { data: existing } = await supabase
+      .from('game_scores')
+      .select('id, best_score')
+      .eq('profile_id', pid)
+      .eq('game', 'parkour')
+      .maybeSingle()
+    if (existing) {
+      if (score < existing.best_score) {
+        await supabase
+          .from('game_scores')
+          .update({ best_score: score, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      }
+    } else {
+      await supabase
+        .from('game_scores')
+        .insert({ profile_id: pid, game: 'parkour', best_score: score })
+    }
+    await fetchParkourLeaderboard()
+  } catch { /* ignore */ }
+}
+
 const interactLabel = computed(() => {
   if (interactHint.value === 'enter-car') return 'Entrer dans la voiture'
   if (interactHint.value === 'exit-car') return 'Sortir de la voiture'
+  if (interactHint.value === 'enter-bike') return 'Monter sur le vélo'
+  if (interactHint.value === 'exit-bike') return 'Descendre du vélo'
   return ''
 })
 
@@ -194,6 +352,7 @@ onMounted(async () => {
     localProfile: auth.activeProfile,
     onMove: (pos) => store.sendMove(pos),
     onHintChange: (hint) => { interactHint.value = hint },
+    onParkourEvent: handleParkourEvent,
   })
   engine.onLockChange((isLocked) => { locked.value = isLocked })
 
@@ -205,6 +364,9 @@ onMounted(async () => {
   })
 
   document.addEventListener('keydown', onGlobalKey)
+
+  // Charger le classement parkour &agrave; l'arriv&eacute;e
+  fetchParkourLeaderboard()
 
   await store.joinRoom(auth.activeProfile, {
     onJoin: (meta) => {
@@ -236,6 +398,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  if (parkourTimerId) clearInterval(parkourTimerId)
+  if (toastTimerId) clearTimeout(toastTimerId)
   document.removeEventListener('keydown', onGlobalKey)
   voice?.stop()
   voice = null

@@ -3,6 +3,7 @@ import { Sky } from 'three-stdlib'
 import { createAvatar } from './avatars.js'
 import { createCampus, CAMPUS_HALF } from './campus.js'
 import { createPedestrians } from './pedestrians.js'
+import { createParkour } from './parkour.js'
 
 const CITY_HALF = CAMPUS_HALF
 
@@ -21,16 +22,43 @@ const CAR_REVERSE_MAX = 8
 const CAR_DRAG = 0.92
 const CAR_BRAKE = 14
 const CAR_TURN_RATE = 2.0
+// Bike-specific physics (nimbler, lower top speed)
+const BIKE_CAM_DISTANCE = 5.5
+const BIKE_CAM_HEIGHT = 2.6
+const BIKE_ACCEL = 12
+const BIKE_MAX_SPEED = 14
+const BIKE_REVERSE_MAX = 5
+const BIKE_DRAG = 0.95
+const BIKE_BRAKE = 18
+const BIKE_TURN_RATE = 3.2
 const INTERACT_DIST = 4
 
+// --- Parkour / jump physics ---
+const GRAVITY = 22           // m/s^2
+const JUMP_V = 8.8           // m/s
+const SLIME_V = 15.5
+const MAX_FALL = 30
+const PLAYER_HEIGHT = 1.8    // used for ceiling / lateral platform checks
+const ICE_DAMPING = 0.96     // per-frame friction multiplier on ice
+const AIR_CONTROL = 0.55     // movement effectiveness while airborne
+
 export class GameEngine {
-  constructor(canvas, { localProfile, onMove, onHintChange } = {}) {
+  constructor(canvas, { localProfile, onMove, onHintChange, onParkourEvent } = {}) {
     this.canvas = canvas
     this.onMove = onMove || (() => {})
     this.onHintChange = onHintChange || (() => {})
+    this.onParkourEvent = onParkourEvent || (() => {})
     this.remotes = new Map()
-    this.keys = { forward: false, back: false, left: false, right: false }
+    this.keys = { forward: false, back: false, left: false, right: false, jumpHeld: false }
     this.disposed = false
+    this.vy = 0
+    this.onGround = true
+    this.onIce = false
+    this.velXZ = new THREE.Vector2(0, 0) // for ice sliding momentum
+    this.parkour = null
+    const savedBest = parseFloat(localStorage.getItem('parkour_best_ms') || 'NaN')
+    this.parkourStats = { deaths: 0, startedAt: null, finished: false, bestMs: isNaN(savedBest) ? null : savedBest, currentCp: 0 }
+    this._lastBouncedId = -1
     this.lastMoveSent = 0
     this.lastPos = new THREE.Vector3()
     this.lastRot = 0
@@ -78,7 +106,7 @@ export class GameEngine {
 
   _setupScene() {
     this.scene = new THREE.Scene()
-    this.scene.fog = new THREE.Fog(0xbfd7e8, 80, 220)
+    this.scene.fog = new THREE.Fog(0xbfd7e8, 120, 450)
 
     // Procedural sky
     this.sky = new Sky()
@@ -123,6 +151,13 @@ export class GameEngine {
     this.cars = campus.cars
     this._campusAnimate = campus.root.userData.animate
 
+    // Parkour (au sud-est du campus, hors des b&acirc;timents)
+    const parkour = createParkour({ origin: new THREE.Vector3(130, 0, 130) })
+    this.scene.add(parkour.root)
+    this.parkour = parkour
+    this._parkourReachedCps = new Set([0])
+    this._disposables.push(...parkour.disposables)
+
     this.pedestrians = createPedestrians({
       count: 28,
       obstacles: this.obstacles,
@@ -136,25 +171,41 @@ export class GameEngine {
     this._resize()
   }
 
-  _collides(x, z) {
+  _collides(x, z, y = null) {
     const r = PLAYER_RADIUS
+    // 2D obstacles (campus buildings, trees, cars) — always block
     for (const o of this.obstacles) {
       if (x + r > o.minX && x - r < o.maxX && z + r > o.minZ && z - r < o.maxZ) return true
+    }
+    // 3D platforms (parkour) — block laterally only when Y-range overlaps
+    if (this.parkour && y !== null) {
+      const py = y
+      const pyTop = y + PLAYER_HEIGHT
+      for (const p of this.parkour.platforms) {
+        if (p._inactive) continue
+        if (
+          x + r > p.minX && x - r < p.maxX &&
+          z + r > p.minZ && z - r < p.maxZ &&
+          pyTop > p.minY + 0.05 && py < p.maxY - 0.05 &&
+          p.maxY - py > 0.5 // step-up: don't block if platform top is within 0.5m of feet
+        ) return true
+      }
     }
     return false
   }
 
   _tryMove(nx, nz) {
+    // No world boundary clamp — the player can roam beyond the campus edge.
     const cur = this.player.position
-    const halfWorld = CITY_HALF - 1
-    let x = Math.max(-halfWorld, Math.min(halfWorld, nx))
-    let z = Math.max(-halfWorld, Math.min(halfWorld, nz))
-    if (!this._collides(x, z)) {
+    const x = nx
+    const z = nz
+    const y = cur.y
+    if (!this._collides(x, z, y)) {
       cur.x = x; cur.z = z
       return
     }
-    if (!this._collides(x, cur.z)) { cur.x = x; return }
-    if (!this._collides(cur.x, z)) { cur.z = z; return }
+    if (!this._collides(x, cur.z, y)) { cur.x = x; return }
+    if (!this._collides(cur.x, z, y)) { cur.z = z; return }
   }
 
   _carCollides(nx, nz) {
@@ -203,15 +254,24 @@ export class GameEngine {
       obstacle: carData.obstacle,
       speed: 0,
       heading: carData.group.rotation.y,
+      type: carData.vehicleType || 'car',
     }
-    this.player.visible = false
-    this._setHint('exit-car')
+    if (this.drive.type === 'bike') {
+      // On a bike the rider is visible, sitting on the seat
+      this.player.visible = true
+    } else {
+      this.player.visible = false
+    }
+    this._setHint(this.drive.type === 'bike' ? 'exit-bike' : 'exit-car')
   }
 
   exitCar() {
     if (!this.drive) return
     const car = this.drive.car
-    const exitOffset = 1.8
+    const isBike = this.drive.type === 'bike'
+    const exitOffset = isBike ? 1.2 : 1.8
+    // Reset any bike lean
+    if (isBike) car.rotation.z = 0
     this.player.position.set(
       car.position.x + Math.cos(this.drive.heading) * exitOffset,
       0,
@@ -255,9 +315,10 @@ export class GameEngine {
 
   _updateCamera() {
     const target = this.drive ? this.drive.car.position : this.player.position
-    const dist = this.drive ? CAR_CAM_DISTANCE : CAM_DISTANCE
-    const height = this.drive ? CAR_CAM_HEIGHT : CAM_HEIGHT
-    const lookY = this.drive ? 1.0 : 1.7
+    const isBike = this.drive?.type === 'bike'
+    const dist = this.drive ? (isBike ? BIKE_CAM_DISTANCE : CAR_CAM_DISTANCE) : CAM_DISTANCE
+    const height = this.drive ? (isBike ? BIKE_CAM_HEIGHT : CAR_CAM_HEIGHT) : CAM_HEIGHT
+    const lookY = this.drive ? (isBike ? 1.3 : 1.0) : 1.7
     const cosP = Math.cos(this.pitch)
     const sinP = Math.sin(this.pitch)
     const ox = Math.sin(this.yaw) * dist * cosP
@@ -319,6 +380,12 @@ export class GameEngine {
         case 'KeyA': case 'ArrowLeft': case 'KeyQ': this.keys.left = true; break
         case 'KeyD': case 'ArrowRight': this.keys.right = true; break
         case 'KeyE': if (!e.repeat) this._onInteract(); break
+        case 'Space':
+          e.preventDefault?.()
+          this.keys.jumpHeld = true
+          if (!e.repeat && !this.drive) this._tryJump()
+          break
+        case 'KeyR': if (!e.repeat) this._parkourRespawn(); break
       }
     }
     this._onKeyUp = (e) => {
@@ -327,6 +394,11 @@ export class GameEngine {
         case 'KeyS': case 'ArrowDown': this.keys.back = false; break
         case 'KeyA': case 'ArrowLeft': case 'KeyQ': this.keys.left = false; break
         case 'KeyD': case 'ArrowRight': this.keys.right = false; break
+        case 'Space':
+          this.keys.jumpHeld = false
+          // Variable jump height: cut upward velocity when released
+          if (this.vy > 3) this.vy = 3
+          break
       }
     }
     this._onMouseMove = (e) => {
@@ -366,6 +438,174 @@ export class GameEngine {
     this._lockListeners.push(cb)
   }
 
+  _tryJump() {
+    if (this.onGround) {
+      this.vy = JUMP_V
+      this.onGround = false
+    }
+  }
+
+  _parkourRespawn(silent = false) {
+    if (!this.parkour) return
+    // Find last reached checkpoint
+    let spawn = this.parkour.spawnPoint
+    let highest = -1
+    for (const cp of this.parkour.checkpoints) {
+      if (this._parkourReachedCps.has(cp.index) && cp.index > highest) {
+        highest = cp.index
+        spawn = cp.pos
+      }
+    }
+    this.player.position.copy(spawn)
+    this.vy = 0
+    this.velXZ.set(0, 0)
+    this.onGround = true
+    if (!silent) {
+      this.parkourStats.deaths++
+      this.onParkourEvent({ type: 'death', deaths: this.parkourStats.deaths, cp: highest })
+    }
+  }
+
+  _isInParkourZone(x, z) {
+    const b = this.parkour?.worldBounds
+    if (!b) return false
+    return x > b.minX && x < b.maxX && z > b.minZ && z < b.maxZ
+  }
+
+  _updateParkourPhysics(dt) {
+    if (!this.parkour) return
+    const px = this.player.position.x
+    const py = this.player.position.y
+    const pz = this.player.position.z
+    const r = PLAYER_RADIUS
+
+    // Gravity
+    this.vy -= GRAVITY * dt
+    if (this.vy < -MAX_FALL) this.vy = -MAX_FALL
+
+    let newY = py + this.vy * dt
+
+    // Vertical collision — landing on platform tops / head-hit under ceilings
+    let landed = null
+    if (this.vy <= 0) {
+      let bestTop = null
+      for (const p of this.parkour.platforms) {
+        if (p._inactive) continue
+        if (px + r <= p.minX || px - r >= p.maxX) continue
+        if (pz + r <= p.minZ || pz - r >= p.maxZ) continue
+        const top = p.maxY
+        // Must be at or above this top (with a small step-up slack), falling onto it
+        if (py + 0.5 >= top && newY <= top) {
+          if (bestTop === null || top > bestTop.top) {
+            bestTop = { top, plat: p }
+          }
+        }
+      }
+      if (bestTop) {
+        landed = bestTop.plat
+        newY = bestTop.top
+        this.vy = 0
+        // Ride moving platforms
+        if (landed.type === 'moving') {
+          if (landed._dx) this.player.position.x += landed._dx
+          if (landed._dz) this.player.position.z += landed._dz
+          if (landed._dy) newY += landed._dy
+        }
+      }
+    } else {
+      // Head hit
+      for (const p of this.parkour.platforms) {
+        if (p._inactive) continue
+        if (px + r <= p.minX || px - r >= p.maxX) continue
+        if (pz + r <= p.minZ || pz - r >= p.maxZ) continue
+        const bottom = p.minY
+        if (py + PLAYER_HEIGHT <= bottom + 0.01 && newY + PLAYER_HEIGHT > bottom) {
+          newY = bottom - PLAYER_HEIGHT - 0.01
+          this.vy = -0.5
+          break
+        }
+      }
+    }
+
+    // Ground (grass) at y=0 — keep player on ground outside parkour
+    if (newY <= 0 && !landed) {
+      newY = 0
+      this.vy = 0
+      landed = { type: 'ground' }
+    }
+
+    this.player.position.y = newY
+
+    this.onGround = !!landed
+    this.onIce = landed?.type === 'ice'
+
+    // Slime bounce
+    if (landed?.type === 'slime') {
+      // avoid re-bouncing the same frame chain: fresh impulse each landing
+      this.vy = SLIME_V
+      this.onGround = false
+    }
+
+    // Fall below world → respawn
+    if (newY < this.parkour.fallY && this._isInParkourZone(px, pz)) {
+      this._parkourRespawn()
+      return
+    }
+
+    // Hazards (lava pit / spikes)
+    for (const h of this.parkour.hazards) {
+      if (
+        px + r > h.minX && px - r < h.maxX &&
+        pz + r > h.minZ && pz - r < h.maxZ &&
+        newY < h.maxY && newY + PLAYER_HEIGHT > h.minY
+      ) {
+        this._parkourRespawn()
+        return
+      }
+    }
+
+    // Checkpoints
+    for (const cp of this.parkour.checkpoints) {
+      if (this._parkourReachedCps.has(cp.index)) continue
+      const d = Math.hypot(cp.pos.x - px, cp.pos.z - pz)
+      if (d < 1.5 && Math.abs(cp.pos.y - newY) < 3) {
+        this._parkourReachedCps.add(cp.index)
+        this.parkourStats.currentCp = cp.index
+        // Visual feedback: flash flag larger (handled by the store/UI)
+        this.onParkourEvent({ type: 'checkpoint', index: cp.index })
+      }
+    }
+
+    // Goal
+    const g = this.parkour.goal._worldAabb
+    if (
+      !this.parkourStats.finished &&
+      px + r > g.minX && px - r < g.maxX &&
+      pz + r > g.minZ && pz - r < g.maxZ &&
+      newY < g.maxY + 1 && newY + PLAYER_HEIGHT > g.minY
+    ) {
+      this.parkourStats.finished = true
+      const ms = this.parkourStats.startedAt ? performance.now() - this.parkourStats.startedAt : 0
+      if (this.parkourStats.bestMs === null || ms < this.parkourStats.bestMs) {
+        this.parkourStats.bestMs = ms
+        localStorage.setItem('parkour_best_ms', String(ms))
+      }
+      this.onParkourEvent({ type: 'finish', ms, deaths: this.parkourStats.deaths })
+    }
+  }
+
+  updateParkourLeaderboard(entries) {
+    this.parkour?.updateLeaderboard?.(entries)
+  }
+
+  resetParkour() {
+    if (!this.parkour) return
+    this._parkourReachedCps = new Set([0])
+    this.parkourStats = { deaths: 0, startedAt: performance.now(), finished: false, bestMs: this.parkourStats.bestMs, currentCp: 0 }
+    this._parkourRespawn(true)
+    this.onParkourEvent({ type: 'reset' })
+  }
+
   _tick() {
     if (this.disposed) return
     const dt = Math.min(this.clock.getDelta(), 0.1)
@@ -373,29 +613,36 @@ export class GameEngine {
     let walking = false
     if (this.drive) {
       const d = this.drive
+      const isBike = d.type === 'bike'
+      const ACCEL = isBike ? BIKE_ACCEL : CAR_ACCEL
+      const MAX_SP = isBike ? BIKE_MAX_SPEED : CAR_MAX_SPEED
+      const REV_MAX = isBike ? BIKE_REVERSE_MAX : CAR_REVERSE_MAX
+      const DRAG = isBike ? BIKE_DRAG : CAR_DRAG
+      const BRAKE = isBike ? BIKE_BRAKE : CAR_BRAKE
+      const TURN = isBike ? BIKE_TURN_RATE : CAR_TURN_RATE
       const accelInput = (this.keys.forward ? 1 : 0) - (this.keys.back ? 1 : 0)
       const steerInput = (this.keys.left ? 1 : 0) - (this.keys.right ? 1 : 0)
       if (accelInput !== 0) {
-        d.speed += accelInput * CAR_ACCEL * dt
+        d.speed += accelInput * ACCEL * dt
       } else {
-        const drag = Math.pow(CAR_DRAG, dt * 60)
+        const drag = Math.pow(DRAG, dt * 60)
         d.speed *= drag
         if (Math.abs(d.speed) < 0.05) d.speed = 0
       }
-      if (this.keys.forward && d.speed < 0) d.speed += CAR_BRAKE * dt
-      if (this.keys.back && d.speed > 0) d.speed -= CAR_BRAKE * dt
-      if (d.speed > CAR_MAX_SPEED) d.speed = CAR_MAX_SPEED
-      if (d.speed < -CAR_REVERSE_MAX) d.speed = -CAR_REVERSE_MAX
+      if (this.keys.forward && d.speed < 0) d.speed += BRAKE * dt
+      if (this.keys.back && d.speed > 0) d.speed -= BRAKE * dt
+      if (d.speed > MAX_SP) d.speed = MAX_SP
+      if (d.speed < -REV_MAX) d.speed = -REV_MAX
 
       const speedFactor = Math.min(1, Math.abs(d.speed) / 5)
       const dir = d.speed >= 0 ? 1 : -1
-      d.heading += steerInput * CAR_TURN_RATE * speedFactor * dir * dt
+      d.heading += steerInput * TURN * speedFactor * dir * dt
 
       const dx = Math.sin(d.heading) * d.speed * dt
       const dz = Math.cos(d.heading) * d.speed * dt
-      const halfWorld = CITY_HALF - 2
-      const nx = Math.max(-halfWorld, Math.min(halfWorld, d.car.position.x + dx))
-      const nz = Math.max(-halfWorld, Math.min(halfWorld, d.car.position.z + dz))
+      // No world boundary clamp on cars either.
+      const nx = d.car.position.x + dx
+      const nz = d.car.position.z + dz
       if (!this._carCollides(nx, nz)) {
         d.car.position.x = nx
         d.car.position.z = nz
@@ -404,6 +651,12 @@ export class GameEngine {
       }
       d.car.rotation.y = d.heading
       this.player.position.copy(d.car.position)
+      if (isBike) {
+        // Rider sits on the seat
+        this.player.position.y = 0.8
+        // Lean on turns for visual flair
+        d.car.rotation.z = -steerInput * Math.min(0.25, Math.abs(d.speed) / 30)
+      }
       this.player.rotation.y = d.heading
     } else if (this.locked) {
       let mx = 0, mz = 0
@@ -411,17 +664,40 @@ export class GameEngine {
       if (this.keys.back) mz += 1
       if (this.keys.left) mx -= 1
       if (this.keys.right) mx += 1
+      let wx = 0, wz = 0
       if (mx !== 0 || mz !== 0) {
         walking = true
         const len = Math.hypot(mx, mz)
         mx /= len; mz /= len
         const sin = Math.sin(this.yaw)
         const cos = Math.cos(this.yaw)
-        const wx = mx * cos + mz * sin
-        const wz = -mx * sin + mz * cos
-        const step = MOVE_SPEED * dt
-        this._tryMove(this.player.position.x + wx * step, this.player.position.z + wz * step)
-        const facing = Math.atan2(wx, wz) + Math.PI
+        wx = mx * cos + mz * sin
+        wz = -mx * sin + mz * cos
+      }
+
+      // Movement model mixes direct control and momentum (ice / air)
+      const targetX = wx * MOVE_SPEED
+      const targetZ = wz * MOVE_SPEED
+      if (this.onGround && !this.onIce) {
+        // Direct, responsive walking
+        this.velXZ.x = targetX
+        this.velXZ.y = targetZ
+      } else if (this.onIce) {
+        // Ice: small accel, low friction
+        this.velXZ.x = this.velXZ.x * ICE_DAMPING + targetX * 0.03
+        this.velXZ.y = this.velXZ.y * ICE_DAMPING + targetZ * 0.03
+      } else {
+        // Air: reduced control, keep momentum
+        this.velXZ.x = this.velXZ.x * 0.98 + targetX * AIR_CONTROL * 0.1
+        this.velXZ.y = this.velXZ.y * 0.98 + targetZ * AIR_CONTROL * 0.1
+      }
+
+      if (Math.hypot(this.velXZ.x, this.velXZ.y) > 0.05) {
+        this._tryMove(
+          this.player.position.x + this.velXZ.x * dt,
+          this.player.position.z + this.velXZ.y * dt,
+        )
+        const facing = Math.atan2(this.velXZ.x, this.velXZ.y) + Math.PI
         const rotDelta = ((facing - this.player.rotation.y + Math.PI) % (Math.PI * 2)) - Math.PI
         this.player.rotation.y += rotDelta * Math.min(1, dt * 12)
       }
@@ -430,11 +706,25 @@ export class GameEngine {
 
     if (!this.drive) {
       const near = this._nearestCar()
-      this._setHint(near ? 'enter-car' : null)
+      this._setHint(near ? (near.vehicleType === 'bike' ? 'enter-bike' : 'enter-car') : null)
     }
 
     this.pedestrians?.update(dt, performance.now())
     this._campusAnimate?.(this.clock.elapsedTime)
+    this.parkour?.animate(this.clock.elapsedTime)
+
+    // Parkour physics (gravity, platform collision, hazards, checkpoints, goal)
+    if (!this.drive) {
+      this._updateParkourPhysics(dt)
+      // Start timer the first time the player enters the parkour zone
+      if (
+        this.parkourStats.startedAt === null &&
+        this._isInParkourZone(this.player.position.x, this.player.position.z)
+      ) {
+        this.parkourStats.startedAt = performance.now()
+        this.onParkourEvent({ type: 'start' })
+      }
+    }
 
     // Keep the sun's shadow frustum focused on the player
     if (this.sun) {
@@ -477,13 +767,13 @@ export class GameEngine {
     let entry = this.remotes.get(profileId)
     if (!entry) {
       const mesh = createAvatar({ profileId, username, avatarUrl })
-      mesh.position.set(x ?? 0, 0, z ?? 0)
+      mesh.position.set(x ?? 0, y ?? 0, z ?? 0)
       mesh.traverse((n) => { if (n.isMesh) { n.castShadow = true } })
       this.scene.add(mesh)
-      entry = { mesh, target: new THREE.Vector3(x ?? 0, 0, z ?? 0), targetRot: rot ?? 0 }
+      entry = { mesh, target: new THREE.Vector3(x ?? 0, y ?? 0, z ?? 0), targetRot: rot ?? 0 }
       this.remotes.set(profileId, entry)
     }
-    if (typeof x === 'number') entry.target.set(x, 0, z)
+    if (typeof x === 'number') entry.target.set(x, y ?? 0, z)
     if (typeof rot === 'number') entry.targetRot = rot
   }
 

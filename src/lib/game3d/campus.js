@@ -467,6 +467,106 @@ function buildCar(rng, cx, cz, rot, disp) {
   }
 }
 
+function buildBike(rng, cx, cz, rot, disp) {
+  const group = new THREE.Group()
+  const colors = [0xe74c3c, 0x1abc9c, 0xf1c40f, 0x9b59b6, 0x34495e, 0xe67e22]
+  const frameMat = new THREE.MeshStandardMaterial({
+    color: colors[Math.floor(rng() * colors.length)],
+    roughness: 0.35, metalness: 0.75,
+  })
+  const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 })
+  const chromeMat = new THREE.MeshStandardMaterial({ color: 0xc0c0c0, roughness: 0.2, metalness: 0.95 })
+  disp.push(frameMat, darkMat, chromeMat)
+
+  // Roues (verticales sur l'axe X)
+  const wheelGeo = new THREE.TorusGeometry(0.4, 0.07, 8, 24)
+  disp.push(wheelGeo)
+  const wheelFront = new THREE.Mesh(wheelGeo, darkMat)
+  wheelFront.rotation.y = Math.PI / 2
+  wheelFront.position.set(0, 0.4, 0.9)
+  wheelFront.castShadow = true
+  group.add(wheelFront)
+  const wheelRear = new THREE.Mesh(wheelGeo, darkMat)
+  wheelRear.rotation.y = Math.PI / 2
+  wheelRear.position.set(0, 0.4, -0.9)
+  wheelRear.castShadow = true
+  group.add(wheelRear)
+
+  // Jantes (cercles int&eacute;rieurs)
+  const rimGeo = new THREE.TorusGeometry(0.3, 0.03, 6, 18)
+  disp.push(rimGeo)
+  const rimF = new THREE.Mesh(rimGeo, chromeMat)
+  rimF.rotation.y = Math.PI / 2
+  rimF.position.copy(wheelFront.position)
+  group.add(rimF)
+  const rimR = new THREE.Mesh(rimGeo, chromeMat)
+  rimR.rotation.y = Math.PI / 2
+  rimR.position.copy(wheelRear.position)
+  group.add(rimR)
+
+  // Cadre (tube principal diagonal)
+  const frameGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.6, 8)
+  disp.push(frameGeo)
+  const topTube = new THREE.Mesh(frameGeo, frameMat)
+  topTube.rotation.x = Math.PI / 2
+  topTube.position.set(0, 0.85, 0)
+  topTube.castShadow = true
+  group.add(topTube)
+  // Tube de selle
+  const seatTube = new THREE.Mesh(frameGeo, frameMat)
+  seatTube.position.set(0, 0.75, -0.6)
+  seatTube.scale.y = 0.6
+  group.add(seatTube)
+  // Fourche avant
+  const forkTube = new THREE.Mesh(frameGeo, frameMat)
+  forkTube.position.set(0, 0.75, 0.8)
+  forkTube.scale.y = 0.65
+  group.add(forkTube)
+
+  // Selle
+  const seatGeo = new THREE.BoxGeometry(0.18, 0.08, 0.35)
+  disp.push(seatGeo)
+  const seat = new THREE.Mesh(seatGeo, darkMat)
+  seat.position.set(0, 1.1, -0.6)
+  seat.castShadow = true
+  group.add(seat)
+
+  // Guidon
+  const barGeo = new THREE.BoxGeometry(0.55, 0.06, 0.06)
+  disp.push(barGeo)
+  const bar = new THREE.Mesh(barGeo, darkMat)
+  bar.position.set(0, 1.15, 0.85)
+  group.add(bar)
+  // Tige du guidon
+  const stemGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 6)
+  disp.push(stemGeo)
+  const stem = new THREE.Mesh(stemGeo, chromeMat)
+  stem.position.set(0, 1.0, 0.85)
+  group.add(stem)
+
+  // P&eacute;daliers
+  const pedalGeo = new THREE.BoxGeometry(0.25, 0.04, 0.04)
+  disp.push(pedalGeo)
+  for (const px of [-0.12, 0.12]) {
+    const pedal = new THREE.Mesh(pedalGeo, chromeMat)
+    pedal.position.set(px, 0.35, -0.1)
+    group.add(pedal)
+  }
+
+  group.position.set(cx, 0, cz)
+  group.rotation.y = rot
+  const cosA = Math.abs(Math.cos(rot)), sinA = Math.abs(Math.sin(rot))
+  return {
+    group,
+    obstacle: {
+      minX: cx - (cosA * 0.4 + sinA * 1.1),
+      maxX: cx + (cosA * 0.4 + sinA * 1.1),
+      minZ: cz - (sinA * 0.4 + cosA * 1.1),
+      maxZ: cz + (sinA * 0.4 + cosA * 1.1),
+    },
+  }
+}
+
 // ---- Main ------------------------------------------------------------------
 
 export function createCampus() {
@@ -638,6 +738,30 @@ export function createCampus() {
     root.add(car.group)
     obstacles.push(car.obstacle)
     cars.push({ group: car.group, obstacle: car.obstacle, width: 2, length: 4 })
+  }
+
+  // Bike rack — on the SE path toward the parkour entrance
+  for (const [x, z, rot] of [
+    [50, 60, Math.PI / 2],
+    [50, 62.5, Math.PI / 2],
+    [50, 65, Math.PI / 2],
+    [50, 67.5, Math.PI / 2],
+    // Bike near fountain
+    [8, 12, 0],
+    [-8, 12, 0],
+    // Bike near library
+    [0, -38, Math.PI],
+    // Extras scattered
+    [-45, 20, Math.PI / 4],
+    [60, -10, -Math.PI / 3],
+  ]) {
+    const bike = buildBike(rng, x, z, rot, disposables)
+    root.add(bike.group)
+    obstacles.push(bike.obstacle)
+    cars.push({
+      group: bike.group, obstacle: bike.obstacle,
+      width: 0.8, length: 2, vehicleType: 'bike',
+    })
   }
 
   // Trees — scatter but avoid obstacles

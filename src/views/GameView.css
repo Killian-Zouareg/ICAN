@@ -314,3 +314,138 @@
   font-family: inherit;
   font-size: 13px;
 }
+
+/* ===== Parkour HUD ===== */
+.hud-parkour {
+  position: absolute;
+  top: 70px;
+  right: 16px;
+  background: rgba(15, 20, 30, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: monospace;
+  min-width: 150px;
+  pointer-events: none;
+  backdrop-filter: blur(6px);
+}
+.hud-parkour-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 20px;
+  font-weight: 700;
+}
+.hud-parkour-row.secondary {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 4px;
+  justify-content: space-between;
+}
+.hud-parkour-icon { font-size: 18px; }
+.hud-parkour-timer { letter-spacing: 1px; color: #ffd700; }
+.hud-parkour-hint {
+  margin-top: 6px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+.hud-parkour-hint kbd {
+  background: #2a3744;
+  border: 1px solid var(--border);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+}
+
+.hud-parkour-teaser {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.15), rgba(255, 102, 0, 0.15));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 8px;
+  color: #ffd700;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hud-parkour-toast {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 20, 30, 0.9);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  animation: toast-in 0.25s ease-out;
+  pointer-events: none;
+}
+.hud-parkour-toast.cp {
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 16px rgba(255, 215, 0, 0.4);
+}
+.hud-parkour-toast.death {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translate(-50%, -8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+.hud-parkour-victory {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  cursor: pointer;
+}
+.hud-parkour-victory-card {
+  background: var(--bg-secondary);
+  border: 2px solid #ffd700;
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  max-width: 420px;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.4);
+  cursor: auto;
+}
+.hud-parkour-victory-card .big-icon {
+  font-size: 54px;
+  margin-bottom: 8px;
+}
+.hud-parkour-victory-card h2 {
+  margin: 0 0 12px;
+  color: #ffd700;
+}
+.hud-parkour-victory-card p {
+  margin: 6px 0;
+  font-size: 15px;
+}
+.hud-parkour-victory-card .record {
+  color: var(--hero-primary);
+  font-weight: 700;
+  margin-top: 12px;
+  text-shadow: 0 0 10px var(--hero-glow);
+}
+.victory-btn {
+  margin-top: 16px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 22px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.victory-btn:hover { background: var(--accent-hover); }
