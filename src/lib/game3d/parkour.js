@@ -308,16 +308,16 @@ export function createParkour({ origin = new THREE.Vector3(95, 0, 95) } = {}) {
   x += 3.2
   // Slime final (grand boost)
   addPlatform(x, y - 0.4, spiralCenterZ, 1.5, 0.4, 1.5, TYPES.SLIME)
-  // Atterrissage tr&egrave;s haut
-  x += 5
-  addPlatform(x, y + 6, spiralCenterZ, 1.1, 0.4, 1.1, TYPES.NORMAL)
+  // Atterrissage apr&egrave;s le slime final (apog&eacute;e du slime ~5.3m avec SLIME_V=15.5)
+  x += 4
+  addPlatform(x, y + 3.8, spiralCenterZ, 1.3, 0.4, 1.3, TYPES.NORMAL)
   x += 2.5
-  addPlatform(x, y + 6.5, spiralCenterZ, 1.0, 0.4, 1.0, TYPES.NORMAL)
+  addPlatform(x, y + 4.1, spiralCenterZ, 1.1, 0.4, 1.1, TYPES.NORMAL)
   x += 2.5
-  addPlatform(x, y + 7, spiralCenterZ, 1.1, 0.4, 1.1, TYPES.NORMAL)
+  addPlatform(x, y + 4.3, spiralCenterZ, 1.2, 0.4, 1.2, TYPES.NORMAL)
   x += 2.5
-  addPlatform(x, y + 7.2, spiralCenterZ, 1.0, 0.4, 1.0, TYPES.NORMAL)
-  y += 7.2
+  addPlatform(x, y + 4.5, spiralCenterZ, 1.2, 0.4, 1.2, TYPES.NORMAL)
+  y += 4.5
 
   // ============================================================================
   // GOAL : tour finale dor&eacute;e
