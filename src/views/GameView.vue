@@ -109,12 +109,14 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useGame3dStore } from '../stores/game3d'
+import { useWikiStore } from '../stores/wiki'
 import { GameEngine } from '../lib/game3d/engine'
 import { VoiceManager } from '../lib/game3d/voice'
 import { supabase } from '../lib/supabase'
 
 const auth = useAuthStore()
 const store = useGame3dStore()
+const wiki = useWikiStore()
 const router = useRouter()
 
 const canvasRef = ref(null)
@@ -252,6 +254,9 @@ const interactLabel = computed(() => {
   if (interactHint.value === 'exit-car') return 'Sortir de la voiture'
   if (interactHint.value === 'enter-bike') return 'Monter sur le vélo'
   if (interactHint.value === 'exit-bike') return 'Descendre du vélo'
+  if (interactHint.value?.startsWith('view-hero:')) {
+    return `Voir ${interactHint.value.slice('view-hero:'.length)}`
+  }
   return ''
 })
 
@@ -348,11 +353,23 @@ onMounted(async () => {
     return
   }
 
+  // Charger les h&eacute;ros du wiki avant d'instancier le moteur
+  // (statues plac&eacute;es au nord du spawn, navigation vers /wiki/:id au E)
+  let heroes = []
+  try {
+    heroes = (await wiki.fetchAll()) || []
+  } catch { /* ignore : le hub charge sans statues */ }
+
   engine = new GameEngine(canvasRef.value, {
     localProfile: auth.activeProfile,
+    heroes,
     onMove: (pos) => store.sendMove(pos),
     onHintChange: (hint) => { interactHint.value = hint },
     onParkourEvent: handleParkourEvent,
+    onStatueInteract: ({ id }) => {
+      if (document.pointerLockElement) document.exitPointerLock?.()
+      router.push(`/wiki/${id}`)
+    },
   })
   engine.onLockChange((isLocked) => { locked.value = isLocked })
 

@@ -23,7 +23,15 @@
       "Bash(find /c/Users/killi/Desktop/ICAN -name *.sql -o -name *schema* -o -name *supabase*)",
       "Bash(node -e ':*)",
       "Bash(node -e \"const p = require\\('C:/Users/killi/Desktop/ICAN/package.json'\\); const deps = {...p.dependencies, ...p.devDependencies}; for \\(const [k,v] of Object.entries\\(deps\\)\\) console.log\\(k+'@'+v\\);\")",
-      "Bash(ls C:/Users/killi/Desktop/ICAN/src/*.css C:/Users/killi/Desktop/ICAN/src/*.js)"
+      "Bash(ls C:/Users/killi/Desktop/ICAN/src/*.css C:/Users/killi/Desktop/ICAN/src/*.js)",
+      "Bash(git -C /Users/killianzouareg/Desktop/Code/Ican/ICAN log --oneline -10)",
+      "Bash(git -C /Users/killianzouareg/Desktop/Code/Ican/ICAN show --stat 7dc86fd)",
+      "Bash(node --check src/lib/game3d/engine.js)",
+      "Bash(node --check src/lib/game3d/heroStatues.js)",
+      "Bash(node --check src/lib/game3d/parkour.js)",
+      "Bash(echo \"engine: $?\")",
+      "Bash(echo \"statues: $?\")",
+      "Bash(echo \"parkour: $?\")"
     ]
   }
 }

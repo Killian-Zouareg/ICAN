@@ -4,6 +4,7 @@ import { createAvatar } from './avatars.js'
 import { createCampus, CAMPUS_HALF } from './campus.js'
 import { createPedestrians } from './pedestrians.js'
 import { createParkour } from './parkour.js'
+import { createHeroStatues } from './heroStatues.js'
 
 const CITY_HALF = CAMPUS_HALF
 
@@ -43,11 +44,13 @@ const ICE_DAMPING = 0.96     // per-frame friction multiplier on ice
 const AIR_CONTROL = 0.55     // movement effectiveness while airborne
 
 export class GameEngine {
-  constructor(canvas, { localProfile, onMove, onHintChange, onParkourEvent } = {}) {
+  constructor(canvas, { localProfile, onMove, onHintChange, onParkourEvent, onStatueInteract, heroes } = {}) {
     this.canvas = canvas
     this.onMove = onMove || (() => {})
     this.onHintChange = onHintChange || (() => {})
     this.onParkourEvent = onParkourEvent || (() => {})
+    this.onStatueInteract = onStatueInteract || (() => {})
+    this._heroes = heroes || []
     this.remotes = new Map()
     this.keys = { forward: false, back: false, left: false, right: false, jumpHeld: false }
     this.disposed = false
@@ -158,6 +161,15 @@ export class GameEngine {
     this._parkourReachedCps = new Set([0])
     this._disposables.push(...parkour.disposables)
 
+    // Place des L&eacute;gendes : statues des h&eacute;ros wiki au nord du spawn
+    this.heroStatues = createHeroStatues(this._heroes, {
+      origin: new THREE.Vector3(0, 0, -25),
+    })
+    this.scene.add(this.heroStatues.group)
+    if (this.heroStatues.obstacles?.length) {
+      this.obstacles.push(...this.heroStatues.obstacles)
+    }
+
     this.pedestrians = createPedestrians({
       count: 28,
       obstacles: this.obstacles,
@@ -231,6 +243,20 @@ export class GameEngine {
     return best
   }
 
+  _nearestStatue() {
+    const list = this.heroStatues?.statues
+    if (!list?.length) return null
+    let best = null
+    let bestDist = INTERACT_DIST
+    const px = this.player.position.x
+    const pz = this.player.position.z
+    for (const s of list) {
+      const d = Math.hypot(s.worldX - px, s.worldZ - pz)
+      if (d < bestDist) { best = s; bestDist = d }
+    }
+    return best
+  }
+
   _setHint(hint) {
     if (this.currentHint !== hint) {
       this.currentHint = hint
@@ -240,6 +266,11 @@ export class GameEngine {
 
   _onInteract() {
     if (this.drive) { this.exitCar(); return }
+    const statue = this._nearestStatue()
+    if (statue) {
+      this.onStatueInteract({ id: statue.id, name: statue.name })
+      return
+    }
     const car = this._nearestCar()
     if (car) this.enterCar(car)
   }
@@ -269,14 +300,8 @@ export class GameEngine {
     if (!this.drive) return
     const car = this.drive.car
     const isBike = this.drive.type === 'bike'
-    const exitOffset = isBike ? 1.2 : 1.8
-    // Reset any bike lean
     if (isBike) car.rotation.z = 0
-    this.player.position.set(
-      car.position.x + Math.cos(this.drive.heading) * exitOffset,
-      0,
-      car.position.z - Math.sin(this.drive.heading) * exitOffset,
-    )
+
     const heading = this.drive.heading
     const cosA = Math.abs(Math.cos(heading))
     const sinA = Math.abs(Math.sin(heading))
@@ -284,6 +309,25 @@ export class GameEngine {
     const l = this.drive.data.length
     const halfW = (cosA * w + sinA * l) / 2
     const halfL = (sinA * w + cosA * l) / 2
+
+    // Pousse le joueur dans la direction lat&eacute;rale du v&eacute;hicule, hors de l'AABB rot&eacute;e.
+    // L'ancien offset fixe (1.8) pla&ccedil;ait le joueur DANS la collision quand le v&eacute;hicule
+    // &eacute;tait orient&eacute; en diagonale (halfW peut atteindre ~2.12m &agrave; 45&deg;) → bloqu&eacute;.
+    const dirX = Math.cos(heading)
+    const dirZ = -Math.sin(heading)
+    const projHalf = Math.abs(dirX) * halfW + Math.abs(dirZ) * halfL
+    const exitDist = projHalf + PLAYER_RADIUS + 0.3
+
+    this.player.position.set(
+      car.position.x + dirX * exitDist,
+      0,
+      car.position.z + dirZ * exitDist,
+    )
+    this.vy = 0
+    this.velXZ.set(0, 0)
+    this.onGround = true
+    this.onIce = false
+
     const newObstacle = {
       minX: car.position.x - halfW,
       maxX: car.position.x + halfW,
@@ -705,13 +749,19 @@ export class GameEngine {
     this.player.userData.animate?.(dt, walking)
 
     if (!this.drive) {
-      const near = this._nearestCar()
-      this._setHint(near ? (near.vehicleType === 'bike' ? 'enter-bike' : 'enter-car') : null)
+      const statue = this._nearestStatue()
+      if (statue) {
+        this._setHint(`view-hero:${statue.name}`)
+      } else {
+        const near = this._nearestCar()
+        this._setHint(near ? (near.vehicleType === 'bike' ? 'enter-bike' : 'enter-car') : null)
+      }
     }
 
     this.pedestrians?.update(dt, performance.now())
     this._campusAnimate?.(this.clock.elapsedTime)
     this.parkour?.animate(this.clock.elapsedTime)
+    this.heroStatues?.animate(this.clock.elapsedTime)
 
     // Parkour physics (gravity, platform collision, hazards, checkpoints, goal)
     if (!this.drive) {
@@ -802,6 +852,10 @@ export class GameEngine {
     if (this.pedestrians) {
       this.scene.remove(this.pedestrians.group)
       this.pedestrians.dispose()
+    }
+    if (this.heroStatues) {
+      this.scene.remove(this.heroStatues.group)
+      this.heroStatues.dispose()
     }
     for (const d of this._disposables) d.dispose?.()
     this.renderer.dispose()

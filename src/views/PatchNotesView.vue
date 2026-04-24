@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.9.0',
+    date: '24 avril 2026',
+    icon: '\u{1F5FF}',
+    color: '#ffd700',
+    title: 'Hub 3D \u2014 Place des L\u00e9gendes + parkour fini & sortie de v\u00e9hicule corrig\u00e9e',
+    description: 'Au nord du spawn, une nouvelle <strong>Place des L\u00e9gendes</strong> dresse une statue dor\u00e9e par h\u00e9ros (et rouge sombre par vilain) de l\u2019iWiki, avec halo lumineux pulsant et plaque grav\u00e9e. Approche, appuie sur <strong>E</strong>, et tu file droit sur la fiche du h\u00e9ros. C\u00f4t\u00e9 fixes : le <strong>gauntlet final du iPARKOUR</strong> est enfin atteignable (gap apr\u00e8s le slime r\u00e9duit, plateforme \u00e9largie), et on ne reste <strong>plus coinc\u00e9 dans la voiture/le v\u00e9lo</strong> en sortant en diagonale (l\u2019offset de sortie utilise maintenant la vraie demi-AABB rot\u00e9e + reset propre de la physique).',
+    tags: ['3D', 'Wiki', 'Statues', 'Parkour', 'Fix'],
+  },
+  {
     version: '4.8.0',
     date: '20 avril 2026',
     icon: '\u{1F393}',

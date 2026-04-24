@@ -309,8 +309,10 @@ export function createParkour({ origin = new THREE.Vector3(95, 0, 95) } = {}) {
   // Slime final (grand boost)
   addPlatform(x, y - 0.4, spiralCenterZ, 1.5, 0.4, 1.5, TYPES.SLIME)
   // Atterrissage apr&egrave;s le slime final (apog&eacute;e du slime ~5.3m avec SLIME_V=15.5)
-  x += 4
-  addPlatform(x, y + 3.8, spiralCenterZ, 1.3, 0.4, 1.3, TYPES.NORMAL)
+  // Gap r&eacute;duit (3m au lieu de 4) + plateforme &eacute;largie pour rendre le saut atteignable
+  // avec le AIR_CONTROL=0.55 du moteur (engine.js)
+  x += 3
+  addPlatform(x, y + 3.8, spiralCenterZ, 1.6, 0.4, 1.6, TYPES.NORMAL)
   x += 2.5
   addPlatform(x, y + 4.1, spiralCenterZ, 1.1, 0.4, 1.1, TYPES.NORMAL)
   x += 2.5
