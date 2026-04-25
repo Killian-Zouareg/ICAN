@@ -6,6 +6,7 @@ import { createPedestrians } from './pedestrians.js'
 import { createParkour } from './parkour.js'
 import { createHeroStatues } from './heroStatues.js'
 import { createCinema } from './cinema.js'
+import { createGumbatti } from './gumbatti.js'
 
 const CITY_HALF = CAMPUS_HALF
 
@@ -176,6 +177,13 @@ export class GameEngine {
     this.scene.add(this.cinema.group)
     if (this.cinema.obstacles?.length) {
       this.obstacles.push(...this.cinema.obstacles)
+    }
+
+    // Chez Gumbatti : pizzeria au nord-est, TV avec GIF Gordon Ramsay
+    this.gumbatti = createGumbatti({ origin: new THREE.Vector3(95, 0, -40) })
+    this.scene.add(this.gumbatti.group)
+    if (this.gumbatti.obstacles?.length) {
+      this.obstacles.push(...this.gumbatti.obstacles)
     }
 
     this.pedestrians = createPedestrians({
@@ -771,6 +779,7 @@ export class GameEngine {
     this.parkour?.animate(this.clock.elapsedTime)
     this.heroStatues?.animate(this.clock.elapsedTime)
     this.cinema?.animate(this.clock.elapsedTime)
+    this.gumbatti?.animate(this.clock.elapsedTime)
 
     // Parkour physics (gravity, platform collision, hazards, checkpoints, goal)
     if (!this.drive) {
@@ -869,6 +878,10 @@ export class GameEngine {
     if (this.cinema) {
       this.scene.remove(this.cinema.group)
       this.cinema.dispose()
+    }
+    if (this.gumbatti) {
+      this.scene.remove(this.gumbatti.group)
+      this.gumbatti.dispose()
     }
     for (const d of this._disposables) d.dispose?.()
     this.renderer.dispose()

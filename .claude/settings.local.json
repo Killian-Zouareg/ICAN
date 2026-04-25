@@ -36,7 +36,14 @@
       "Bash(curl -sIL https://i.redd.it/5tcrzoxurp1g1.gif)",
       "Bash(curl -sL -o /Users/killianzouareg/Desktop/Code/Ican/ICAN/public/cinema.gif https://i.redd.it/5tcrzoxurp1g1.gif)",
       "Bash(ffmpeg -version)",
-      "Bash(brew list *)"
+      "Bash(brew list *)",
+      "Bash(git diff-tree *)",
+      "Bash(xargs -I {} sh -c 'test -f \"{}\" && du -h \"{}\"')",
+      "Bash(git config *)",
+      "Bash(git push *)",
+      "Bash(curl -sL -o /tmp/gumbatti_check.html \"https://tenor.com/zsVp0kAOgz.gif\" -w \"HTTP:%{http_code} TYPE:%{content_type} SIZE:%{size_download}\\\\n\")",
+      "Bash(curl -sL -o /Users/killianzouareg/Desktop/Code/Ican/ICAN/public/gumbatti.gif \"https://media1.tenor.com/m/BMDjfdOSbb0AAAAC/gordon-ramsay.gif\")",
+      "Bash(node --check src/lib/game3d/gumbatti.js)"
     ]
   }
 }

@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.15.0',
+    date: '26 avril 2026',
+    icon: '\u{1F355}',
+    color: '#c02828',
+    title: 'Hub 3D — Chez Gumbatti, la pizzeria du campus',
+    description: 'Une nouvelle adresse ouvre au nord-est du campus : <strong>Chez Gumbatti</strong>, pizzeria italienne crépi terracotta, toit de tuiles rouges et auvent vert/blanc/rouge. À l’intérieur, un sol en damier rouge/blanc, quatre tables rondes nappées, des chaises en bois, et surtout un <strong>vrai four à pizza voûté</strong> dont la bouche rougeoie et illumine la salle. Sur le mur, une <strong>TV diffuse Gordon Ramsay</strong> en boucle pour t’encourager à manger plus vite. Buon appetito.',
+    tags: ['3D', 'Pizzeria', 'GIF', 'Bâtiment'],
+  },
+  {
     version: '4.14.0',
     date: '26 avril 2026',
     icon: '\u{1F3AC}',
@@ -524,6 +533,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.15.0',
+    date: '26 avril 2026',
+    title: 'Chez Gumbatti — pizzeria dans le Hub 3D',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Nouveau module `src/lib/game3d/gumbatti.js` — pizzeria italienne au nord-est du campus (origin 95, 0, -40)' },
+      { type: 'new', text: 'Bâtiment 28×22×8 m : crépi terracotta, toit en tuiles rouges à deux pans, auvent vert/blanc/rouge' },
+      { type: 'new', text: 'Intérieur thématisé : sol en damier rouge/blanc, comptoir bois, four à pizza voûté avec bouche rougeoyante (point light orange)' },
+      { type: 'new', text: '4 tables rondes nappées de blanc + 16 chaises en bois disposées dans la salle' },
+      { type: 'new', text: 'TV murale (mur ouest) diffusant un GIF Gordon Ramsay en boucle (`public/gumbatti.gif`, ~1.4 MB) via ImageDecoder' },
+      { type: 'improved', text: 'Pizzeria intégrée à `engine.js` : import, instanciation, ajout des obstacles, animate et dispose propres' },
+    ],
+  },
   {
     version: '4.14.0',
     date: '26 avril 2026',
