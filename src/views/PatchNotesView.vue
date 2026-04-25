@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.12.0',
+    date: '26 avril 2026',
+    icon: '\u{1F7E2}',
+    color: '#17bf63',
+    title: 'Présence en direct — voyez qui est où',
+    description: 'Un <strong>compteur en temps réel</strong> apparaît à côté de chaque onglet de la navigation : Feed, Hub 3D, iWiki, Carte, etc. Vous savez instantanément combien de personnes consultent la même section que vous. Propulsé par <strong>Supabase Realtime presence</strong> — aucune persistance, le compteur baisse dès qu’un utilisateur quitte la section ou se déconnecte.',
+    tags: ['Realtime', 'Presence', 'Navigation', 'Live'],
+  },
+  {
     version: '4.11.0',
     date: '26 avril 2026',
     icon: '\u{1F5BC}',
@@ -497,6 +506,18 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.12.0',
+    date: '26 avril 2026',
+    title: 'Compteurs de présence en direct',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Nouveau store `presence` basé sur Supabase Realtime presence (canal `global-presence`)' },
+      { type: 'new', text: 'Badge de présence (point vert + nombre) à côté de chaque onglet de la sidebar' },
+      { type: 'new', text: 'Compteurs également affichés dans la nav mobile (top-bar et menu Plus)' },
+      { type: 'improved', text: 'Mise à jour automatique au changement de route et au switch de profil' },
+    ],
+  },
   {
     version: '4.11.0',
     date: '26 avril 2026',

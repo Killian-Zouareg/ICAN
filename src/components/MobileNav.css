@@ -184,4 +184,35 @@
     color: var(--danger);
     border-top: 1px solid var(--border);
   }
+
+  .mobile-nav-item {
+    position: relative;
+  }
+
+  .mobile-nav-presence {
+    position: absolute;
+    top: 0;
+    right: 4px;
+    background: var(--success);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 5px;
+    border-radius: 8px;
+    min-width: 14px;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  .mobile-more-presence {
+    margin-left: auto;
+    background: rgba(23, 191, 99, 0.18);
+    color: var(--success);
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.1rem 0.45rem;
+    border-radius: 10px;
+    min-width: 18px;
+    text-align: center;
+  }
 }

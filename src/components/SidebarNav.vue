@@ -12,55 +12,68 @@
         <router-link to="/" class="sidebar-link" exact-active-class="active">
           <span class="sidebar-icon">&#x1F3E0;</span>
           <span class="sidebar-label">Feed</span>
+          <span v-if="presence.countFor('feed') > 0" class="sidebar-presence">{{ presence.countFor('feed') }}</span>
         </router-link>
         <router-link to="/search" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F50D;</span>
           <span class="sidebar-label">Recherche</span>
+          <span v-if="presence.countFor('search') > 0" class="sidebar-presence">{{ presence.countFor('search') }}</span>
         </router-link>
         <router-link to="/messages" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2709;</span>
           <span class="sidebar-label">Messages</span>
           <span v-if="unreadCount > 0" class="sidebar-badge">{{ unreadCount }}</span>
+          <span v-else-if="presence.countFor('messages') > 0" class="sidebar-presence">{{ presence.countFor('messages') }}</span>
         </router-link>
         <router-link :to="`/user/${auth.activeProfile?.username}`" class="sidebar-link" v-if="auth.activeProfile">
           <span class="sidebar-icon">&#x1F464;</span>
           <span class="sidebar-label">Profil</span>
+          <span v-if="presence.countFor('profile') > 0" class="sidebar-presence">{{ presence.countFor('profile') }}</span>
         </router-link>
         <router-link to="/map" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F5FA;</span>
           <span class="sidebar-label">Carte</span>
+          <span v-if="presence.countFor('map') > 0" class="sidebar-presence">{{ presence.countFor('map') }}</span>
         </router-link>
         <router-link :to="`/character/${auth.activeProfile?.username}`" class="sidebar-link" v-if="auth.activeProfile" active-class="active">
           <span class="sidebar-icon">&#x1F9D9;</span>
           <span class="sidebar-label">iCharacter</span>
+          <span v-if="presence.countFor('character') > 0" class="sidebar-presence">{{ presence.countFor('character') }}</span>
         </router-link>
         <router-link to="/bank" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F3E6;</span>
           <span class="sidebar-label">iBank</span>
+          <span v-if="presence.countFor('bank') > 0" class="sidebar-presence">{{ presence.countFor('bank') }}</span>
         </router-link>
         <router-link to="/igames" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F3AE;</span>
           <span class="sidebar-label">iGames</span>
+          <span v-if="presence.countFor('igames') > 0" class="sidebar-presence">{{ presence.countFor('igames') }}</span>
         </router-link>
         <router-link to="/game" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F30D;</span>
           <span class="sidebar-label">Hub 3D</span>
+          <span v-if="presence.countFor('game') > 0" class="sidebar-presence">{{ presence.countFor('game') }}</span>
         </router-link>
         <router-link to="/wiki" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F4D6;</span>
           <span class="sidebar-label">iWiki</span>
+          <span v-if="presence.countFor('wiki') > 0" class="sidebar-presence">{{ presence.countFor('wiki') }}</span>
         </router-link>
         <router-link to="/settings" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2699;</span>
           <span class="sidebar-label">Param&egrave;tres</span>
+          <span v-if="presence.countFor('settings') > 0" class="sidebar-presence">{{ presence.countFor('settings') }}</span>
         </router-link>
         <router-link to="/patch-notes" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F4CB;</span>
           <span class="sidebar-label">Patch Notes</span>
+          <span v-if="presence.countFor('patch-notes') > 0" class="sidebar-presence">{{ presence.countFor('patch-notes') }}</span>
         </router-link>
         <router-link v-if="auth.isAdmin" to="/admin" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F6E1;</span>
           <span class="sidebar-label">Admin</span>
+          <span v-if="presence.countFor('admin') > 0" class="sidebar-presence">{{ presence.countFor('admin') }}</span>
         </router-link>
       </nav>
     </div>
@@ -111,10 +124,12 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { usePresenceStore } from '../stores/presence'
 import { supabase } from '../lib/supabase'
 import UserAvatar from './UserAvatar.vue'
 
 const auth = useAuthStore()
+const presence = usePresenceStore()
 const router = useRouter()
 const showSwitcher = ref(false)
 const searchQuery = ref('')

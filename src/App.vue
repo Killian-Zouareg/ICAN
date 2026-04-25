@@ -25,9 +25,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
+import { usePresenceStore, pathToSection } from './stores/presence'
 import AppHeader from './components/AppHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import MobileNav from './components/MobileNav.vue'
@@ -36,9 +37,30 @@ import TrendingPanel from './components/TrendingPanel.vue'
 
 const auth = useAuthStore()
 const route = useRoute()
+const presence = usePresenceStore()
 const dmWidgetEnabled = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
 const isMessagesPage = computed(() => route.path.startsWith('/messages'))
 const showDmWidget = computed(() => dmWidgetEnabled.value && !isMessagesPage.value)
+
+watch(
+  () => auth.activeProfile?.id,
+  (id) => {
+    if (id) {
+      presence.start(id)
+      presence.setSection(pathToSection(route.path))
+    } else {
+      presence.stop()
+    }
+  },
+  { immediate: true },
+)
+
+watch(
+  () => route.path,
+  (path) => {
+    if (auth.activeProfile?.id) presence.setSection(pathToSection(path))
+  },
+)
 
 function onDmWidgetToggle(e) {
   dmWidgetEnabled.value = e.detail
