@@ -5,6 +5,7 @@ import { createCampus, CAMPUS_HALF } from './campus.js'
 import { createPedestrians } from './pedestrians.js'
 import { createParkour } from './parkour.js'
 import { createHeroStatues } from './heroStatues.js'
+import { createCinema } from './cinema.js'
 
 const CITY_HALF = CAMPUS_HALF
 
@@ -168,6 +169,13 @@ export class GameEngine {
     this.scene.add(this.heroStatues.group)
     if (this.heroStatues.obstacles?.length) {
       this.obstacles.push(...this.heroStatues.obstacles)
+    }
+
+    // iCINEMA : b&acirc;timent au nord-ouest, &eacute;cran g&eacute;ant avec GIF
+    this.cinema = createCinema({ origin: new THREE.Vector3(-95, 0, -40) })
+    this.scene.add(this.cinema.group)
+    if (this.cinema.obstacles?.length) {
+      this.obstacles.push(...this.cinema.obstacles)
     }
 
     this.pedestrians = createPedestrians({
@@ -762,6 +770,7 @@ export class GameEngine {
     this._campusAnimate?.(this.clock.elapsedTime)
     this.parkour?.animate(this.clock.elapsedTime)
     this.heroStatues?.animate(this.clock.elapsedTime)
+    this.cinema?.animate(this.clock.elapsedTime)
 
     // Parkour physics (gravity, platform collision, hazards, checkpoints, goal)
     if (!this.drive) {
@@ -856,6 +865,10 @@ export class GameEngine {
     if (this.heroStatues) {
       this.scene.remove(this.heroStatues.group)
       this.heroStatues.dispose()
+    }
+    if (this.cinema) {
+      this.scene.remove(this.cinema.group)
+      this.cinema.dispose()
     }
     for (const d of this._disposables) d.dispose?.()
     this.renderer.dispose()

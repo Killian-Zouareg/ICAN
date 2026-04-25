@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
@@ -52,6 +52,42 @@ const router = useRouter()
 function goToPost(postId) {
   router.push(`/post/${postId}`)
 }
+
+// "Ting" sound generated via Web Audio API (no asset required).
+let audioCtx = null
+function playTing() {
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext
+    if (!Ctx) return
+    if (!audioCtx) audioCtx = new Ctx()
+    if (audioCtx.state === 'suspended') audioCtx.resume()
+    const now = audioCtx.currentTime
+    const osc = audioCtx.createOscillator()
+    const gain = audioCtx.createGain()
+    osc.type = 'sine'
+    osc.frequency.setValueAtTime(1320, now)
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.35)
+    gain.gain.setValueAtTime(0.0001, now)
+    gain.gain.exponentialRampToValueAtTime(0.18, now + 0.01)
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4)
+    osc.connect(gain).connect(audioCtx.destination)
+    osc.start(now)
+    osc.stop(now + 0.45)
+  } catch { /* ignore */ }
+}
+
+const ORIGINAL_TITLE = document.title
+function updateTitle(n) {
+  document.title = n > 0 ? `(${n}) ${ORIGINAL_TITLE}` : ORIGINAL_TITLE
+}
+
+watch(
+  () => postsStore.newPostIds.length,
+  (n, prev) => {
+    if (n > (prev || 0)) playTing()
+    updateTitle(n)
+  },
+)
 
 // Realtime subscription for new posts
 const { subscribe } = useRealtimeSubscription('feed', [
@@ -77,6 +113,10 @@ const { subscribe } = useRealtimeSubscription('feed', [
 onMounted(() => {
   postsStore.fetchFeed()
   subscribe()
+})
+
+onUnmounted(() => {
+  document.title = ORIGINAL_TITLE
 })
 </script>
 

@@ -31,7 +31,12 @@
       "Bash(node --check src/lib/game3d/parkour.js)",
       "Bash(echo \"engine: $?\")",
       "Bash(echo \"statues: $?\")",
-      "Bash(echo \"parkour: $?\")"
+      "Bash(echo \"parkour: $?\")",
+      "Bash(node --check src/lib/game3d/cinema.js)",
+      "Bash(curl -sIL https://i.redd.it/5tcrzoxurp1g1.gif)",
+      "Bash(curl -sL -o /Users/killianzouareg/Desktop/Code/Ican/ICAN/public/cinema.gif https://i.redd.it/5tcrzoxurp1g1.gif)",
+      "Bash(ffmpeg -version)",
+      "Bash(brew list *)"
     ]
   }
 }

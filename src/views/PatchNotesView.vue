@@ -82,6 +82,24 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.14.0',
+    date: '26 avril 2026',
+    icon: '\u{1F3AC}',
+    color: '#f2c84b',
+    title: 'Hub 3D — iCINEMA, le cinéma du campus',
+    description: 'Un nouveau bâtiment ouvre ses portes au nord-ouest du campus : l’<strong>iCINEMA</strong>, avec marquise dorée illuminée, marches d’entrée et salle complète. À l’intérieur, des rangées de fauteuils rouges face à un <strong>écran géant</strong> qui projette en boucle un GIF animé. La salle est éclairée par la lueur chaude qui s’échappe de l’écran. Approche, entre par la porte, installe-toi : la projection est déjà commencée.',
+    tags: ['3D', 'Cinéma', 'GIF', 'Bâtiment'],
+  },
+  {
+    version: '4.13.0',
+    date: '26 avril 2026',
+    icon: '\u{1F514}',
+    color: '#1da1f2',
+    title: 'Notification sonore + compteur d’onglet pour les nouveaux posts',
+    description: 'Quand un nouveau post tombe sur le feed, un petit <strong>"ting"</strong> discret se fait entendre et le titre de l’onglet du navigateur affiche <strong>(1)</strong>, <strong>(2)</strong>, etc. Vous savez tout de suite qu’il y a du nouveau, même si l’onglet iCAN est en arrière-plan. Le compteur disparaît dès que vous chargez les nouveaux posts.',
+    tags: ['Notif', 'Audio', 'Feed', 'QoL'],
+  },
+  {
     version: '4.12.0',
     date: '26 avril 2026',
     icon: '\u{1F7E2}',
@@ -506,6 +524,29 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.14.0',
+    date: '26 avril 2026',
+    title: 'iCINEMA dans le Hub 3D',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Nouveau module `src/lib/game3d/cinema.js` — bâtiment cinéma complet (murs, plafond, marches, marquise iCINEMA)' },
+      { type: 'new', text: 'Écran géant projetant un GIF animé via canvas-texture (<img> HTML recopié frame par frame, ~16 fps)' },
+      { type: 'new', text: 'Intérieur meublé : 32 sièges rouges en 4 rangées avec allée centrale, point light chaud devant l’écran' },
+      { type: 'improved', text: 'Cinéma intégré au moteur (engine.js) : obstacles murs en U avec porte, animation et dispose propres' },
+    ],
+  },
+  {
+    version: '4.13.0',
+    date: '26 avril 2026',
+    title: 'Ting sonore + (n) dans le titre de l’onglet',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Son "ting" généré via Web Audio API à chaque nouveau post realtime sur le feed' },
+      { type: 'new', text: 'Le titre de l’onglet du navigateur affiche (n) avec le nombre de posts en attente' },
+      { type: 'improved', text: 'Reset automatique du titre au clic sur le bandeau "X nouveaux posts" ou en quittant le feed' },
+    ],
+  },
   {
     version: '4.12.0',
     date: '26 avril 2026',
