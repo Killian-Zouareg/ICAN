@@ -234,6 +234,15 @@
       </div>
 
       <input ref="photoInput" type="file" accept="image/*" style="display:none" @change="onPhotoSelected" />
+
+      <ImageCropper
+        v-if="showCropper"
+        :src="cropperSrc"
+        shape="square"
+        title="Recadrer la photo du héros"
+        @cancel="showCropper = false"
+        @crop="onPhotoCropped"
+      />
     </template>
 
     <div v-else-if="loading" class="loading-screen">
@@ -249,6 +258,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useWikiStore } from '../stores/wiki'
 import StatsRadarChart from '../components/StatsRadarChart.vue'
+import ImageCropper from '../components/ImageCropper.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -263,6 +273,8 @@ const saveMsg = ref('')
 const saveMsgType = ref('success')
 const photoInput = ref(null)
 const particleCanvas = ref(null)
+const showCropper = ref(false)
+const cropperSrc = ref('')
 
 const newPower = ref('')
 const newAlly = ref('')
@@ -326,9 +338,24 @@ function addEnemy() { if (newEnemy.value.trim()) { form.value.enemies.push(newEn
 
 function triggerPhotoUpload() { photoInput.value?.click() }
 
-async function onPhotoSelected(e) {
+function onPhotoSelected(e) {
   const file = e.target.files?.[0]
   if (!file || !hero.value) return
+  if (file.size > 5 * 1024 * 1024) {
+    saveMsg.value = 'Image trop lourde (max 5 Mo)'
+    saveMsgType.value = 'error'
+    e.target.value = ''
+    setTimeout(() => { saveMsg.value = '' }, 3000)
+    return
+  }
+  cropperSrc.value = URL.createObjectURL(file)
+  showCropper.value = true
+  e.target.value = ''
+}
+
+async function onPhotoCropped(file) {
+  if (!hero.value) return
+  showCropper.value = false
   try {
     await wiki.uploadPhoto(hero.value.id, file)
     saveMsg.value = 'Photo mise \u00e0 jour !'

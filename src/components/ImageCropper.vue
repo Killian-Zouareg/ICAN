@@ -1,14 +1,14 @@
 <template>
   <div class="cropper-overlay" @click.self="$emit('cancel')">
     <div class="cropper-modal">
-      <h3 class="cropper-title">Recadrer la photo de profil</h3>
+      <h3 class="cropper-title">{{ title }}</h3>
       <div class="cropper-area" ref="cropArea"
         @mousedown="startDrag" @touchstart.prevent="startDrag"
         @wheel.prevent="onWheel"
       >
         <img ref="imgEl" :src="src" class="cropper-img"
           :style="imgStyle" draggable="false" @load="onImgLoad" />
-        <div class="cropper-circle"></div>
+        <div :class="shape === 'square' ? 'cropper-square' : 'cropper-circle'"></div>
       </div>
       <div class="cropper-controls">
         <span class="zoom-label">Zoom</span>
@@ -27,6 +27,8 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   src: { type: String, required: true },
+  shape: { type: String, default: 'circle' }, // 'circle' | 'square'
+  title: { type: String, default: 'Recadrer la photo de profil' },
 })
 
 const emit = defineEmits(['cancel', 'crop'])
@@ -136,10 +138,12 @@ function crop() {
   const ratioX = imgNatW.value / dispW
   const ratioY = imgNatH.value / dispH
 
-  ctx.beginPath()
-  ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2)
-  ctx.closePath()
-  ctx.clip()
+  if (props.shape === 'circle') {
+    ctx.beginPath()
+    ctx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2)
+    ctx.closePath()
+    ctx.clip()
+  }
 
   ctx.drawImage(
     img,

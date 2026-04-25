@@ -34,6 +34,14 @@
             style="display:none"
             @change="handlePhotoUpload"
           />
+          <ImageCropper
+            v-if="showCropper"
+            :src="cropperSrc"
+            shape="square"
+            title="Recadrer la photo du personnage"
+            @cancel="showCropper = false"
+            @crop="onPhotoCropped"
+          />
           <div class="character-name-display">
             <h2>{{ form.prenom }} {{ form.nom }}</h2>
             <span class="character-username">@{{ profileData.username }}</span>
@@ -233,6 +241,7 @@ import { useAuthStore } from '../stores/auth'
 import { useCharacterStore } from '../stores/character'
 import { supabase } from '../lib/supabase'
 import StatsRadarChart from '../components/StatsRadarChart.vue'
+import ImageCropper from '../components/ImageCropper.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -244,6 +253,8 @@ const saving = ref(false)
 const saveMsg = ref('')
 const saveMsgType = ref('')
 const photoInput = ref(null)
+const showCropper = ref(false)
+const cropperSrc = ref('')
 
 const form = ref({
   photo_url: '',
@@ -424,17 +435,34 @@ function triggerPhotoUpload() {
   photoInput.value?.click()
 }
 
-async function handlePhotoUpload(e) {
+function handlePhotoUpload(e) {
   const file = e.target.files?.[0]
   if (!file || !profileData.value) return
+  if (file.size > 5 * 1024 * 1024) {
+    saveMsg.value = 'Image trop lourde (max 5 Mo)'
+    saveMsgType.value = 'error'
+    e.target.value = ''
+    return
+  }
+  cropperSrc.value = URL.createObjectURL(file)
+  showCropper.value = true
+  e.target.value = ''
+}
+
+async function onPhotoCropped(file) {
+  if (!profileData.value) return
+  showCropper.value = false
   try {
     const url = await characterStore.uploadCharacterPhoto(profileData.value.id, file)
     form.value.photo_url = url
+    await characterStore.upsertSheet(profileData.value.id, { ...form.value })
+    saveMsg.value = 'Photo mise à jour !'
+    saveMsgType.value = 'success'
+    setTimeout(() => { saveMsg.value = '' }, 3000)
   } catch (err) {
     saveMsg.value = err.message
     saveMsgType.value = 'error'
   }
-  e.target.value = ''
 }
 
 async function saveSheet() {

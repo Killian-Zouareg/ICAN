@@ -82,6 +82,24 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.11.0',
+    date: '26 avril 2026',
+    icon: '\u{1F5BC}',
+    color: '#1da1f2',
+    title: 'Recadrage des photos — iCharacter & héros iWiki',
+    description: 'Plus besoin d’uploader des photos parfaitement carrées : un <strong>recadreur intégré</strong> s’ouvre maintenant lors de la modification de la photo iCharacter et de la photo d’un héros/vilain de l’iWiki. Glissez, zoomez, validez. Le même composant que pour les avatars, en mode carré (400x400) pour respecter le format d’affichage.',
+    tags: ['iCharacter', 'iWiki', 'Crop', 'QoL'],
+  },
+  {
+    version: '4.10.0',
+    date: '25 avril 2026',
+    icon: '\u{1F4CB}',
+    color: '#1da1f2',
+    title: 'Brouillons de posts — sauvegardez vos templates (texte + image)',
+    description: 'Plus besoin de tout retaper : enregistrez vos posts comme <strong>brouillons</strong> directement depuis le composer, <strong>image incluse</strong>. Donnez-leur un nom (ou pas), rechargez-en un en un clic, renommez ou supprimez. Parfait pour vos templates récurrents (annonces, RP, formats spéciaux). Les brouillons sont stockés en local sur votre appareil, isolés par profil.',
+    tags: ['Brouillons', 'Templates', 'Images', 'Composer', 'QoL'],
+  },
+  {
     version: '4.9.0',
     date: '24 avril 2026',
     icon: '\u{1F5FF}',
@@ -479,6 +497,32 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.11.0',
+    date: '26 avril 2026',
+    title: 'Recadrage photos iCharacter & iWiki',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Recadreur d’image (drag + zoom) lors de l’upload de la photo iCharacter' },
+      { type: 'new', text: 'Recadreur d’image lors de la modification de la photo d’un héros/vilain iWiki' },
+      { type: 'improved', text: 'ImageCropper : nouveau prop `shape` (circle | square) et titre personnalisable' },
+      { type: 'improved', text: 'Limite 5 Mo appliquée également sur ces uploads' },
+    ],
+  },
+  {
+    version: '4.10.0',
+    date: '25 avril 2026',
+    title: 'Brouillons de posts',
+    tag: 'minor',
+    changes: [
+      { type: 'new', text: 'Bouton brouillons (icône presse-papier) dans le PostComposer avec compteur' },
+      { type: 'new', text: 'Modal de gestion : liste, chargement, renommage et suppression des brouillons' },
+      { type: 'new', text: 'Sauvegarde de l’image attachée dans le brouillon (encodée en base64)' },
+      { type: 'new', text: 'Badge image sur les brouillons qui en contiennent une' },
+      { type: 'new', text: 'Champ nom optionnel — pratique pour créer des templates récurrents' },
+      { type: 'new', text: 'Stockage localStorage isolé par profil (clé ican_post_drafts_v1)' },
+    ],
+  },
   {
     version: '4.8.0',
     date: '20 avril 2026',

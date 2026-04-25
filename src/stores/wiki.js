@@ -90,11 +90,11 @@ export const useWikiStore = defineStore('wiki', () => {
     const msg = checkRateLimit('upload')
     if (msg) throw new Error(msg)
 
-    const ext = file.name.split('.').pop()
-    const path = `wiki/${id}.${ext}`
+    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const path = `wiki/${id}_${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true })
+      .upload(path, file, { upsert: true, contentType: file.type || 'image/png' })
     if (upErr) throw upErr
 
     const { data: { publicUrl } } = supabase.storage
