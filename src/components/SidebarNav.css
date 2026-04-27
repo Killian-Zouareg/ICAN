@@ -43,6 +43,90 @@
   gap: 0.15rem;
 }
 
+.sidebar-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.45rem 0.4rem 0.55rem;
+  margin: 0.4rem 0;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0));
+  transition: box-shadow 0.3s ease, border-color 0.3s ease;
+}
+
+.sidebar-group::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+}
+
+.sidebar-group-rp {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(29, 161, 242, 0.10), transparent 70%),
+    linear-gradient(180deg, rgba(29, 161, 242, 0.04), rgba(29, 161, 242, 0));
+  border-color: rgba(29, 161, 242, 0.25);
+  box-shadow:
+    0 0 14px rgba(29, 161, 242, 0.18),
+    inset 0 0 18px rgba(29, 161, 242, 0.08);
+}
+
+.sidebar-group-rp::before {
+  background: linear-gradient(180deg, rgba(29, 161, 242, 0.55), rgba(29, 161, 242, 0.05));
+}
+
+.sidebar-group-nonrp {
+  background:
+    radial-gradient(circle at 50% 0%, rgba(155, 89, 182, 0.10), transparent 70%),
+    linear-gradient(180deg, rgba(155, 89, 182, 0.04), rgba(155, 89, 182, 0));
+  border-color: rgba(155, 89, 182, 0.25);
+  box-shadow:
+    0 0 14px rgba(155, 89, 182, 0.18),
+    inset 0 0 18px rgba(155, 89, 182, 0.08);
+}
+
+.sidebar-group-nonrp::before {
+  background: linear-gradient(180deg, rgba(155, 89, 182, 0.55), rgba(155, 89, 182, 0.05));
+}
+
+.sidebar-group:hover {
+  box-shadow:
+    0 0 22px rgba(29, 161, 242, 0.28),
+    inset 0 0 22px rgba(29, 161, 242, 0.12);
+}
+.sidebar-group-nonrp:hover {
+  box-shadow:
+    0 0 22px rgba(155, 89, 182, 0.28),
+    inset 0 0 22px rgba(155, 89, 182, 0.12);
+}
+
+.sidebar-group-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.6rem 0.45rem;
+  margin: 0;
+  text-align: center;
+}
+
+.sidebar-group-rp .sidebar-group-label {
+  color: rgba(29, 161, 242, 0.95);
+  text-shadow: 0 0 8px rgba(29, 161, 242, 0.55);
+}
+
+.sidebar-group-nonrp .sidebar-group-label {
+  color: rgba(186, 130, 220, 0.95);
+  text-shadow: 0 0 8px rgba(155, 89, 182, 0.55);
+}
+
 .sidebar-link {
   display: flex;
   align-items: center;

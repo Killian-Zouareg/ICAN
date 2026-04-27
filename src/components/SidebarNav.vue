@@ -9,6 +9,8 @@
 
       <!-- Nav links -->
       <nav class="sidebar-nav">
+        <div class="sidebar-group sidebar-group-rp">
+        <div class="sidebar-group-label">RP</div>
         <router-link to="/" class="sidebar-link" exact-active-class="active">
           <span class="sidebar-icon">&#x1F3E0;</span>
           <span class="sidebar-label">Feed</span>
@@ -45,6 +47,21 @@
           <span class="sidebar-label">iBank</span>
           <span v-if="presence.countFor('bank') > 0" class="sidebar-presence">{{ presence.countFor('bank') }}</span>
         </router-link>
+        <router-link to="/wiki" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F4D6;</span>
+          <span class="sidebar-label">iWiki</span>
+          <span v-if="presence.countFor('wiki') > 0" class="sidebar-presence">{{ presence.countFor('wiki') }}</span>
+        </router-link>
+        <router-link to="/anonym" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F576;</span>
+          <span class="sidebar-label">iAnonym</span>
+          <span v-if="presence.countFor('anonym') > 0" class="sidebar-presence">{{ presence.countFor('anonym') }}</span>
+        </router-link>
+
+        </div>
+
+        <div class="sidebar-group sidebar-group-nonrp">
+        <div class="sidebar-group-label">NON RP</div>
         <router-link to="/igames" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F3AE;</span>
           <span class="sidebar-label">iGames</span>
@@ -54,16 +71,6 @@
           <span class="sidebar-icon">&#x1F30D;</span>
           <span class="sidebar-label">Hub 3D</span>
           <span v-if="presence.countFor('game') > 0" class="sidebar-presence">{{ presence.countFor('game') }}</span>
-        </router-link>
-        <router-link to="/anonym" class="sidebar-link" active-class="active">
-          <span class="sidebar-icon">&#x1F576;</span>
-          <span class="sidebar-label">iAnonym</span>
-          <span v-if="presence.countFor('anonym') > 0" class="sidebar-presence">{{ presence.countFor('anonym') }}</span>
-        </router-link>
-        <router-link to="/wiki" class="sidebar-link" active-class="active">
-          <span class="sidebar-icon">&#x1F4D6;</span>
-          <span class="sidebar-label">iWiki</span>
-          <span v-if="presence.countFor('wiki') > 0" class="sidebar-presence">{{ presence.countFor('wiki') }}</span>
         </router-link>
         <router-link to="/settings" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x2699;</span>
@@ -80,6 +87,7 @@
           <span class="sidebar-label">Admin</span>
           <span v-if="presence.countFor('admin') > 0" class="sidebar-presence">{{ presence.countFor('admin') }}</span>
         </router-link>
+        </div>
       </nav>
     </div>
 
