@@ -55,6 +55,11 @@
           <span class="sidebar-label">Hub 3D</span>
           <span v-if="presence.countFor('game') > 0" class="sidebar-presence">{{ presence.countFor('game') }}</span>
         </router-link>
+        <router-link to="/anonym" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F576;</span>
+          <span class="sidebar-label">iAnonym</span>
+          <span v-if="presence.countFor('anonym') > 0" class="sidebar-presence">{{ presence.countFor('anonym') }}</span>
+        </router-link>
         <router-link to="/wiki" class="sidebar-link" active-class="active">
           <span class="sidebar-icon">&#x1F4D6;</span>
           <span class="sidebar-label">iWiki</span>

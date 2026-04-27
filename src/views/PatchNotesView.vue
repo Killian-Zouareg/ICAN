@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.16.0',
+    date: '27 avril 2026',
+    icon: '\u{1F576}',
+    color: '#fef3a7',
+    title: 'iAnonym — Mur de confessions anonymes',
+    description: 'Un nouvel onglet <strong>iAnonym</strong> rejoint la navigation : un grand <strong>tableau en liège</strong> sur lequel n’importe qui peut épingler un post anonyme (280 caractères max). Chaque message s’affiche sous la forme d’un <strong>post-it</strong> coloré, légèrement incliné, avec sa punaise rouge. Les emplacements sont aléatoires mais stables (chaque post garde sa position). Aucun lien avec le compte qui publie — totalement anonyme. Survole une note pour la mettre en avant.',
+    tags: ['Anonyme', 'Post-it', 'Tableau', 'Nouveau'],
+  },
+  {
     version: '4.15.0',
     date: '26 avril 2026',
     icon: '\u{1F355}',

@@ -81,6 +81,10 @@
         <span>&#x1F30D;</span> Hub 3D
         <span v-if="presence.countFor('game') > 0" class="mobile-more-presence">{{ presence.countFor('game') }}</span>
       </router-link>
+      <router-link to="/anonym" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F576;</span> iAnonym
+        <span v-if="presence.countFor('anonym') > 0" class="mobile-more-presence">{{ presence.countFor('anonym') }}</span>
+      </router-link>
       <router-link to="/wiki" class="mobile-more-item" @click="showMore = false">
         <span>&#x1F4D6;</span> iWiki
         <span v-if="presence.countFor('wiki') > 0" class="mobile-more-presence">{{ presence.countFor('wiki') }}</span>

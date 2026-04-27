@@ -104,6 +104,11 @@ const routes = [
     component: () => import('../views/WikiArticleDetailView.vue'),
   },
   {
+    path: '/anonym',
+    name: 'Anonym',
+    component: () => import('../views/AnonymView.vue'),
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),
