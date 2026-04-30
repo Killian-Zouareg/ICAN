@@ -86,7 +86,13 @@
 
     <!-- Map container -->
     <div class="map-wrapper">
-      <div ref="mapContainer" class="map-container" :class="{ 'add-mode': addMode || drawingZone }"></div>
+      <div
+        ref="mapContainer"
+        class="map-container"
+        :class="{ 'add-mode': addMode || drawingZone }"
+        :style="weatherTileStyle"
+      ></div>
+      <WeatherOverlay class="map-weather-overlay" />
       <div class="map-vignette"></div>
     </div>
 
@@ -344,9 +350,18 @@ import { useMapLocationsStore } from '../stores/mapLocations'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
 import UserAvatar from '../components/UserAvatar.vue'
+import WeatherOverlay from '../components/WeatherOverlay.vue'
+import { useWeatherEffects } from '../composables/useWeatherEffects'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat'
+
+// Weather effects: tile filter + overlay
+const { tileFilter } = useWeatherEffects()
+const weatherTileStyle = computed(() => {
+  if (!tileFilter.value) return {}
+  return { '--map-weather-filter': tileFilter.value }
+})
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -1165,4 +1180,18 @@ async function handleDelete(location) {
 }
 .dropdown-enter-active, .dropdown-leave-active { transition: opacity 0.15s, transform 0.15s; }
 .dropdown-enter-from, .dropdown-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* Weather filter on map tiles — overrides the static filter when conditions are active */
+.map-container[style*="--map-weather-filter"] .leaflet-tile-pane {
+  filter: var(--map-weather-filter);
+  transition: filter 1.4s ease;
+}
+
+/* Weather overlay layer (rain/snow/lightning) — sits between tiles and markers */
+.map-weather-overlay {
+  position: absolute !important;
+  inset: 0;
+  z-index: 350;
+  pointer-events: none;
+}
 </style>

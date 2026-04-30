@@ -109,6 +109,11 @@ const routes = [
     component: () => import('../views/AnonymView.vue'),
   },
   {
+    path: '/live',
+    name: 'AllentownLive',
+    component: () => import('../views/AllentownLiveView.vue'),
+  },
+  {
     path: '/admin',
     name: 'Admin',
     component: () => import('../views/AdminView.vue'),

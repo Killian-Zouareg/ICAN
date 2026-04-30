@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.17.0',
+    date: '30 avril 2026',
+    icon: '\u{1F324}',
+    color: '#4a90e2',
+    title: 'Allentown Live — la vraie ville s\'invite dans iCAN',
+    description: 'iCAN se connecte au monde réel. Un nouveau panneau <strong>Allentown Live</strong> dans la sidebar affiche en permanence la <strong>vraie météo d\'Allentown, PA</strong>, les <strong>alertes officielles du NWS</strong> (orages, tornades), les <strong>vraies news locales</strong> (Lehigh Valley Live), les <strong>concerts et matchs à venir</strong> (PPL Center, Phantoms…) et la <strong>phase lunaire</strong> du soir. Une bannière sticky rouge apparaît automatiquement quand le NWS émet une alerte sévère. Et quand il pleut vraiment à Allentown, il pleut sur la carte — particules de pluie, tile filter, mode nuit, flash d\'éclairs en cas d\'orage.',
+    tags: ['API réelle', 'Météo', 'NWS', 'News', 'Immersif'],
+  },
+  {
     version: '4.16.0',
     date: '27 avril 2026',
     icon: '\u{1F576}',
@@ -542,6 +551,25 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.17.0',
+    date: '30 avril 2026',
+    title: 'Allentown Live — intégration monde réel (météo, NWS, news, événements)',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Nouveau service `src/lib/allentownLive.js` — agrège 6 APIs publiques : OpenWeatherMap (météo), NWS api.weather.gov (alertes), sunrise-sunset.org (cycle solaire), RSS Lehigh Valley Live (news), Ticketmaster Discovery (événements), calcul direct (phase lunaire)' },
+      { type: 'new', text: 'Cache localStorage avec TTL 15 min pour préserver les quotas API' },
+      { type: 'new', text: 'Nouveau store Pinia `src/stores/allentownLive.js` — auto-refresh toutes les 15 min, computed `isNight`, `weatherKind`, `severeAlerts`, `hasSevereAlert`' },
+      { type: 'new', text: 'Composable `src/composables/useWeatherEffects.js` — expose `tileFilter`, `ambientGradient`, `overlayHint` selon météo + jour/nuit' },
+      { type: 'new', text: 'Composant `src/components/WeatherOverlay.vue` — canvas avec particules de pluie/neige, animation fog, flash d\'éclairs en cas d\'orage' },
+      { type: 'new', text: 'Composant `src/components/AllentownLiveWidget.vue` — widget style appli météo native dans la sidebar TrendingPanel : température XL, condition, min/max, alertes, lune, news, événements' },
+      { type: 'new', text: 'Page `/live` `src/views/AllentownLiveView.vue` — vue immersive plein écran avec gradient dynamique selon météo/heure, forecast horaire, alertes complètes, news, événements' },
+      { type: 'new', text: 'Bannière sticky alertes NWS sévères dans App.vue — apparaît automatiquement quand le NWS émet une alerte severe/extreme pour Lehigh County' },
+      { type: 'improved', text: 'MapView.vue — filtres CSS dynamiques sur les tiles selon météo (pluie sombre, neige claire, fog flou, orage violet, nuit bleutée) + WeatherOverlay au-dessus de la map' },
+      { type: 'improved', text: 'TrendingPanel.vue — widget Allentown Live ajouté en tête de la sidebar' },
+      { type: 'improved', text: 'SidebarNav + MobileNav — lien vers `/live`' },
+    ],
+  },
   {
     version: '4.15.0',
     date: '26 avril 2026',

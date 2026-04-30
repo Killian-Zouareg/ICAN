@@ -8,6 +8,7 @@ const SECTION_MAP = {
   '/messages': 'messages',
   '/search': 'search',
   '/map': 'map',
+  '/live': 'live',
   '/bank': 'bank',
   '/igames': 'igames',
   '/game': 'game',

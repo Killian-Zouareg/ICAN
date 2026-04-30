@@ -1,0 +1,209 @@
+.alw {
+  position: relative;
+  background: linear-gradient(160deg, #2c4a6b 0%, #1e3754 50%, #15283d 100%);
+  border-radius: 14px;
+  padding: 14px 14px 12px;
+  margin-bottom: 16px;
+  color: #f0f4fa;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.06);
+  transition: background 0.6s ease;
+}
+
+.alw::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 120px; height: 120px;
+  background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 70%);
+  pointer-events: none;
+}
+
+/* Weather variants */
+.alw-clear      { background: linear-gradient(160deg, #4a90e2 0%, #6dafe8 50%, #8fc4ee 100%); }
+.alw-cloudy     { background: linear-gradient(160deg, #6b7c90 0%, #5a6c80 50%, #4a5c70 100%); }
+.alw-rain       { background: linear-gradient(160deg, #34465a 0%, #2a3848 50%, #1f2c3a 100%); }
+.alw-snow       { background: linear-gradient(160deg, #c8d4e0 0%, #b8c4d4 50%, #98a8b8 100%); color: #1a2030; }
+.alw-fog        { background: linear-gradient(160deg, #888c95 0%, #6c7078 50%, #56595f 100%); }
+.alw-thunderstorm { background: linear-gradient(160deg, #2a1840 0%, #1a1030 50%, #0c0820 100%); }
+.alw-night      { background: linear-gradient(160deg, #0c1a2e 0%, #1a2540 50%, #2a3858 100%); }
+
+/* Header */
+.alw-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 0.78rem;
+  opacity: 0.85;
+}
+.alw-head-left {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.alw-loc-pin { font-size: 0.85em; }
+.alw-loc { font-weight: 600; letter-spacing: 0.02em; }
+.alw-time { font-variant-numeric: tabular-nums; opacity: 0.7; }
+
+/* Skeleton */
+.alw-skeleton { padding: 8px 0 14px; }
+.alw-skel-temp {
+  height: 48px;
+  width: 100px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  animation: alw-pulse 1.5s ease-in-out infinite;
+}
+.alw-skel-line {
+  height: 12px;
+  width: 80%;
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  animation: alw-pulse 1.5s ease-in-out infinite;
+}
+@keyframes alw-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 0.95; }
+}
+
+/* Alert ribbon */
+.alw-alert-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  text-decoration: none;
+  color: #fff;
+  background: rgba(224, 36, 94, 0.85);
+  animation: alw-alert-pulse 2.4s ease-in-out infinite;
+}
+.alw-alert-extreme { background: rgba(180, 0, 30, 0.95); }
+.alw-alert-severe  { background: rgba(224, 36, 94, 0.85); }
+.alw-alert-moderate { background: rgba(243, 156, 18, 0.85); color: #1a1a1a; }
+.alw-alert-minor   { background: rgba(243, 156, 18, 0.6); color: #1a1a1a; }
+.alw-alert-icon { font-size: 1.2em; flex-shrink: 0; }
+.alw-alert-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.alw-alert-title { font-weight: 700; font-size: 0.82rem; line-height: 1.1; }
+.alw-alert-headline { font-size: 0.72rem; opacity: 0.92; line-height: 1.2; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@keyframes alw-alert-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224, 36, 94, 0.5); }
+  50% { box-shadow: 0 0 0 6px rgba(224, 36, 94, 0); }
+}
+
+/* Main weather */
+.alw-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  text-decoration: none;
+  color: inherit;
+  margin-bottom: 10px;
+}
+.alw-main-left { display: flex; flex-direction: column; align-items: flex-start; }
+.alw-icon { font-size: 2.4rem; line-height: 1; margin-bottom: 2px; }
+.alw-cond { font-size: 0.85rem; font-weight: 600; opacity: 0.95; }
+.alw-main-right { text-align: right; }
+.alw-temp {
+  font-size: 2.6rem;
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.alw-deg { font-weight: 100; opacity: 0.7; }
+.alw-feels { font-size: 0.7rem; opacity: 0.7; margin-top: 2px; }
+
+/* Meta row */
+.alw-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.72rem;
+  padding: 8px 0;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  opacity: 0.85;
+}
+.alw-meta-item { display: inline-flex; align-items: center; gap: 4px; font-variant-numeric: tabular-nums; }
+.alw-meta-icon { opacity: 0.8; }
+.alw-meta-sep { opacity: 0.4; margin: 0 2px; }
+
+/* Sun/moon row */
+.alw-row {
+  display: flex;
+  gap: 10px;
+  font-size: 0.72rem;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  opacity: 0.85;
+}
+.alw-row-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.alw-row-emoji { font-size: 0.9em; }
+
+/* Sections */
+.alw-section {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+}
+.alw-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.alw-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+.alw-section-more {
+  font-size: 0.68rem;
+  color: #bcd6ff;
+  text-decoration: none;
+  opacity: 0.8;
+}
+.alw-section-more:hover { opacity: 1; text-decoration: underline; }
+
+.alw-news-item, .alw-event-item {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 0;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.alw-news-item:last-child, .alw-event-item:last-child { border-bottom: none; }
+.alw-news-title { font-size: 0.78rem; line-height: 1.25; font-weight: 500; }
+.alw-news-source { font-size: 0.65rem; opacity: 0.65; margin-top: 2px; }
+.alw-event-name { font-size: 0.78rem; line-height: 1.25; font-weight: 600; }
+.alw-event-when { font-size: 0.65rem; opacity: 0.7; margin-top: 2px; }
+.alw-news-item:hover .alw-news-title,
+.alw-event-item:hover .alw-event-name {
+  text-decoration: underline;
+}
+
+/* Footer link */
+.alw-footer-link {
+  display: block;
+  text-align: center;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255,255,255,0.10);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #bcd6ff;
+  text-decoration: none;
+  opacity: 0.85;
+}
+.alw-footer-link:hover { opacity: 1; }

@@ -6,6 +6,9 @@
       <span class="trending-search-text">Rechercher</span>
     </router-link>
 
+    <!-- Allentown Live widget -->
+    <AllentownLiveWidget />
+
     <!-- Trending hashtags -->
     <div class="trending-section">
       <h3 class="trending-title">Tendances</h3>
@@ -55,6 +58,7 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '../lib/supabase'
 import UserAvatar from './UserAvatar.vue'
+import AllentownLiveWidget from './AllentownLiveWidget.vue'
 
 const loading = ref(true)
 const trends = ref([])

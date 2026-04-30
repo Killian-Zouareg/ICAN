@@ -37,6 +37,11 @@
           <span class="sidebar-label">Carte</span>
           <span v-if="presence.countFor('map') > 0" class="sidebar-presence">{{ presence.countFor('map') }}</span>
         </router-link>
+        <router-link to="/live" class="sidebar-link" active-class="active">
+          <span class="sidebar-icon">&#x1F324;</span>
+          <span class="sidebar-label">Allentown Live</span>
+          <span v-if="presence.countFor('live') > 0" class="sidebar-presence">{{ presence.countFor('live') }}</span>
+        </router-link>
         <router-link :to="`/character/${auth.activeProfile?.username}`" class="sidebar-link" v-if="auth.activeProfile" active-class="active">
           <span class="sidebar-icon">&#x1F9D9;</span>
           <span class="sidebar-label">iCharacter</span>

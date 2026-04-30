@@ -65,6 +65,10 @@
         <span>&#x1F5FA;</span> Carte
         <span v-if="presence.countFor('map') > 0" class="mobile-more-presence">{{ presence.countFor('map') }}</span>
       </router-link>
+      <router-link to="/live" class="mobile-more-item" @click="showMore = false">
+        <span>&#x1F324;</span> Allentown Live
+        <span v-if="presence.countFor('live') > 0" class="mobile-more-presence">{{ presence.countFor('live') }}</span>
+      </router-link>
       <router-link :to="`/character/${auth.activeProfile?.username}`" class="mobile-more-item" @click="showMore = false" v-if="auth.activeProfile">
         <span>&#x1F9D9;</span> iCharacter
         <span v-if="presence.countFor('character') > 0" class="mobile-more-presence">{{ presence.countFor('character') }}</span>
