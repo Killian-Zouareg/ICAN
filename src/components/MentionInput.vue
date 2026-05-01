@@ -58,6 +58,7 @@ defineOptions({ inheritAttrs: false })
 const props = defineProps({
   modelValue: { type: String, default: '' },
   tag: { type: String, default: 'textarea' },
+  dropdownPosition: { type: String, default: 'bottom' }, // 'bottom' | 'top'
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -163,9 +164,16 @@ function positionDropdown() {
   nextTick(() => {
     const el = inputRef.value
     if (!el) return
-    dropdownStyle.value = {
-      left: '0px',
-      top: (el.offsetHeight + 4) + 'px',
+    if (props.dropdownPosition === 'top') {
+      dropdownStyle.value = {
+        left: '0px',
+        bottom: (el.offsetHeight + 4) + 'px',
+      }
+    } else {
+      dropdownStyle.value = {
+        left: '0px',
+        top: (el.offsetHeight + 4) + 'px',
+      }
     }
   })
 }

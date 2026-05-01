@@ -229,6 +229,50 @@ export const useMessagesStore = defineStore('messages', () => {
       .from('conversations')
       .update({ updated_at: new Date().toISOString() })
       .eq('id', conversationId)
+
+    // Mention notifications (group conversations only)
+    if (content) {
+      try {
+        await notifyMentions(conversationId, content, auth.activeProfile.id)
+      } catch (e) {
+        console.warn('[messages] notifyMentions failed:', e)
+      }
+    }
+  }
+
+  async function notifyMentions(conversationId, content, senderId) {
+    const usernames = [...new Set(
+      [...content.matchAll(/(?:^|\s)@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase())
+    )]
+    if (usernames.length === 0) return
+
+    const { data: conv } = await supabase
+      .from('conversations')
+      .select('id, is_group')
+      .eq('id', conversationId)
+      .single()
+    if (!conv?.is_group) return
+
+    const { data: members } = await supabase
+      .from('conversation_members')
+      .select('profile_id, profiles(id, username)')
+      .eq('conversation_id', conversationId)
+    if (!members) return
+
+    const recipients = members
+      .map((m) => m.profiles)
+      .filter((p) => p && p.id !== senderId && usernames.includes((p.username || '').toLowerCase()))
+      .map((p) => p.id)
+
+    if (recipients.length === 0) return
+
+    const rows = recipients.map((rid) => ({
+      type: 'mention',
+      actor_id: senderId,
+      recipient_id: rid,
+      read: false,
+    }))
+    await supabase.from('notifications').insert(rows)
   }
 
   async function getOrCreateConversation(otherProfileId) {

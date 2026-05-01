@@ -1,5 +1,5 @@
 <template>
-  <div class="bubble-wrapper" :class="{ mine: isMine }">
+  <div v-if="!message.deleted_for_everyone" class="bubble-wrapper" :class="{ mine: isMine, 'first-of-group': firstOfGroup }">
     <UserAvatar
       v-if="isGroup"
       class="bubble-avatar"
@@ -34,8 +34,8 @@
     </div>
 
     <div class="bubble-content-wrap">
-      <div class="bubble" :class="{ mine: isMine, deleted: message.deleted_for_everyone }">
-        <span v-if="isGroup && !isMine && !message.deleted_for_everyone" class="bubble-sender">
+      <div class="bubble" :class="{ mine: isMine, deleted: message.deleted_for_everyone, mentioned: mentionsMe }">
+        <span v-if="isGroup && !isMine && !message.deleted_for_everyone && firstOfGroup" class="bubble-sender">
           {{ message.sender?.display_name || '?' }}
         </span>
 
@@ -77,6 +77,22 @@
         </button>
       </div>
 
+      <!-- Read receipt -->
+      <div
+        v-if="showReadStatus && isMine && !message.deleted_for_everyone"
+        class="read-receipt"
+        :class="{ read: message.read }"
+      >
+        <span v-if="message.read" class="receipt-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 7 17 13 11"/><polyline points="10 17 15 17 22 7"/></svg>
+          Lu
+        </span>
+        <span v-else class="receipt-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+          Envoyé
+        </span>
+      </div>
+
       <!-- Picker popover -->
       <ReactionPicker
         v-if="showPicker && !message.deleted_for_everyone"
@@ -96,6 +112,8 @@ import UserAvatar from './UserAvatar.vue'
 const props = defineProps({
   message: { type: Object, required: true },
   isGroup: { type: Boolean, default: false },
+  firstOfGroup: { type: Boolean, default: false },
+  showReadStatus: { type: Boolean, default: false },
   reactions: { type: Array, default: () => [] },
 })
 
@@ -107,6 +125,16 @@ const showPicker = ref(false)
 const isMine = computed(() => {
   const myProfileIds = auth.profiles.map((p) => p.id)
   return myProfileIds.includes(props.message.sender_id)
+})
+
+const mentionsMe = computed(() => {
+  if (props.message.deleted_for_everyone) return false
+  const c = props.message.content || ''
+  if (!c.includes('@')) return false
+  const myUsername = (auth.activeProfile?.username || '').toLowerCase()
+  if (!myUsername) return false
+  const matches = [...c.matchAll(/(?:^|\s)@([a-zA-Z0-9_]+)/g)].map((m) => m[1].toLowerCase())
+  return matches.includes(myUsername)
 })
 
 const parentPreview = computed(() => {

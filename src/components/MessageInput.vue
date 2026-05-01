@@ -19,12 +19,14 @@
       <button type="button" class="action-btn" @click="$refs.fileInput.click()" title="Envoyer une image">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       </button>
-      <input
+      <MentionInput
         v-model="content"
+        tag="input"
+        dropdown-position="top"
         type="text"
         :placeholder="replyingTo ? 'Répondre...' : 'Écrire un message...'"
         maxlength="1000"
-        @keydown.enter.exact.prevent="submit"
+        @keydown.enter.exact="onEnter"
       />
       <button type="submit" class="send-btn" :disabled="!content.trim() && !imageFile">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
@@ -42,6 +44,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import MentionInput from './MentionInput.vue'
 
 const props = defineProps({
   replyingTo: { type: Object, default: null },
@@ -73,6 +76,13 @@ function handleFileChange(e) {
 function removeImage() {
   imageFile.value = null
   imagePreview.value = null
+}
+
+function onEnter(e) {
+  // If MentionInput's dropdown handled Enter (to pick a suggestion), skip submit
+  if (e.defaultPrevented) return
+  e.preventDefault()
+  submit()
 }
 
 function submit() {

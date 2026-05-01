@@ -562,6 +562,18 @@ const changeBadges = {
 
 const patches = [
   {
+    version: '4.20.0',
+    date: '2 mai 2026',
+    title: 'Mentions dans les groupes — surlignage + notification',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: 'Dans les conversations de groupe, les messages où ton profil actif est `@mentionné` apparaissent maintenant en surbrillance (cadre + lueur bleu accent) pour les repérer instantanément dans le fil.' },
+      { type: 'new', text: 'L\'envoi d\'un message en groupe scanne le contenu pour les `@username` et insère une notification `mention` pour chaque profil membre concerné — la cloche s\'allume en temps réel.' },
+      { type: 'improved', text: 'Avatar du sender visible sur **tous** les messages de groupe (y compris les tiens), pratique quand on jongle entre plusieurs profils dans le même groupe.' },
+      { type: 'improved', text: 'Boutons d\'action (réagir / répondre / supprimer) repositionnés sous la bulle au hover : la bulle ne se décale plus latéralement quand la souris passe dessus.' },
+    ],
+  },
+  {
     version: '4.19.0',
     date: '2 mai 2026',
     title: 'Optimisations Supabase free tier — moins de requêtes, uploads compressés',

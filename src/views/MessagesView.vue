@@ -77,10 +77,12 @@
               <span>Envoyez votre premier message !</span>
             </div>
             <MessageBubble
-              v-for="msg in messagesStore.currentMessages"
+              v-for="(msg, i) in messagesStore.currentMessages"
               :key="msg.id"
               :message="msg"
               :isGroup="activeConv?.is_group"
+              :firstOfGroup="i === 0 || messagesStore.currentMessages[i - 1].sender_id !== msg.sender_id"
+              :showReadStatus="i === lastMineIndex"
               :reactions="reactionsStore.getForMessage(msg.id)"
               @delete="handleDeleteMessage"
               @reply="handleReply"
@@ -118,7 +120,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessagesStore } from '../stores/messages'
 import { useReactionsStore } from '../stores/reactions'
@@ -145,6 +147,16 @@ const messagesContainer = ref(null)
 const loadingMessages = ref(false)
 const replyingTo = ref(null)
 const showGroupModal = ref(false)
+const lastMineIndex = computed(() => {
+  const myId = auth.activeProfile?.id
+  if (!myId) return -1
+  const arr = messagesStore.currentMessages
+  for (let i = arr.length - 1; i >= 0; i--) {
+    if (arr[i].sender_id === myId && !arr[i].deleted_for_everyone) return i
+  }
+  return -1
+})
+
 let pollInterval = null
 let msgRealtimeSub = null
 let reactionsRealtimeSub = null

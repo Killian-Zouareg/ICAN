@@ -12,6 +12,10 @@
   flex-direction: row-reverse;
 }
 
+.bubble-wrapper.first-of-group {
+  margin-top: 0.7rem;
+}
+
 .bubble-actions {
   position: absolute;
   top: 100%;
@@ -161,6 +165,17 @@
   color: rgba(255, 255, 255, 0.85);
 }
 
+.bubble.mentioned {
+  background: rgba(29, 161, 242, 0.18);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(29, 161, 242, 0.35);
+}
+
+.bubble.mentioned.mine {
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.4), 0 0 12px rgba(29, 161, 242, 0.5);
+}
+
 .bubble.deleted {
   opacity: 0.7;
   background: var(--bg-hover);
@@ -198,6 +213,27 @@
 .bubble-avatar {
   flex-shrink: 0;
   align-self: flex-end;
+}
+
+.read-receipt {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+  align-self: flex-end;
+}
+
+.read-receipt.read {
+  color: var(--accent);
+}
+
+.receipt-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  line-height: 1;
 }
 
 .reaction-chip {

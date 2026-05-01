@@ -26,7 +26,8 @@
   background: rgba(29, 161, 242, 0.1);
 }
 
-input[type="text"] {
+input[type="text"],
+:deep(input[type="text"]) {
   flex: 1;
   padding: 0.7rem 1rem;
   background: var(--bg-secondary);
@@ -37,11 +38,13 @@ input[type="text"] {
   transition: border-color 0.15s;
 }
 
-input[type="text"]::placeholder {
+input[type="text"]::placeholder,
+:deep(input[type="text"]::placeholder) {
   color: var(--text-secondary);
 }
 
-input[type="text"]:focus {
+input[type="text"]:focus,
+:deep(input[type="text"]:focus) {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 1px rgba(29, 161, 242, 0.15);
