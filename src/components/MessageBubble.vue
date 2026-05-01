@@ -1,7 +1,7 @@
 <template>
   <div class="bubble-wrapper" :class="{ mine: isMine }">
     <UserAvatar
-      v-if="isGroup && !isMine"
+      v-if="isGroup"
       class="bubble-avatar"
       :url="message.sender?.avatar_url"
       :name="message.sender?.display_name || '?'"
