@@ -27,19 +27,35 @@
           <button class="back-btn" @click="closeConversation">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
           </button>
+
+          <!-- Group header -->
+          <template v-if="activeConv?.is_group">
+            <div class="conv-header-link" @click="showGroupModal = true" style="cursor: pointer">
+              <div class="conv-group-avatar">&#x1F465;</div>
+              <div class="conv-header-info">
+                <span class="conv-header-name">{{ activeConv.group_name || 'Groupe' }}</span>
+                <span class="conv-header-handle">{{ activeConv.members?.length || 0 }} membres</span>
+              </div>
+            </div>
+            <button class="header-action-btn" @click="showGroupModal = true" title="Gérer le groupe">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </button>
+          </template>
+
+          <!-- 1-on-1 header -->
           <router-link
-            v-if="activeConvOtherUser"
-            :to="`/user/${activeConvOtherUser.username}`"
+            v-else-if="activeConv?.otherUser"
+            :to="`/user/${activeConv.otherUser.username}`"
             class="conv-header-link"
           >
             <UserAvatar
-              :url="activeConvOtherUser.avatar_url"
-              :name="activeConvOtherUser.display_name || '?'"
+              :url="activeConv.otherUser.avatar_url"
+              :name="activeConv.otherUser.display_name || '?'"
               :size="36"
             />
             <div class="conv-header-info">
-              <span class="conv-header-name">{{ activeConvOtherUser?.display_name }}</span>
-              <span class="conv-header-handle">@{{ activeConvOtherUser?.username }}</span>
+              <span class="conv-header-name">{{ activeConv.otherUser.display_name }}</span>
+              <span class="conv-header-handle">@{{ activeConv.otherUser.username }}</span>
             </div>
           </router-link>
         </div>
@@ -52,19 +68,32 @@
           <template v-else>
             <div v-if="messagesStore.currentMessages.length === 0" class="empty-conv">
               <div class="empty-conv-icon">&#x2709;</div>
-              <p>D&eacute;but de la conversation avec <strong>{{ activeConvOtherUser?.display_name }}</strong></p>
+              <p v-if="activeConv?.is_group">
+                D&eacute;but du groupe <strong>{{ activeConv.group_name }}</strong>
+              </p>
+              <p v-else>
+                D&eacute;but de la conversation avec <strong>{{ activeConv?.otherUser?.display_name }}</strong>
+              </p>
               <span>Envoyez votre premier message !</span>
             </div>
             <MessageBubble
               v-for="msg in messagesStore.currentMessages"
               :key="msg.id"
               :message="msg"
+              :isGroup="activeConv?.is_group"
+              :reactions="reactionsStore.getForMessage(msg.id)"
               @delete="handleDeleteMessage"
+              @reply="handleReply"
+              @toggle-reaction="handleToggleReaction"
             />
           </template>
         </div>
 
-        <MessageInput @send="handleSend" />
+        <MessageInput
+          :replyingTo="replyingTo"
+          @send="handleSend"
+          @cancel-reply="replyingTo = null"
+        />
       </template>
 
       <div v-else class="messages-placeholder">
@@ -77,6 +106,14 @@
         </div>
       </div>
     </div>
+
+    <GroupMembersModal
+      v-if="showGroupModal && activeConv?.is_group"
+      :conversation="activeConv"
+      @close="showGroupModal = false"
+      @updated="onGroupUpdated"
+      @deleted="onGroupDeleted"
+    />
   </div>
 </template>
 
@@ -84,6 +121,7 @@
 import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMessagesStore } from '../stores/messages'
+import { useReactionsStore } from '../stores/reactions'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
 import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
@@ -92,21 +130,26 @@ import NewConversation from '../components/NewConversation.vue'
 import MessageBubble from '../components/MessageBubble.vue'
 import MessageInput from '../components/MessageInput.vue'
 import UserAvatar from '../components/UserAvatar.vue'
+import GroupMembersModal from '../components/GroupMembersModal.vue'
 
 const route = useRoute()
 const router = useRouter()
 const messagesStore = useMessagesStore()
+const reactionsStore = useReactionsStore()
 const auth = useAuthStore()
 
 const activeConvId = ref(null)
-const activeConvOtherUser = ref(null)
+const activeConv = ref(null)
 const messagesContainer = ref(null)
 const loadingMessages = ref(false)
+const replyingTo = ref(null)
+const showGroupModal = ref(false)
 let pollInterval = null
 let msgRealtimeSub = null
+let reactionsRealtimeSub = null
 
 // Realtime subscription for conversation list updates
-const { subscribe: subscribeConvList, unsubscribe: unsubscribeConvList } = useRealtimeSubscription('conv-list', [
+const { subscribe: subscribeConvList } = useRealtimeSubscription('conv-list', [
   {
     event: 'INSERT',
     table: 'messages',
@@ -125,9 +168,19 @@ function setupMessageRealtime(conversationId) {
       filter: `conversation_id=eq.${conversationId}`,
       callback: async (payload) => {
         if (payload.new.sender_id === auth.activeProfile?.id) return
+        const wasAtBottom = isNearBottom()
         await messagesStore.fetchMessages(conversationId)
         await messagesStore.markAsRead(conversationId)
-        scrollToBottom()
+        if (wasAtBottom) scrollToBottom()
+      },
+    },
+    {
+      event: 'UPDATE',
+      table: 'messages',
+      filter: `conversation_id=eq.${conversationId}`,
+      callback: async () => {
+        // Soft-delete or read updates — don't move scroll
+        await messagesStore.fetchMessages(conversationId)
       },
     }]
   )
@@ -137,38 +190,80 @@ function setupMessageRealtime(conversationId) {
 
 function openConversation(conv) {
   activeConvId.value = conv.id
-  activeConvOtherUser.value = conv.otherUser
+  activeConv.value = conv
+  replyingTo.value = null
+  reactionsStore.clearForConversation()
   router.replace(`/messages/${conv.id}`)
   loadMessages()
 }
 
 function closeConversation() {
   activeConvId.value = null
-  activeConvOtherUser.value = null
+  activeConv.value = null
+  replyingTo.value = null
+  showGroupModal.value = false
   clearInterval(pollInterval)
   pollInterval = null
   if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
+  if (reactionsRealtimeSub) { reactionsRealtimeSub.unsubscribe(); reactionsRealtimeSub = null }
+  reactionsStore.clearForConversation()
   router.replace('/messages')
+}
+
+function setupReactionsRealtime(conversationId) {
+  if (reactionsRealtimeSub) { reactionsRealtimeSub.unsubscribe(); reactionsRealtimeSub = null }
+  const { subscribe, unsubscribe } = useRealtimeSubscription(
+    'reactions-conv-' + conversationId,
+    [
+      {
+        event: 'INSERT',
+        table: 'message_reactions',
+        callback: () => reactionsStore.fetchReactionsForConversation(conversationId),
+      },
+      {
+        event: 'DELETE',
+        table: 'message_reactions',
+        callback: () => reactionsStore.fetchReactionsForConversation(conversationId),
+      },
+    ]
+  )
+  reactionsRealtimeSub = { unsubscribe }
+  subscribe()
+}
+
+async function handleToggleReaction(messageId, emoji) {
+  try {
+    await reactionsStore.toggleReaction(messageId, emoji)
+  } catch (e) {
+    alert('Erreur réaction : ' + (e.message || ''))
+  }
 }
 
 async function loadMessages() {
   loadingMessages.value = true
   await messagesStore.fetchMessages(activeConvId.value)
   await messagesStore.markAsRead(activeConvId.value)
+  await reactionsStore.fetchReactionsForConversation(activeConvId.value)
   loadingMessages.value = false
   scrollToBottom()
 
-  // Realtime subscription for this conversation
   setupMessageRealtime(activeConvId.value)
+  setupReactionsRealtime(activeConvId.value)
 
-  // Polling fallback (30s)
   clearInterval(pollInterval)
   pollInterval = setInterval(async () => {
     if (!activeConvId.value) return
+    const wasAtBottom = isNearBottom()
     await messagesStore.fetchMessages(activeConvId.value)
     await messagesStore.markAsRead(activeConvId.value)
-    scrollToBottom()
+    if (wasAtBottom) scrollToBottom()
   }, 30000)
+}
+
+function isNearBottom() {
+  const el = messagesContainer.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 100
 }
 
 function scrollToBottom() {
@@ -189,12 +284,12 @@ async function handleSend({ content, imageFile }) {
     const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
     imageUrl = urlData.publicUrl
   }
-  await messagesStore.sendMessage(activeConvId.value, content, imageUrl)
+  const parentId = replyingTo.value?.id || null
+  await messagesStore.sendMessage(activeConvId.value, content, imageUrl, parentId)
+  replyingTo.value = null
   await messagesStore.fetchMessages(activeConvId.value)
   scrollToBottom()
-  // Refresh conversation list to update last message
   messagesStore.fetchConversations()
-  // Notify DmWidget
   window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConvId.value } }))
 }
 
@@ -202,42 +297,61 @@ async function handleDeleteMessage(messageId) {
   await messagesStore.deleteMessage(messageId)
 }
 
+function handleReply(message) {
+  replyingTo.value = message
+}
+
+async function onGroupUpdated() {
+  // Members were added/removed — refresh active conv data
+  await messagesStore.fetchConversations()
+  const updated = messagesStore.conversations.find((c) => c.id === activeConvId.value)
+  if (updated) activeConv.value = updated
+}
+
+function onGroupDeleted() {
+  showGroupModal.value = false
+  closeConversation()
+  messagesStore.fetchConversations()
+}
+
 async function handleNewConversation(conversationId) {
   await messagesStore.fetchConversations()
-  const conv = messagesStore.conversations.find((c) => c.id === conversationId)
+  let conv = messagesStore.conversations.find((c) => c.id === conversationId)
+  if (!conv) {
+    // Fallback: load directly by id (handles fresh inserts not yet replicated to list)
+    const { data } = await supabase
+      .from('conversations')
+      .select(`
+        *,
+        user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
+        user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
+      `)
+      .eq('id', conversationId)
+      .single()
+    if (data) {
+      const myProfileIds = auth.profiles.map((p) => p.id)
+      const otherUser = myProfileIds.includes(data.user1?.id) ? data.user2 : data.user1
+      conv = {
+        ...data,
+        otherUser,
+        displayName: otherUser?.display_name || data.group_name || 'Conversation',
+      }
+    }
+  }
   if (conv) openConversation(conv)
 }
 
-// Handle initial load with route param
 async function initFromRoute() {
   await messagesStore.fetchConversations()
   if (route.params.id) {
     const conv = messagesStore.conversations.find((c) => c.id === route.params.id)
     if (conv) {
       openConversation(conv)
-    } else {
-      // Conv not in list — load it directly
-      const { data } = await supabase
-        .from('conversations')
-        .select(`
-          *,
-          user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
-          user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
-        `)
-        .eq('id', route.params.id)
-        .single()
-      if (data) {
-        const myProfileIds = auth.profiles.map((p) => p.id)
-        const otherUser = myProfileIds.includes(data.user1.id) ? data.user2 : data.user1
-        activeConvId.value = data.id
-        activeConvOtherUser.value = otherUser
-        loadMessages()
-      }
     }
+    // Note: if not in the list, RLS already blocked it (user not a member) — ignore
   }
 }
 
-// Watch for route changes (e.g. navigating from /messages to /messages/:id)
 watch(() => route.params.id, (newId) => {
   if (!newId && activeConvId.value) {
     closeConversation()
@@ -248,11 +362,12 @@ let convPollInterval = null
 
 function onExternalMessageSent(e) {
   const convId = e.detail?.conversationId
-  // Refresh conversation list
   messagesStore.fetchConversations()
-  // If viewing the same conversation, refresh messages
   if (activeConvId.value && activeConvId.value === convId) {
-    messagesStore.fetchMessages(activeConvId.value).then(() => scrollToBottom())
+    const wasAtBottom = isNearBottom()
+    messagesStore.fetchMessages(activeConvId.value).then(() => {
+      if (wasAtBottom) scrollToBottom()
+    })
   }
 }
 
@@ -262,7 +377,6 @@ function onExternalReadUpdate() {
 
 onMounted(() => {
   initFromRoute()
-  // Realtime for conversation list + polling fallback 30s
   subscribeConvList()
   convPollInterval = setInterval(() => {
     messagesStore.fetchConversations()
@@ -275,7 +389,7 @@ onUnmounted(() => {
   clearInterval(pollInterval)
   clearInterval(convPollInterval)
   if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
-  // unsubscribeConvList handled by composable onUnmounted
+  if (reactionsRealtimeSub) { reactionsRealtimeSub.unsubscribe(); reactionsRealtimeSub = null }
   window.removeEventListener('dm-message-sent', onExternalMessageSent)
   window.removeEventListener('dm-read-update', onExternalReadUpdate)
 })

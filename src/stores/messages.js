@@ -21,10 +21,13 @@ export const useMessagesStore = defineStore('messages', () => {
     if (!auth.activeProfile) return
     const profileId = auth.activeProfile.id
     const allProfileIds = auth.profiles.map((p) => p.id)
+    if (allProfileIds.length === 0) return
     assertUUID(profileId, 'profileId')
     loading.value = true
 
-    const { data } = await supabase
+    // 1-on-1 (filter user1/user2 — groups have these NULL so they're excluded naturally;
+    // do NOT add .eq('is_group', false) because legacy rows have is_group = NULL)
+    const { data: dmData, error: dmErr } = await supabase
       .from('conversations')
       .select(`
         *,
@@ -33,20 +36,76 @@ export const useMessagesStore = defineStore('messages', () => {
       `)
       .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
       .order('updated_at', { ascending: false })
+    if (dmErr) {
+      console.error('[messages] fetchConversations dmData error:', dmErr)
+      loading.value = false
+      return
+    }
 
-    // Fetch hidden conversation IDs from DB
+    // Groups via membership (best-effort: skip silently if anything fails — never wipe DM list)
+    let groupConvs = []
+    try {
+      const { data: myMemberships, error: memErr } = await supabase
+        .from('conversation_members')
+        .select('conversation_id')
+        .in('profile_id', allProfileIds)
+      if (memErr) {
+        console.warn('[messages] conversation_members fetch error:', memErr)
+      } else if (myMemberships && myMemberships.length > 0) {
+        const groupIds = [...new Set(myMemberships.map((m) => m.conversation_id))]
+        const { data: groups, error: grpErr } = await supabase
+          .from('conversations')
+          .select('*')
+          .eq('is_group', true)
+          .in('id', groupIds)
+          .order('updated_at', { ascending: false })
+        if (grpErr) {
+          console.warn('[messages] groups fetch error:', grpErr)
+        } else if (groups && groups.length > 0) {
+          const { data: allMembers } = await supabase
+            .from('conversation_members')
+            .select('conversation_id, profile_id, profiles(id, username, display_name, avatar_url)')
+            .in('conversation_id', groups.map((g) => g.id))
+
+          const membersByConv = {}
+          ;(allMembers || []).forEach((m) => {
+            if (!membersByConv[m.conversation_id]) membersByConv[m.conversation_id] = []
+            membersByConv[m.conversation_id].push(m.profiles)
+          })
+          groupConvs = groups.map((g) => ({
+            ...g,
+            members: membersByConv[g.id] || [],
+          }))
+        }
+      }
+    } catch (e) {
+      console.warn('[messages] groups path threw:', e)
+    }
+
+    // Hidden conversations
     const { data: hiddenData } = await supabase
       .from('conversation_hidden')
       .select('conversation_id')
       .eq('profile_id', profileId)
     const hiddenIds = new Set((hiddenData || []).map((h) => h.conversation_id))
 
-    const allConvs = (data || [])
-      .filter((conv) => !hiddenIds.has(conv.id))
-      .map((conv) => {
+    const allConvs = [
+      ...(dmData || []).map((conv) => {
         const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
-        return { ...conv, otherUser }
-      })
+        return {
+          ...conv,
+          otherUser,
+          displayName: otherUser?.display_name || '?',
+        }
+      }),
+      ...groupConvs.map((conv) => ({
+        ...conv,
+        otherUser: null,
+        displayName: conv.group_name || 'Groupe',
+      })),
+    ]
+      .filter((conv) => !hiddenIds.has(conv.id))
+      .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
 
     // Fetch last messages + unread status
     const convIds = allConvs.map((c) => c.id)
@@ -99,16 +158,59 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function fetchMessages(conversationId) {
     loading.value = true
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('messages')
-      .select('*, sender:profiles!messages_sender_id_fkey(id, username, display_name)')
+      .select('*, sender:profiles!messages_sender_id_fkey(id, username, display_name, avatar_url)')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
-    currentMessages.value = data || []
+
+    if (error) {
+      console.error('fetchMessages error:', error)
+      loading.value = false
+      return
+    }
+
+    const newData = data || []
+
+    // Hydrate parent message previews (for replies) in a second batch query.
+    // We do this separately so a failure here never wipes the message list.
+    const parentIds = [...new Set(newData.filter((m) => m.parent_message_id).map((m) => m.parent_message_id))]
+    if (parentIds.length > 0) {
+      const { data: parents } = await supabase
+        .from('messages')
+        .select('id, content, sender_id, deleted_for_everyone, image_url, sender:profiles!messages_sender_id_fkey(id, username, display_name)')
+        .in('id', parentIds)
+      const parentMap = {}
+      ;(parents || []).forEach((p) => { parentMap[p.id] = p })
+      for (const m of newData) {
+        if (m.parent_message_id && parentMap[m.parent_message_id]) {
+          m.parent = parentMap[m.parent_message_id]
+        }
+      }
+    }
+
+    const local = currentMessages.value
+
+    // Smart merge: if same set of IDs, patch fields in place to preserve DOM/scroll.
+    // Otherwise replace (Vue's keyed reconciliation will reuse common bubbles).
+    let sameSet = local.length === newData.length
+    if (sameSet) {
+      for (let i = 0; i < newData.length; i++) {
+        if (local[i].id !== newData[i].id) { sameSet = false; break }
+      }
+    }
+
+    if (sameSet && newData.length > 0) {
+      for (let i = 0; i < newData.length; i++) {
+        Object.assign(local[i], newData[i])
+      }
+    } else {
+      currentMessages.value = newData
+    }
     loading.value = false
   }
 
-  async function sendMessage(conversationId, content, imageUrl = null) {
+  async function sendMessage(conversationId, content, imageUrl = null, parentMessageId = null) {
     const auth = useAuthStore()
     await auth.checkBan()
     if (!content?.trim() && !imageUrl) throw new Error('Le message ne peut pas être vide')
@@ -119,6 +221,7 @@ export const useMessagesStore = defineStore('messages', () => {
       content: content || '',
     }
     if (imageUrl) insertData.image_url = imageUrl
+    if (parentMessageId) insertData.parent_message_id = parentMessageId
     const { error } = await supabase.from('messages').insert(insertData)
     if (error) throw error
 
@@ -181,9 +284,69 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   async function deleteMessage(messageId) {
-    const { error } = await supabase.from('messages').delete().eq('id', messageId)
+    const auth = useAuthStore()
+    // Soft-delete: keep the row, mark as deleted, clear content/image
+    const { error } = await supabase
+      .from('messages')
+      .update({
+        deleted_for_everyone: true,
+        content: '',
+        image_url: null,
+      })
+      .eq('id', messageId)
+      .eq('sender_id', auth.activeProfile.id)
     if (error) throw error
-    currentMessages.value = currentMessages.value.filter((m) => m.id !== messageId)
+    // Mirror the change locally to update bubble state instantly
+    const local = currentMessages.value.find((m) => m.id === messageId)
+    if (local) {
+      local.deleted_for_everyone = true
+      local.content = ''
+      local.image_url = null
+    }
+  }
+
+  // -------- Group conversations --------
+
+  async function createGroupConversation(groupName, memberIds) {
+    if (!groupName?.trim()) throw new Error('Nom de groupe requis')
+    if (!memberIds || memberIds.length < 2) throw new Error('Au moins 2 membres requis')
+    const { data, error } = await supabase.rpc('create_group_conversation', {
+      p_group_name: groupName.trim(),
+      p_member_ids: memberIds,
+    })
+    if (error) throw error
+    return data // conversation_id (UUID)
+  }
+
+  async function addGroupMembers(conversationId, memberIds) {
+    if (!memberIds || memberIds.length === 0) return
+    const { error } = await supabase.rpc('add_members_to_group', {
+      p_conversation_id: conversationId,
+      p_member_ids: memberIds,
+    })
+    if (error) throw error
+  }
+
+  async function deleteGroupConversation(conversationId) {
+    const { error } = await supabase
+      .from('conversations')
+      .delete()
+      .eq('id', conversationId)
+    if (error) throw error
+    conversations.value = conversations.value.filter((c) => c.id !== conversationId)
+  }
+
+  async function fetchGroupMembers(conversationId) {
+    const { data, error } = await supabase
+      .from('conversation_members')
+      .select('profile_id, joined_at, profiles(id, username, display_name, avatar_url)')
+      .eq('conversation_id', conversationId)
+      .order('joined_at', { ascending: true })
+    if (error) throw error
+    return (data || []).map((m) => ({
+      ...m.profiles,
+      joined_at: m.joined_at,
+    }))
   }
 
   async function hideConversation(conversationId) {
@@ -218,5 +381,9 @@ export const useMessagesStore = defineStore('messages', () => {
     deleteMessage,
     hideConversation,
     unhideConversation,
+    createGroupConversation,
+    addGroupMembers,
+    deleteGroupConversation,
+    fetchGroupMembers,
   }
 })

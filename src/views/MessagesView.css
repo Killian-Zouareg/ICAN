@@ -76,6 +76,37 @@
   transition: background 0.15s;
 }
 
+.conv-group-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), #8e44ad);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  flex-shrink: 0;
+}
+
+.header-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, color 0.15s;
+}
+
+.header-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 .conv-header-link:hover {
   background: var(--bg-hover);
   text-decoration: none;

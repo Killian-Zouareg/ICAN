@@ -1,0 +1,36 @@
+.reaction-picker {
+  display: flex;
+  gap: 0.15rem;
+  padding: 0.3rem 0.4rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  position: absolute;
+  bottom: calc(100% + 4px);
+  z-index: 50;
+}
+
+.bubble-wrapper.mine .reaction-picker {
+  right: 0;
+}
+
+.bubble-wrapper:not(.mine) .reaction-picker {
+  left: 0;
+}
+
+.picker-emoji {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  border-radius: 9999px;
+  transition: transform 0.1s, background 0.15s;
+  line-height: 1;
+}
+
+.picker-emoji:hover {
+  background: var(--bg-hover);
+  transform: scale(1.2);
+}

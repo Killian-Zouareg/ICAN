@@ -1,5 +1,14 @@
 <template>
   <div class="msg-input-area">
+    <!-- Reply banner -->
+    <div v-if="replyingTo" class="reply-banner">
+      <div class="reply-info">
+        <span class="reply-label">Réponse à <strong>{{ replyingTo.sender?.display_name || '?' }}</strong></span>
+        <span class="reply-preview">{{ replyPreview }}</span>
+      </div>
+      <button class="reply-cancel" @click="$emit('cancel-reply')" title="Annuler la réponse">&times;</button>
+    </div>
+
     <div v-if="imagePreview" class="image-preview">
       <div class="image-preview-wrap">
         <img :src="imagePreview" alt="Preview" />
@@ -13,7 +22,7 @@
       <input
         v-model="content"
         type="text"
-        placeholder="&Eacute;crire un message..."
+        :placeholder="replyingTo ? 'Répondre...' : 'Écrire un message...'"
         maxlength="1000"
         @keydown.enter.exact.prevent="submit"
       />
@@ -32,12 +41,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 
-const emit = defineEmits(['send'])
+const props = defineProps({
+  replyingTo: { type: Object, default: null },
+})
+
+const emit = defineEmits(['send', 'cancel-reply'])
 const content = ref('')
 const imageFile = ref(null)
 const imagePreview = ref(null)
+
+const replyPreview = computed(() => {
+  if (!props.replyingTo) return ''
+  const c = props.replyingTo.content || ''
+  if (!c) return props.replyingTo.image_url ? '🖼️ Image' : ''
+  return c.length > 60 ? c.slice(0, 60) + '...' : c
+})
 
 function handleFileChange(e) {
   const file = e.target.files[0]

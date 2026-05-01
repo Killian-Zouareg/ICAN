@@ -99,3 +99,81 @@
   color: var(--text-secondary);
   font-size: 0.8rem;
 }
+
+.new-conv-buttons {
+  display: flex;
+  flex-direction: column;
+}
+
+.group-btn {
+  border-top: 1px solid var(--border);
+}
+
+.group-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.selected-members {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.selected-label {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  width: 100%;
+  margin-bottom: 0.2rem;
+}
+
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: rgba(29, 161, 242, 0.15);
+  color: var(--accent);
+  padding: 0.2rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.85rem;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.chip-remove:hover {
+  color: var(--danger);
+}
+
+.create-group-btn {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 9999px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-top: 0.4rem;
+  transition: background 0.15s;
+}
+
+.create-group-btn:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+.create-group-btn:disabled {
+  background: var(--border);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}

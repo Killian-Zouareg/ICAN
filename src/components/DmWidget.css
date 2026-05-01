@@ -133,14 +133,36 @@
 
 /* Messages */
 .dm-messages { flex: 1; overflow-y: auto; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.2rem; }
-.dm-bubble { max-width: 80%; padding: 0.4rem 0.65rem; border-radius: 14px; align-self: flex-start; background: var(--bg-hover); }
-.dm-bubble.mine { align-self: flex-end; background: var(--accent); color: white; }
+.dm-bubble-row { display: flex; align-items: flex-end; gap: 0.3rem; }
+.dm-bubble-row.mine { flex-direction: row-reverse; }
+.dm-bubble-actions { display: none; flex-direction: row; gap: 0.15rem; }
+.dm-bubble-row:hover .dm-bubble-actions { display: flex; }
+.dm-action-btn { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.85rem; padding: 0.15rem 0.3rem; border-radius: 50%; transition: background 0.15s, color 0.15s; }
+.dm-action-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.dm-action-btn.dm-delete:hover { color: var(--danger); background: rgba(224,36,94,0.1); }
+.dm-bubble { max-width: 80%; padding: 0.4rem 0.65rem; border-radius: 14px; background: var(--bg-hover); }
+.dm-bubble.mine { background: var(--accent); color: white; }
+.dm-bubble.deleted { opacity: 0.65; background: var(--bg-hover); border: 1px dashed var(--border); }
 .dm-bubble-sender { font-size: 0.7rem; font-weight: 600; color: var(--accent); display: block; margin-bottom: 0.1rem; }
 .dm-bubble.mine .dm-bubble-sender { color: rgba(255,255,255,0.7); }
 .dm-bubble-image { max-width: 100%; max-height: 200px; border-radius: 8px; cursor: pointer; display: block; margin-bottom: 0.2rem; }
 .dm-bubble-image:hover { opacity: 0.9; }
 .dm-bubble-text { font-size: 0.85rem; white-space: pre-wrap; word-break: break-word; line-height: 1.35; }
+.dm-tombstone { font-style: italic; color: var(--text-secondary) !important; }
 .dm-bubble-time { font-size: 0.65rem; opacity: 0.6; display: block; margin-top: 0.1rem; }
+.dm-quoted { display: flex; flex-direction: column; padding: 0.3rem 0.5rem; margin-bottom: 0.3rem; background: rgba(0,0,0,0.18); border-left: 3px solid var(--accent); border-radius: 4px; font-size: 0.75rem; }
+.dm-bubble.mine .dm-quoted { background: rgba(255,255,255,0.18); border-left-color: rgba(255,255,255,0.7); }
+.dm-quoted-author { font-weight: 700; color: var(--accent); }
+.dm-bubble.mine .dm-quoted-author { color: rgba(255,255,255,0.95); }
+.dm-quoted-content { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-bubble.mine .dm-quoted-content { color: rgba(255,255,255,0.85); }
+
+.dm-reply-banner { display: flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.6rem; border-top: 1px solid var(--border); background: var(--bg-hover); }
+.dm-reply-info { flex: 1; display: flex; flex-direction: column; min-width: 0; border-left: 3px solid var(--accent); padding-left: 0.4rem; }
+.dm-reply-label { font-size: 0.7rem; color: var(--accent); font-weight: 600; }
+.dm-reply-preview { font-size: 0.78rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dm-reply-cancel { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 1.1rem; line-height: 1; padding: 0.2rem 0.4rem; border-radius: 50%; flex-shrink: 0; }
+.dm-reply-cancel:hover { background: var(--bg-primary); color: var(--text-primary); }
 
 /* Image preview */
 .dm-image-preview { position: relative; margin: 0 0.6rem; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); max-height: 150px; }

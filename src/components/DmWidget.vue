@@ -40,26 +40,55 @@
             <div
               v-for="msg in messages"
               :key="msg.id"
-              class="dm-bubble"
+              class="dm-bubble-row"
               :class="{ mine: isMine(msg) }"
             >
-              <!-- Sender name in group chats -->
-              <span v-if="activeConv.is_group && !isMine(msg)" class="dm-bubble-sender">
-                {{ getSenderName(msg.sender_id) }}
-              </span>
-              <img
-                v-if="msg.image_url"
-                :src="msg.image_url"
-                alt="Image"
-                class="dm-bubble-image"
-                @click="openImageUrl(msg.image_url)"
-              />
-              <p v-if="msg.content" class="dm-bubble-text">{{ msg.content }}</p>
-              <span class="dm-bubble-time">{{ timeAgo(msg.created_at) }}</span>
+              <div v-if="!msg.deleted_for_everyone" class="dm-bubble-actions">
+                <button class="dm-action-btn" @click="setReply(msg)" title="Répondre">↩</button>
+                <button
+                  v-if="isMine(msg)"
+                  class="dm-action-btn dm-delete"
+                  @click="deleteMsg(msg.id)"
+                  title="Supprimer"
+                >🗑</button>
+              </div>
+              <div
+                class="dm-bubble"
+                :class="{ mine: isMine(msg), deleted: msg.deleted_for_everyone }"
+              >
+                <span v-if="activeConv.is_group && !isMine(msg) && !msg.deleted_for_everyone" class="dm-bubble-sender">
+                  {{ getSenderName(msg.sender_id) }}
+                </span>
+                <div v-if="msg.parent_message_id && msg.parent && !msg.deleted_for_everyone" class="dm-quoted">
+                  <span class="dm-quoted-author">{{ msg.parent.sender?.display_name || '?' }}</span>
+                  <span class="dm-quoted-content">{{ getParentPreview(msg.parent) }}</span>
+                </div>
+                <p v-if="msg.deleted_for_everyone" class="dm-bubble-text dm-tombstone">
+                  🚫 Message supprimé
+                </p>
+                <template v-else>
+                  <img
+                    v-if="msg.image_url"
+                    :src="msg.image_url"
+                    alt="Image"
+                    class="dm-bubble-image"
+                    @click="openImageUrl(msg.image_url)"
+                  />
+                  <p v-if="msg.content" class="dm-bubble-text">{{ msg.content }}</p>
+                </template>
+                <span class="dm-bubble-time">{{ timeAgo(msg.created_at) }}</span>
+              </div>
             </div>
           </template>
         </div>
 
+        <div v-if="replyingTo" class="dm-reply-banner">
+          <div class="dm-reply-info">
+            <span class="dm-reply-label">Réponse à <strong>{{ replyingTo.sender?.display_name || getSenderName(replyingTo.sender_id) || '?' }}</strong></span>
+            <span class="dm-reply-preview">{{ getReplyPreview(replyingTo) }}</span>
+          </div>
+          <button class="dm-reply-cancel" @click="replyingTo = null">&times;</button>
+        </div>
         <div v-if="imagePreview" class="dm-image-preview">
           <img :src="imagePreview" alt="Preview" />
           <button class="dm-remove-image" @click="removeImage">&times;</button>
@@ -250,6 +279,7 @@ const msgContent = ref('')
 const messagesContainer = ref(null)
 const loadingMessages = ref(false)
 const loadingConvs = ref(false)
+const replyingTo = ref(null)
 
 // Image upload
 const imageFile = ref(null)
@@ -529,12 +559,35 @@ async function fetchMessages() {
   if (!activeConv.value) return
   loadingMessages.value = messages.value.length === 0
   const prevCount = messages.value.length
+  const wasAtBottom = isNearBottom()
   const { data } = await supabase
     .from('messages')
-    .select('*')
+    .select(`
+      *,
+      sender:profiles!messages_sender_id_fkey(id, username, display_name, avatar_url),
+      parent:messages!messages_parent_message_id_fkey(
+        id, content, sender_id, deleted_for_everyone,
+        sender:profiles!messages_sender_id_fkey(id, username, display_name)
+      )
+    `)
     .eq('conversation_id', activeConv.value.id)
     .order('created_at', { ascending: true })
-  messages.value = data || []
+
+  const newData = data || []
+  // Smart merge: patch in place if same set of IDs (preserves scroll/DOM)
+  let sameSet = messages.value.length === newData.length
+  if (sameSet) {
+    for (let i = 0; i < newData.length; i++) {
+      if (messages.value[i].id !== newData[i].id) { sameSet = false; break }
+    }
+  }
+  if (sameSet && newData.length > 0) {
+    for (let i = 0; i < newData.length; i++) {
+      Object.assign(messages.value[i], newData[i])
+    }
+  } else {
+    messages.value = newData
+  }
   loadingMessages.value = false
 
   if (auth.activeProfile) {
@@ -550,10 +603,18 @@ async function fetchMessages() {
     }
   }
 
-  // Scroll only on first load or when new messages arrive
-  if (prevCount === 0 || messages.value.length > prevCount) {
+  // Scroll only on first load, or when new messages arrive AND user was already near bottom
+  if (prevCount === 0) {
+    scrollToBottom()
+  } else if (messages.value.length > prevCount && wasAtBottom) {
     scrollToBottom()
   }
+}
+
+function isNearBottom() {
+  const el = messagesContainer.value
+  if (!el) return true
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 100
 }
 
 function scrollToBottom() {
@@ -611,12 +672,44 @@ async function handleSend() {
   msgContent.value = ''
   const insertData = { conversation_id: activeConv.value.id, sender_id: auth.activeProfile.id, content: content || '' }
   if (imageUrl) insertData.image_url = imageUrl
+  if (replyingTo.value?.id) insertData.parent_message_id = replyingTo.value.id
 
   await supabase.from('messages').insert(insertData)
+  replyingTo.value = null
   await messagesStore.unhideConversation(activeConv.value.id)
   await supabase.from('conversations').update({ updated_at: new Date().toISOString() }).eq('id', activeConv.value.id)
   await fetchMessages()
   window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConv.value.id } }))
+}
+
+function setReply(msg) {
+  if (msg.deleted_for_everyone) return
+  replyingTo.value = msg
+}
+
+async function deleteMsg(messageId) {
+  if (!confirm('Supprimer ce message pour tout le monde ?')) return
+  try {
+    await messagesStore.deleteMessage(messageId)
+    await fetchMessages()
+  } catch (e) {
+    alert('Erreur : ' + (e.message || ''))
+  }
+}
+
+function getParentPreview(parent) {
+  if (!parent) return ''
+  if (parent.deleted_for_everyone) return 'Message supprimé'
+  const c = parent.content || ''
+  if (!c) return '🖼️ Image'
+  return c.length > 60 ? c.slice(0, 60) + '...' : c
+}
+
+function getReplyPreview(msg) {
+  if (!msg) return ''
+  const c = msg.content || ''
+  if (!c) return msg.image_url ? '🖼️ Image' : ''
+  return c.length > 50 ? c.slice(0, 50) + '...' : c
 }
 
 let dmRealtimeSub = null
@@ -631,6 +724,15 @@ function setupDmRealtime(conversationId) {
       filter: `conversation_id=eq.${conversationId}`,
       callback: async (payload) => {
         if (payload.new.sender_id === auth.activeProfile?.id) return
+        await fetchMessages()
+      },
+    },
+    {
+      event: 'UPDATE',
+      table: 'messages',
+      filter: `conversation_id=eq.${conversationId}`,
+      callback: async () => {
+        // Reflect soft-deletes / read status changes
         await fetchMessages()
       },
     }]

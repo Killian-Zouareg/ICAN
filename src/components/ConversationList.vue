@@ -13,13 +13,20 @@
       @click="$emit('select', conv)"
     >
       <div class="conv-avatar-wrap">
-        <UserAvatar :url="conv.otherUser?.avatar_url" :name="conv.otherUser?.display_name || '?'" :size="48" />
+        <div v-if="conv.is_group" class="conv-group-avatar">&#x1F465;</div>
+        <UserAvatar
+          v-else
+          :url="conv.otherUser?.avatar_url"
+          :name="conv.otherUser?.display_name || '?'"
+          :size="48"
+        />
         <div v-if="conv.hasUnread" class="conv-online-dot"></div>
       </div>
       <div class="conv-body">
         <div class="conv-top">
-          <span class="conv-name">{{ conv.otherUser?.display_name }}</span>
-          <span class="conv-handle">@{{ conv.otherUser?.username }}</span>
+          <span class="conv-name">{{ conv.displayName }}</span>
+          <span v-if="!conv.is_group" class="conv-handle">@{{ conv.otherUser?.username }}</span>
+          <span v-else class="conv-handle">{{ conv.members?.length || 0 }} membres</span>
           <span class="conv-dot">&middot;</span>
           <span class="conv-time">{{ formatTime(conv.lastMessageTime) }}</span>
         </div>

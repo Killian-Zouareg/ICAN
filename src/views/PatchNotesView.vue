@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.18.0',
+    date: '1 mai 2026',
+    icon: '\u{1F4AC}',
+    color: '#1da1f2',
+    title: 'Refonte messagerie — réponses, réactions, groupes',
+    description: 'La messagerie d\'iCAN passe à la vitesse supérieure. Tu peux maintenant <strong>répondre à un message précis</strong> (la bulle parente s\'affiche en preview), <strong>réagir avec des emojis</strong> (👍 ❤️ 😂 😮 😢 🙏), <strong>supprimer un message pour tout le monde</strong> (avec tombstone "Message supprimé" qui préserve le contexte). Les <strong>groupes apparaissent enfin dans l\'onglet Messages</strong> à gauche : crée un groupe, ajoute/retire des membres après coup, supprime-le si tu en es le créateur. Bug du scroll qui remontait toutes les 30s : corrigé. Faille RLS qui permettait de s\'auto-ajouter à un groupe : colmatée.',
+    tags: ['Messages', 'Reply', 'Reactions', 'Groupes', 'RLS'],
+  },
+  {
     version: '4.17.0',
     date: '30 avril 2026',
     icon: '\u{1F324}',
@@ -551,6 +560,24 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.18.0',
+    date: '1 mai 2026',
+    title: 'Refonte messagerie — reply, soft-delete, reactions, gestion groupes',
+    tag: 'major',
+    changes: [
+      { type: 'new', text: 'Réponse à un message : nouvelle colonne `parent_message_id` sur `messages`. Bouton ↩ au hover sur chaque bulle, bannière de réponse au-dessus de l\'input, bulle parente affichée en preview façon WhatsApp.' },
+      { type: 'new', text: 'Réactions emoji : nouvelle table `message_reactions` (👍 ❤️ 😂 😮 😢 🙏) avec RLS conv-scoped + UNIQUE(message, profile, emoji). Picker au hover sur chaque bulle, chips compactes sous la bulle, toggle au clic, sync temps réel via Supabase Realtime.' },
+      { type: 'new', text: 'Suppression "pour tout le monde" : nouvelle colonne `deleted_for_everyone` sur `messages`. La suppression devient un UPDATE qui efface content + image_url et marque le flag → tombstone "🚫 Message supprimé" affichée chez tous les participants.' },
+      { type: 'new', text: 'Groupes accessibles depuis l\'onglet `/messages` : `messages.js` `fetchConversations()` étendu pour récupérer aussi les groupes via `conversation_members`. Bouton "+ Nouveau groupe" dans NewConversation, multi-select de membres, RPC `create_group_conversation` avec `creator_id`.' },
+      { type: 'new', text: 'Composant `GroupMembersModal.vue` : ouvert via ⚙️ dans le header de groupe → liste des membres, ajout (créateur uniquement), retrait (créateur ou auto-retrait), suppression du groupe (créateur uniquement) avec confirmation.' },
+      { type: 'new', text: 'RPC `add_members_to_group` (SECURITY DEFINER) : vérifie que l\'appelant est le créateur, ajoute les membres avec ON CONFLICT DO NOTHING.' },
+      { type: 'fix', text: '🔒 Faille RLS critique colmatée : la policy INSERT sur `conversation_members` permettait à n\'importe quel utilisateur de s\'auto-ajouter à n\'importe quel groupe (clause `OR profile_id IN my_profile_ids()`). Remplacée par "seul le créateur peut ajouter des membres".' },
+      { type: 'fix', text: 'Auto-scroll qui remontait toutes les 30s : le polling appelait `scrollToBottom()` inconditionnellement après chaque fetch. Ajout d\'un `isNearBottom()` (tolérance 100px) → on ne re-scroll en bas que si l\'utilisateur y était déjà. Le store `fetchMessages` patche en place quand les IDs sont identiques pour préserver le DOM et la position de scroll.' },
+      { type: 'improved', text: 'Realtime UPDATE sur `messages` (en plus des INSERT) → les soft-deletes et changements de read se reflètent instantanément chez les autres participants.' },
+      { type: 'improved', text: '`SUPABASE_SETUP.md` : nouvelle section "Migration 2026-05-01 — DM features" avec toutes les ALTER TABLE, RLS policies, RPCs et publication realtime.' },
+    ],
+  },
   {
     version: '4.17.0',
     date: '30 avril 2026',

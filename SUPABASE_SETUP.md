@@ -1271,3 +1271,207 @@ ALTER TABLE character_sheets DROP COLUMN IF EXISTS defense;
 ALTER TABLE character_sheets DROP COLUMN IF EXISTS endurance;
 ALTER TABLE character_sheets DROP COLUMN IF EXISTS intellect;
 ```
+
+---
+
+## Migration 2026-05-01 — DM features (reply, soft-delete, groupes, réactions)
+
+Cette migration ajoute :
+- `image_url`, `parent_message_id`, `deleted_for_everyone` sur `messages`
+- `creator_id` sur `conversations` (groupes)
+- Table `message_reactions` (👍 ❤️ 😂 😮 😢 🙏)
+- **FIX RLS critique** : empêche un user de s'auto-ajouter à un groupe sans invitation
+- RPCs `create_group_conversation` (avec créateur) et `add_members_to_group`
+
+```sql
+-- =============================================
+-- 1. Colonnes manquantes sur messages
+-- =============================================
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_message_id UUID
+  REFERENCES messages(id) ON DELETE SET NULL;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS deleted_for_everyone BOOLEAN DEFAULT false;
+
+-- =============================================
+-- 2. creator_id sur conversations (groupes)
+-- =============================================
+ALTER TABLE conversations ADD COLUMN IF NOT EXISTS creator_id UUID
+  REFERENCES profiles(id) ON DELETE SET NULL;
+
+-- Backfill : 1er membre = créateur (best-effort sur groupes existants)
+UPDATE conversations c
+SET creator_id = (
+  SELECT cm.profile_id FROM conversation_members cm
+  WHERE cm.conversation_id = c.id
+  ORDER BY cm.joined_at ASC LIMIT 1
+)
+WHERE is_group = true AND creator_id IS NULL;
+
+-- =============================================
+-- 3. Table message_reactions
+-- =============================================
+CREATE TABLE IF NOT EXISTS message_reactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  message_id UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL CHECK (emoji IN ('👍','❤️','😂','😮','😢','🙏')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(message_id, profile_id, emoji)
+);
+
+CREATE INDEX IF NOT EXISTS idx_message_reactions_message ON message_reactions(message_id);
+
+ALTER TABLE message_reactions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Reactions visible to conversation participants" ON message_reactions;
+CREATE POLICY "Reactions visible to conversation participants"
+  ON message_reactions FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM messages m
+      JOIN conversations c ON c.id = m.conversation_id
+      WHERE m.id = message_reactions.message_id
+      AND (
+        c.user1_id IN (SELECT my_profile_ids())
+        OR c.user2_id IN (SELECT my_profile_ids())
+        OR (c.is_group = true AND c.id IN (SELECT my_conversation_ids()))
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "Users react with their own profiles" ON message_reactions;
+CREATE POLICY "Users react with their own profiles"
+  ON message_reactions FOR INSERT TO authenticated
+  WITH CHECK (profile_id IN (SELECT my_profile_ids()));
+
+DROP POLICY IF EXISTS "Users remove own reactions" ON message_reactions;
+CREATE POLICY "Users remove own reactions"
+  ON message_reactions FOR DELETE TO authenticated
+  USING (profile_id IN (SELECT my_profile_ids()));
+
+-- =============================================
+-- 4. FIX RLS bug — conversation_members INSERT
+-- AVANT : OR permissif → user pouvait s'ajouter partout
+-- APRÈS : seul le créateur peut ajouter (sauf via RPC SECURITY DEFINER)
+-- =============================================
+DROP POLICY IF EXISTS "Users can add members to their groups" ON conversation_members;
+DROP POLICY IF EXISTS "Only group creator can add members" ON conversation_members;
+CREATE POLICY "Only group creator can add members"
+  ON conversation_members FOR INSERT TO authenticated
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_id
+      AND c.is_group = true
+      AND c.creator_id IN (SELECT my_profile_ids())
+    )
+  );
+
+DROP POLICY IF EXISTS "Creator removes anyone, members remove self" ON conversation_members;
+CREATE POLICY "Creator removes anyone, members remove self"
+  ON conversation_members FOR DELETE TO authenticated
+  USING (
+    profile_id IN (SELECT my_profile_ids())
+    OR EXISTS (
+      SELECT 1 FROM conversations c
+      WHERE c.id = conversation_id
+      AND c.creator_id IN (SELECT my_profile_ids())
+    )
+  );
+
+-- =============================================
+-- 5. RLS conversations DELETE — créateur seul
+-- =============================================
+DROP POLICY IF EXISTS "Group creator can delete conversation" ON conversations;
+CREATE POLICY "Group creator can delete conversation"
+  ON conversations FOR DELETE TO authenticated
+  USING (
+    is_group = true
+    AND creator_id IN (SELECT my_profile_ids())
+  );
+
+-- =============================================
+-- 6. RLS messages UPDATE — sender peut soft-delete son message
+-- (la policy existante "Recipients can mark messages as read" reste pour read=true)
+-- =============================================
+DROP POLICY IF EXISTS "Sender can soft-delete own messages" ON messages;
+CREATE POLICY "Sender can soft-delete own messages"
+  ON messages FOR UPDATE TO authenticated
+  USING (sender_id IN (SELECT my_profile_ids()))
+  WITH CHECK (sender_id IN (SELECT my_profile_ids()));
+
+-- =============================================
+-- 7. RPC create_group_conversation (avec creator_id)
+-- SECURITY DEFINER : contourne le RLS strict pour la création initiale
+-- =============================================
+CREATE OR REPLACE FUNCTION create_group_conversation(
+  p_group_name TEXT,
+  p_member_ids UUID[]
+)
+RETURNS UUID AS $$
+DECLARE
+  v_conv_id UUID;
+  v_creator_id UUID;
+  v_member_id UUID;
+BEGIN
+  SELECT id INTO v_creator_id FROM profiles
+  WHERE id IN (SELECT my_profile_ids()) LIMIT 1;
+
+  IF v_creator_id IS NULL THEN
+    RAISE EXCEPTION 'No active profile';
+  END IF;
+
+  INSERT INTO conversations (is_group, group_name, creator_id)
+  VALUES (true, p_group_name, v_creator_id)
+  RETURNING id INTO v_conv_id;
+
+  -- Créateur ajouté en premier
+  INSERT INTO conversation_members (conversation_id, profile_id)
+  VALUES (v_conv_id, v_creator_id);
+
+  -- Autres membres
+  FOREACH v_member_id IN ARRAY p_member_ids LOOP
+    IF v_member_id <> v_creator_id THEN
+      INSERT INTO conversation_members (conversation_id, profile_id)
+      VALUES (v_conv_id, v_member_id)
+      ON CONFLICT DO NOTHING;
+    END IF;
+  END LOOP;
+
+  RETURN v_conv_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================
+-- 8. RPC add_members_to_group (créateur seul, via SECURITY DEFINER)
+-- =============================================
+CREATE OR REPLACE FUNCTION add_members_to_group(
+  p_conversation_id UUID,
+  p_member_ids UUID[]
+)
+RETURNS VOID AS $$
+DECLARE
+  v_member_id UUID;
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM conversations
+    WHERE id = p_conversation_id
+    AND is_group = true
+    AND creator_id IN (SELECT my_profile_ids())
+  ) THEN
+    RAISE EXCEPTION 'Only group creator can add members';
+  END IF;
+
+  FOREACH v_member_id IN ARRAY p_member_ids LOOP
+    INSERT INTO conversation_members (conversation_id, profile_id)
+    VALUES (p_conversation_id, v_member_id)
+    ON CONFLICT DO NOTHING;
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- =============================================
+-- 9. Realtime publish
+-- =============================================
+ALTER PUBLICATION supabase_realtime ADD TABLE message_reactions;
+```
