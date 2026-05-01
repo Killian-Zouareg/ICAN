@@ -241,6 +241,35 @@ const RSS_FEEDS = [
 
 const RSS_PROXY = 'https://corsproxy.io/?'
 
+// Mots-clés pour filtrer les news locales (Allentown + Lehigh Valley)
+const LOCAL_KEYWORDS = [
+  'allentown',
+  'bethlehem',
+  'easton',
+  'lehigh valley',
+  'lehigh county',
+  'northampton county',
+  'whitehall',
+  'emmaus',
+  'macungie',
+  'catasauqua',
+  'coopersburg',
+  'hellertown',
+  'nazareth',
+  'salisbury township',
+  'phillipsburg',
+  'lehigh university',
+  'muhlenberg',
+  'cedar crest',
+  'desales',
+  'dorney park',
+  'ppl center',
+  'coca-cola park',
+  'lehigh valley mall',
+  'lvhn',
+  'st. luke',
+]
+
 export async function fetchLocalNews() {
   const cached = readCache('news', 30 * 60 * 1000)
   if (cached) return cached
@@ -252,8 +281,10 @@ export async function fetchLocalNews() {
       const res = await fetch(url)
       if (!res.ok) continue
       const xml = await res.text()
-      const items = parseRss(xml).slice(0, 8)
+      const items = parseRss(xml)
       for (const it of items) {
+        const haystack = `${it.title} ${it.description}`.toLowerCase()
+        if (!LOCAL_KEYWORDS.some((kw) => haystack.includes(kw))) continue
         all.push({ ...it, source: feed.source })
       }
     } catch (e) {
