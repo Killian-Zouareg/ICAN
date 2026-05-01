@@ -52,6 +52,21 @@
   font-weight: 700;
 }
 
+.webcam-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border); border-radius: 9999px;
+  background: none; color: var(--text-secondary);
+  font-size: 0.85rem; font-weight: 600;
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  transition: all 0.15s;
+}
+.webcam-btn:hover {
+  border-color: var(--accent);
+  background: rgba(29,161,242,0.1);
+  color: var(--accent);
+}
+
 .heatmap-btn {
   width: 34px; height: 34px;
   border: 1px solid var(--border); border-radius: 50%;

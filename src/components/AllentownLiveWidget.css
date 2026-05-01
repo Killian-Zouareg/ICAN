@@ -194,6 +194,32 @@
   text-decoration: underline;
 }
 
+/* Webcam */
+.alw-webcam-section {}
+.alw-webcam-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #000;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.alw-webcam-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.alw-webcam-caption {
+  margin-top: 6px;
+  font-size: 0.68rem;
+  color: rgba(255,255,255,0.55);
+  text-align: center;
+  letter-spacing: 0.02em;
+}
+
 /* Footer link */
 .alw-footer-link {
   display: block;

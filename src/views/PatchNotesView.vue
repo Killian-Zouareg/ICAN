@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.21.0',
+    date: '2 mai 2026',
+    icon: '\u{1F4F9}',
+    color: '#1da1f2',
+    title: 'Webcam d\'Allentown — la vraie ville en direct',
+    description: 'Le widget <strong>Allentown Live</strong> de la sidebar embarque maintenant une <strong>webcam live</strong> intégrée (Windy.com, SR-309 · Eastown Rd). Lecture automatique, format 16/9, lien plein écran. En bonus, un bouton <strong>📹 Webcam</strong> apparaît dans la toolbar de la carte pour ouvrir la cam Fox 29 dans un nouvel onglet. La vraie Allentown, en direct, depuis n\'importe quelle page d\'iCAN.',
+    tags: ['Webcam', 'Live', 'Windy', 'Immersif'],
+  },
+  {
     version: '4.18.0',
     date: '1 mai 2026',
     icon: '\u{1F4AC}',
@@ -561,6 +570,16 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.21.0',
+    date: '2 mai 2026',
+    title: 'Webcam d\'Allentown — embed live dans le widget météo',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: 'Le widget **Allentown Live** (sidebar droite) intègre maintenant une **webcam live embed Windy.com** (SR-309 · Eastown Rd) sous les sections news/events. Aspect 16/9, lecture auto en boucle, lien vers le plein écran Windy.' },
+      { type: 'new', text: 'Bouton `📹 Webcam` ajouté dans la toolbar de la carte : ouvre la webcam live officielle de Fox 29 dans un nouvel onglet.' },
+    ],
+  },
   {
     version: '4.20.0',
     date: '2 mai 2026',

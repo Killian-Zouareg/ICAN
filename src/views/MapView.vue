@@ -7,6 +7,15 @@
         <h2 class="map-title">Carte d'Allentown</h2>
       </div>
       <div class="map-toolbar-right">
+        <a
+          class="webcam-btn"
+          href="https://www.fox29.com/allentown-webcam"
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Webcam d'Allentown en direct"
+        >
+          &#x1F4F9; Webcam
+        </a>
         <button
           class="heatmap-btn"
           :class="{ active: showHeatmap }"
