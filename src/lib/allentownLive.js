@@ -262,9 +262,40 @@ export async function fetchLocalNews() {
   }
   // Tri par date desc, garder 12
   all.sort((a, b) => (b.pubDate || 0) - (a.pubDate || 0))
-  const value = all.slice(0, 12)
+  const top = all.slice(0, 12)
+  // Traduction des titres en français (en parallèle)
+  const value = await Promise.all(
+    top.map(async (item) => ({
+      ...item,
+      title: await translateToFrench(item.title) || item.title,
+    }))
+  )
   writeCache('news', value)
   return value
+}
+
+// ---------- Traduction (MyMemory, gratuit sans clé) ----------
+
+async function translateToFrench(text) {
+  if (!text) return text
+  const cacheKey = 'tr:' + text
+  const cached = readCache(cacheKey, 7 * 24 * 60 * 60 * 1000) // 7 jours
+  if (cached) return cached
+  try {
+    const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|fr`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const data = await res.json()
+    const translated = data?.responseData?.translatedText
+    if (!translated || typeof translated !== 'string') return null
+    // L'API renvoie parfois un message d'erreur en majuscules dans translatedText
+    if (translated.startsWith('PLEASE SELECT') || translated.startsWith('MYMEMORY WARNING')) return null
+    writeCache(cacheKey, translated)
+    return translated
+  } catch (e) {
+    console.warn('[allentownLive] translateToFrench failed:', e.message)
+    return null
+  }
 }
 
 function parseRss(xml) {
