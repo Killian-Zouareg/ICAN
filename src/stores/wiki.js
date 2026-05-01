@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 
 export const useWikiStore = defineStore('wiki', () => {
   const heroes = ref([])
@@ -90,11 +91,12 @@ export const useWikiStore = defineStore('wiki', () => {
     const msg = checkRateLimit('upload')
     if (msg) throw new Error(msg)
 
-    const ext = (file.name.split('.').pop() || 'png').toLowerCase()
+    const compressed = await compressImage(file)
+    const ext = ((compressed.name || file.name).split('.').pop() || 'png').toLowerCase()
     const path = `wiki/${id}_${Date.now()}.${ext}`
     const { error: upErr } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type || 'image/png' })
+      .upload(path, compressed, { upsert: true, contentType: compressed.type || file.type || 'image/png' })
     if (upErr) throw upErr
 
     const { data: { publicUrl } } = supabase.storage

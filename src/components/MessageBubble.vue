@@ -1,5 +1,12 @@
 <template>
   <div class="bubble-wrapper" :class="{ mine: isMine }">
+    <UserAvatar
+      v-if="isGroup && !isMine"
+      class="bubble-avatar"
+      :url="message.sender?.avatar_url"
+      :name="message.sender?.display_name || '?'"
+      :size="32"
+    />
     <!-- Action buttons -->
     <div v-if="!message.deleted_for_everyone" class="bubble-actions">
       <button
@@ -84,6 +91,7 @@ import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { timeAgo } from '../lib/time'
 import ReactionPicker from './ReactionPicker.vue'
+import UserAvatar from './UserAvatar.vue'
 
 const props = defineProps({
   message: { type: Object, required: true },

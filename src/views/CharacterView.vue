@@ -240,6 +240,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useCharacterStore } from '../stores/character'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/imageCompress'
 import StatsRadarChart from '../components/StatsRadarChart.vue'
 import ImageCropper from '../components/ImageCropper.vue'
 
@@ -340,11 +341,12 @@ async function addItem() {
     let imageUrl = null
     if (newItemUseImage.value && newItemImage.value) {
       const file = newItemImage.value
-      const ext = file.name.split('.').pop()
+      const compressed = await compressImage(file)
+      const ext = (compressed.name || file.name).split('.').pop()
       const fileName = `${profileData.value.id}/item_${Date.now()}.${ext}`
       const { error: upErr } = await supabase.storage
         .from('inventory-images')
-        .upload(fileName, file, { upsert: true })
+        .upload(fileName, compressed, { upsert: true })
       if (upErr) throw upErr
       const { data: urlData } = supabase.storage
         .from('inventory-images')

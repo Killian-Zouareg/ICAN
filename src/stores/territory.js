@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 
 // Règles fixes par slot (points + maxPlayers)
 export const SLOT_RULES = [
@@ -158,9 +159,10 @@ export const useTerritoryStore = defineStore('territory', () => {
   async function uploadLocationImage(locId, file) {
     const msg = checkRateLimit('upload')
     if (msg) throw new Error(msg)
-    const ext = file.name.split('.').pop()
+    const compressed = await compressImage(file)
+    const ext = (compressed.name || file.name).split('.').pop()
     const path = `territory/${locId}.${ext}`
-    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true })
     if (upErr) throw upErr
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
     await supabase.from('territory_locations').upsert({ id: locId, image_url: publicUrl, updated_at: new Date().toISOString() }, { onConflict: 'id' })

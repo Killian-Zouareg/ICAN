@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/imageCompress'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -121,12 +122,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function uploadAvatar(profileId, file) {
     if (!user.value) return
-    const ext = file.name.split('.').pop()
+    const compressed = await compressImage(file, { maxWidth: 512, maxHeight: 512, maxSizeKB: 150 })
+    const ext = (compressed.name || file.name).split('.').pop()
     const path = `${profileId}/avatar.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true })
+      .upload(path, compressed, { upsert: true })
     if (uploadError) throw uploadError
 
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
@@ -233,12 +235,12 @@ export const useAuthStore = defineStore('auth', () => {
       }
     }, 3000)
 
-    // Periodically refresh active profile to detect bans
+    // Periodically refresh active profile to detect bans (5 min — was 30s)
     setInterval(() => {
       if (activeProfile.value) {
         refreshActiveProfile().catch(() => {})
       }
-    }, 30000)
+    }, 300000)
   }
 
   return {

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 
 function slugify(text) {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -102,9 +103,10 @@ export const useWikiArticlesStore = defineStore('wikiArticles', () => {
   async function uploadImage(id, file) {
     const msg = checkRateLimit('upload')
     if (msg) throw new Error(msg)
-    const ext = file.name.split('.').pop()
+    const compressed = await compressImage(file)
+    const ext = (compressed.name || file.name).split('.').pop()
     const path = `wiki-articles/${id}.${ext}`
-    const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true })
+    const { error: upErr } = await supabase.storage.from('avatars').upload(path, compressed, { upsert: true })
     if (upErr) throw upErr
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
     await update(id, { image_url: publicUrl })

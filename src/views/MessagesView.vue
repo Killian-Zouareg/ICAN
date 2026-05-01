@@ -124,6 +124,7 @@ import { useMessagesStore } from '../stores/messages'
 import { useReactionsStore } from '../stores/reactions'
 import { useAuthStore } from '../stores/auth'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/imageCompress'
 import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
 import ConversationList from '../components/ConversationList.vue'
 import NewConversation from '../components/NewConversation.vue'
@@ -277,9 +278,10 @@ function scrollToBottom() {
 async function handleSend({ content, imageFile }) {
   let imageUrl = null
   if (imageFile) {
-    const ext = imageFile.name.split('.').pop()
+    const compressed = await compressImage(imageFile)
+    const ext = (compressed.name || imageFile.name).split('.').pop()
     const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('dm-images').upload(fileName, imageFile)
+    const { error: uploadError } = await supabase.storage.from('dm-images').upload(fileName, compressed)
     if (uploadError) { alert('Erreur upload'); return }
     const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
     imageUrl = urlData.publicUrl

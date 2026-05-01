@@ -237,8 +237,6 @@ async function fetchUnread() {
   } catch { /* ignore */ }
 }
 
-let unreadInterval = null
-
 function handleClickOutside(e) {
   if (!e.target.closest('.sidebar-bottom')) {
     showSwitcher.value = false
@@ -256,15 +254,15 @@ function onDmReadUpdate() {
 
 onMounted(() => {
   fetchUnread()
-  unreadInterval = setInterval(fetchUnread, 30000)
   document.addEventListener('click', handleClickOutside)
   window.addEventListener('dm-read-update', onDmReadUpdate)
+  window.addEventListener('dm-message-received', onDmReadUpdate)
 })
 
 onUnmounted(() => {
-  clearInterval(unreadInterval)
   document.removeEventListener('click', handleClickOutside)
   window.removeEventListener('dm-read-update', onDmReadUpdate)
+  window.removeEventListener('dm-message-received', onDmReadUpdate)
 })
 </script>
 

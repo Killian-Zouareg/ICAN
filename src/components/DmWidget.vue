@@ -261,6 +261,7 @@ import { useMessagesStore } from '../stores/messages'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 import UserAvatar from './UserAvatar.vue'
 import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
 
@@ -311,7 +312,11 @@ let msgPollInterval = null
 
 // Realtime for conversation list (new messages from others)
 const { subscribe: subscribeDmConvList } = useRealtimeSubscription('dm-conv-list', [
-  { event: 'INSERT', table: 'messages', callback: () => { fetchConversations(); fetchUnreadCount() } },
+  { event: 'INSERT', table: 'messages', callback: () => {
+      fetchConversations()
+      fetchUnreadCount()
+      window.dispatchEvent(new CustomEvent('dm-message-received'))
+  } },
 ])
 
 // Members cache for group sender names
@@ -367,7 +372,7 @@ async function fetchConversations() {
   const profileId = auth.activeProfile.id
   const allProfileIds = auth.profiles.map((p) => p.id)
 
-  // Fetch 1-on-1 conversations
+  // Fetch 1-on-1 conversations for the active profile only (strict isolation)
   const { data: dmData } = await supabase
     .from('conversations')
     .select(`
@@ -375,15 +380,15 @@ async function fetchConversations() {
       user1:profiles!conversations_user1_id_fkey(id, username, display_name, avatar_url),
       user2:profiles!conversations_user2_id_fkey(id, username, display_name, avatar_url)
     `)
-    .eq('is_group', false)
     .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
     .order('updated_at', { ascending: false })
+    .limit(50)
 
-  // Fetch group conversations via membership
+  // Fetch group conversations via membership (active profile only)
   const { data: myMemberships } = await supabase
     .from('conversation_members')
     .select('conversation_id')
-    .in('profile_id', allProfileIds)
+    .eq('profile_id', profileId)
 
   let groupConvs = []
   if (myMemberships && myMemberships.length > 0) {
@@ -428,8 +433,8 @@ async function fetchConversations() {
   const allConvs = [
     ...(dmData || []).map((conv) => ({
       ...conv,
-      otherUser: conv.user1.id === profileId ? conv.user2 : conv.user1,
-      displayName: (conv.user1.id === profileId ? conv.user2 : conv.user1).display_name,
+      otherUser: conv.user1?.id === profileId ? conv.user2 : conv.user1,
+      displayName: (conv.user1?.id === profileId ? conv.user2 : conv.user1)?.display_name || '?',
     })),
     ...groupConvs.map((conv) => ({
       ...conv,
@@ -462,7 +467,7 @@ async function fetchConversations() {
       .from('messages')
       .select('conversation_id')
       .in('conversation_id', convIds)
-      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+      .neq('sender_id', profileId)
       .eq('read', false)
     unreadMessages = unreads || []
   }
@@ -498,11 +503,10 @@ async function fetchUnreadCount() {
     const profileId = auth.activeProfile.id
     const allProfileIds = auth.profiles.map((p) => p.id)
 
-    // Get conversations this profile is part of (works even before panel opened)
+    // Match conversations for the active profile only (per-profile isolation)
     const { data: dmConvs } = await supabase
       .from('conversations')
       .select('id')
-      .eq('is_group', false)
       .or(`user1_id.eq.${profileId},user2_id.eq.${profileId}`)
 
     const { data: groupConvs } = await supabase
@@ -524,7 +528,7 @@ async function fetchUnreadCount() {
       .from('messages')
       .select('*', { count: 'exact', head: true })
       .in('conversation_id', convIds)
-      .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+      .neq('sender_id', profileId)
       .eq('read', false)
     if (!error) unreadCount.value = count || 0
   } catch {
@@ -659,9 +663,10 @@ async function handleSend() {
   if (imageFile.value) {
     const ul = checkRateLimit('upload')
     if (ul) { alert(ul); return }
-    const ext = imageFile.value.name.split('.').pop()
+    const compressed = await compressImage(imageFile.value)
+    const ext = (compressed.name || imageFile.value.name).split('.').pop()
     const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
-    const { error: uploadError } = await supabase.storage.from('dm-images').upload(fileName, imageFile.value)
+    const { error: uploadError } = await supabase.storage.from('dm-images').upload(fileName, compressed)
     if (uploadError) { alert('Erreur upload'); return }
     const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
     imageUrl = urlData.publicUrl
@@ -745,7 +750,7 @@ function teardownDmRealtime() {
   if (dmRealtimeSub) { dmRealtimeSub.unsubscribe(); dmRealtimeSub = null }
 }
 
-function startMsgPolling() { stopMsgPolling(); setupDmRealtime(activeConv.value?.id); msgPollInterval = setInterval(fetchMessages, 30000) }
+function startMsgPolling() { stopMsgPolling(); setupDmRealtime(activeConv.value?.id) }
 function stopMsgPolling() { if (msgPollInterval) { clearInterval(msgPollInterval); msgPollInterval = null }; teardownDmRealtime() }
 
 // =========================================
@@ -889,10 +894,6 @@ function onExternalReadUpdate() {
 onMounted(() => {
   fetchUnreadCount()
   subscribeDmConvList()
-  convPollInterval = setInterval(() => {
-    if (isExpanded.value && !activeConv.value) fetchConversations()
-    else fetchUnreadCount()
-  }, 30000)
   window.addEventListener('dm-message-sent', onExternalMessageSent)
   window.addEventListener('dm-read-update', onExternalReadUpdate)
 })

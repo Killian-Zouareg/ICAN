@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/imageCompress'
 
 export const useMapLocationsStore = defineStore('mapLocations', () => {
   const locations = ref([])
@@ -112,12 +113,13 @@ export const useMapLocationsStore = defineStore('mapLocations', () => {
   }
 
   async function uploadLocationImage(file) {
-    const ext = file.name.split('.').pop()
+    const compressed = await compressImage(file)
+    const ext = (compressed.name || file.name).split('.').pop()
     const path = `${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('map-images')
-      .upload(path, file, { upsert: true })
+      .upload(path, compressed, { upsert: true })
     if (uploadError) throw uploadError
 
     const { data } = supabase.storage.from('map-images').getPublicUrl(path)

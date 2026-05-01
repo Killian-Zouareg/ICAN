@@ -548,6 +548,7 @@ const tagLabels = {
   major: 'MAJEUR',
   minor: 'MINEUR',
   hotfix: 'HOTFIX',
+  perf: 'PERF',
 }
 
 const changeBadges = {
@@ -560,6 +561,20 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.19.0',
+    date: '2 mai 2026',
+    title: 'Optimisations Supabase free tier — moins de requêtes, uploads compressés',
+    tag: 'perf',
+    changes: [
+      { type: 'fix', text: 'Suppression du polling 30s redondant dans `DmWidget` (liste de conversations + messages actifs) : la subscription realtime existante suffit, les `setInterval` faisaient doublon.' },
+      { type: 'fix', text: 'Suppression du polling 30s `fetchUnread` dans `SidebarNav` : remplacé par un événement `dm-message-received` émis par le channel realtime DM. Économise plusieurs requêtes lourdes/min/utilisateur connecté.' },
+      { type: 'improved', text: 'Refresh ban dans `auth.js` : passé de 30s à 5min — détecter un bannissement n\'a pas besoin d\'être instantané.' },
+      { type: 'improved', text: '`fetchUserPosts` (`posts.js`) et `fetchConversations` (`DmWidget.vue`) : ajout de `.limit(50)` pour éviter de récupérer des centaines de lignes sur les profils anciens.' },
+      { type: 'new', text: 'Nouveau helper `src/lib/imageCompress.js` — redimensionne (max 1600px) et compresse en JPEG (cible ~300 KB) côté client avant chaque upload Supabase Storage. Préserve les GIFs et les fichiers déjà légers.' },
+      { type: 'improved', text: 'Compression appliquée à tous les uploads : avatars (avatars 512px/150KB), posts, commentaires, quote-posts, DM, images de lieux carte, photos personnage, items inventaire, images wiki & territoire.' },
+    ],
+  },
   {
     version: '4.18.0',
     date: '1 mai 2026',

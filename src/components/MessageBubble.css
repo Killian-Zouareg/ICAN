@@ -4,6 +4,7 @@
   gap: 0.4rem;
   align-self: flex-start;
   max-width: 70%;
+  position: relative;
 }
 
 .bubble-wrapper.mine {
@@ -12,18 +13,30 @@
 }
 
 .bubble-actions {
-  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  padding-top: 0.15rem;
+  display: flex;
   flex-direction: row;
   gap: 0.2rem;
   align-items: center;
   flex-shrink: 0;
   opacity: 0;
+  visibility: hidden;
   transition: opacity 0.15s;
+  z-index: 5;
+}
+
+.bubble-wrapper.mine .bubble-actions {
+  left: auto;
+  right: 0;
+  flex-direction: row-reverse;
 }
 
 .bubble-wrapper:hover .bubble-actions {
-  display: flex;
   opacity: 1;
+  visibility: visible;
 }
 
 .action-btn-mini {
@@ -180,6 +193,11 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
+}
+
+.bubble-avatar {
+  flex-shrink: 0;
+  align-self: flex-end;
 }
 
 .reaction-chip {

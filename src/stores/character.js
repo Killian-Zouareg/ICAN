@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 
 export const useCharacterStore = defineStore('character', () => {
   const sheet = ref(null)
@@ -47,12 +48,13 @@ export const useCharacterStore = defineStore('character', () => {
     const rateLimitMsg = checkRateLimit('upload')
     if (rateLimitMsg) throw new Error(rateLimitMsg)
 
-    const ext = file.name.split('.').pop()
+    const compressed = await compressImage(file)
+    const ext = (compressed.name || file.name).split('.').pop()
     const fileName = `${profileId}/photo_${Date.now()}.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('character-photos')
-      .upload(fileName, file, { upsert: true })
+      .upload(fileName, compressed, { upsert: true })
     if (uploadError) throw uploadError
 
     const { data: urlData } = supabase.storage

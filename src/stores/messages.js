@@ -20,13 +20,10 @@ export const useMessagesStore = defineStore('messages', () => {
     const auth = useAuthStore()
     if (!auth.activeProfile) return
     const profileId = auth.activeProfile.id
-    const allProfileIds = auth.profiles.map((p) => p.id)
-    if (allProfileIds.length === 0) return
     assertUUID(profileId, 'profileId')
     loading.value = true
-
-    // 1-on-1 (filter user1/user2 — groups have these NULL so they're excluded naturally;
-    // do NOT add .eq('is_group', false) because legacy rows have is_group = NULL)
+    // 1-on-1: STRICT per-profile isolation — each profile has its own DM list.
+    // Groups (user1/user2 NULL) are excluded naturally by these filters.
     const { data: dmData, error: dmErr } = await supabase
       .from('conversations')
       .select(`
@@ -42,13 +39,13 @@ export const useMessagesStore = defineStore('messages', () => {
       return
     }
 
-    // Groups via membership (best-effort: skip silently if anything fails — never wipe DM list)
+    // Groups via membership — STRICT per-profile isolation.
     let groupConvs = []
     try {
       const { data: myMemberships, error: memErr } = await supabase
         .from('conversation_members')
         .select('conversation_id')
-        .in('profile_id', allProfileIds)
+        .eq('profile_id', profileId)
       if (memErr) {
         console.warn('[messages] conversation_members fetch error:', memErr)
       } else if (myMemberships && myMemberships.length > 0) {
@@ -91,7 +88,7 @@ export const useMessagesStore = defineStore('messages', () => {
 
     const allConvs = [
       ...(dmData || []).map((conv) => {
-        const otherUser = conv.user1.id === profileId ? conv.user2 : conv.user1
+        const otherUser = conv.user1?.id === profileId ? conv.user2 : conv.user1
         return {
           ...conv,
           otherUser,
@@ -130,7 +127,7 @@ export const useMessagesStore = defineStore('messages', () => {
         .from('messages')
         .select('conversation_id')
         .in('conversation_id', convIds)
-        .not('sender_id', 'in', `(${allProfileIds.join(',')})`)
+        .neq('sender_id', profileId)
         .eq('read', false)
       unreadMessages = unreads || []
     }

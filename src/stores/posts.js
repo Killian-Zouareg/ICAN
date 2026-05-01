@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { supabase } from '../lib/supabase'
 import { useAuthStore } from './auth'
 import { checkRateLimit } from '../lib/rateLimit'
+import { compressImage } from '../lib/imageCompress'
 
 export const usePostsStore = defineStore('posts', () => {
   const posts = ref([])
@@ -38,6 +39,7 @@ export const usePostsStore = defineStore('posts', () => {
         .select('*')
         .eq('author_id', profileId)
         .order('created_at', { ascending: false })
+        .limit(50)
       if (!error) {
         let enriched = await enrichReposts(data || [])
         enriched = await enrichAuthorStatus(enriched)
@@ -186,11 +188,12 @@ export const usePostsStore = defineStore('posts', () => {
         throw new Error('Image trop lourde (max 5 Mo)')
       }
 
-      const ext = imageFile.name.split('.').pop()
+      const compressed = await compressImage(imageFile)
+      const ext = (compressed.name || imageFile.name).split('.').pop()
       const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(fileName, imageFile)
+        .upload(fileName, compressed)
       if (uploadError) throw uploadError
       const { data: urlData } = supabase.storage
         .from('post-images')
@@ -383,11 +386,12 @@ export const usePostsStore = defineStore('posts', () => {
         throw new Error('Image trop lourde (max 5 Mo)')
       }
 
-      const ext = imageFile.name.split('.').pop()
+      const compressed = await compressImage(imageFile)
+      const ext = (compressed.name || imageFile.name).split('.').pop()
       const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('comment-images')
-        .upload(fileName, imageFile)
+        .upload(fileName, compressed)
       if (uploadError) throw uploadError
       const { data: urlData } = supabase.storage
         .from('comment-images')
@@ -434,11 +438,12 @@ export const usePostsStore = defineStore('posts', () => {
       if (imageFile.size > 5 * 1024 * 1024) {
         throw new Error('Image trop lourde (max 5 Mo)')
       }
-      const ext = imageFile.name.split('.').pop()
+      const compressed = await compressImage(imageFile)
+      const ext = (compressed.name || imageFile.name).split('.').pop()
       const fileName = `${auth.activeProfile.id}/${Date.now()}.${ext}`
       const { error: uploadError } = await supabase.storage
         .from('post-images')
-        .upload(fileName, imageFile)
+        .upload(fileName, compressed)
       if (uploadError) throw uploadError
       const { data: urlData } = supabase.storage
         .from('post-images')
