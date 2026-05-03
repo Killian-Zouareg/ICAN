@@ -60,7 +60,7 @@ export const useTerritoryStore = defineStore('territory', () => {
   })
 
   async function fetchLocations() {
-    const { data } = await supabase.from('territory_locations').select('*')
+    const { data } = await supabase.from('territory_locations').select('*').limit(500)
     locations.value = data || []
   }
 
@@ -86,6 +86,7 @@ export const useTerritoryStore = defineStore('territory', () => {
       .from('territory_scores')
       .select('*, profiles(display_name, avatar_url, username)')
       .order('total_points', { ascending: false })
+      .limit(200)
     leaderboard.value = data || []
   }
 

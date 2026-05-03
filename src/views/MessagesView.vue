@@ -263,6 +263,8 @@ async function loadMessages() {
   setupMessageRealtime(activeConvId.value)
   setupReactionsRealtime(activeConvId.value)
 
+  // Realtime (setupMessageRealtime) gère les nouveaux messages en push.
+  // Fallback à 5 min uniquement au cas où la WebSocket tombe.
   clearInterval(pollInterval)
   pollInterval = setInterval(async () => {
     if (!activeConvId.value) return
@@ -270,7 +272,7 @@ async function loadMessages() {
     await messagesStore.fetchMessages(activeConvId.value)
     await messagesStore.markAsRead(activeConvId.value)
     if (wasAtBottom) scrollToBottom()
-  }, 30000)
+  }, 300000)
 }
 
 function isNearBottom() {
@@ -392,9 +394,11 @@ function onExternalReadUpdate() {
 onMounted(() => {
   initFromRoute()
   subscribeConvList()
+  // Realtime (subscribeConvList) push les updates de conversations.
+  // Fallback à 5 min au cas où la WebSocket tombe.
   convPollInterval = setInterval(() => {
     messagesStore.fetchConversations()
-  }, 30000)
+  }, 300000)
   window.addEventListener('dm-message-sent', onExternalMessageSent)
   window.addEventListener('dm-read-update', onExternalReadUpdate)
 })

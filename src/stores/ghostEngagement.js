@@ -3,6 +3,27 @@ import { supabase } from '../lib/supabase'
 import { generateFakeName, getRandomPhrase } from '../lib/ghostData'
 
 export const useGhostEngagementStore = defineStore('ghostEngagement', () => {
+  // Supprime les ghost_profiles dans `ids` qui ne sont plus référencés
+  // par aucun ghost_like ni ghost_comment (batch, sans boucle de count).
+  async function pruneOrphanGhostProfiles(ids) {
+    if (!ids || ids.length === 0) return
+    const uniqueIds = [...new Set(ids)]
+
+    const [{ data: stillLiked }, { data: stillCommented }] = await Promise.all([
+      supabase.from('ghost_likes').select('ghost_profile_id').in('ghost_profile_id', uniqueIds),
+      supabase.from('ghost_comments').select('ghost_profile_id').in('ghost_profile_id', uniqueIds),
+    ])
+
+    const referenced = new Set([
+      ...((stillLiked || []).map((r) => r.ghost_profile_id)),
+      ...((stillCommented || []).map((r) => r.ghost_profile_id)),
+    ])
+    const orphans = uniqueIds.filter((id) => !referenced.has(id))
+    if (orphans.length > 0) {
+      await supabase.from('ghost_profiles').delete().in('id', orphans)
+    }
+  }
+
   // Génère N ghost_profiles + ghost_likes pour un post
   async function setGhostLikes(postId, count) {
     // Supprimer les ghost_likes existants (et les ghost_profiles orphelins)
@@ -14,39 +35,28 @@ export const useGhostEngagementStore = defineStore('ghostEngagement', () => {
     if (existingLikes && existingLikes.length > 0) {
       const ids = existingLikes.map((l) => l.ghost_profile_id)
       await supabase.from('ghost_likes').delete().eq('post_id', postId)
-      // Supprimer les ghost_profiles qui n'ont plus de likes ni de commentaires
-      for (const gpId of ids) {
-        const { count: usageCount } = await supabase
-          .from('ghost_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('ghost_profile_id', gpId)
-        const { count: commentCount } = await supabase
-          .from('ghost_comments')
-          .select('*', { count: 'exact', head: true })
-          .eq('ghost_profile_id', gpId)
-        if ((usageCount || 0) === 0 && (commentCount || 0) === 0) {
-          await supabase.from('ghost_profiles').delete().eq('id', gpId)
-        }
-      }
+      await pruneOrphanGhostProfiles(ids)
     }
 
     if (count <= 0) return
 
-    // Générer N nouveaux ghost_profiles + ghost_likes
-    for (let i = 0; i < count; i++) {
+    // Batch insert N ghost_profiles puis N ghost_likes (2 requêtes au lieu de 2N).
+    const profileRows = Array.from({ length: count }, () => {
       const { displayName, username } = generateFakeName()
-      const { data: profile, error: profileError } = await supabase
-        .from('ghost_profiles')
-        .insert({ display_name: displayName, username })
-        .select()
-        .single()
+      return { display_name: displayName, username }
+    })
+    const { data: createdProfiles, error: profilesError } = await supabase
+      .from('ghost_profiles')
+      .insert(profileRows)
+      .select('id')
+    if (profilesError || !createdProfiles) return
 
-      if (profileError || !profile) continue
-
-      await supabase.from('ghost_likes').insert({
-        post_id: postId,
-        ghost_profile_id: profile.id,
-      })
+    const likeRows = createdProfiles.map((p) => ({
+      post_id: postId,
+      ghost_profile_id: p.id,
+    }))
+    if (likeRows.length > 0) {
+      await supabase.from('ghost_likes').insert(likeRows)
     }
   }
 
@@ -69,40 +79,30 @@ export const useGhostEngagementStore = defineStore('ghostEngagement', () => {
     if (existingComments && existingComments.length > 0) {
       const ids = existingComments.map((c) => c.ghost_profile_id)
       await supabase.from('ghost_comments').delete().eq('post_id', postId)
-      for (const gpId of ids) {
-        const { count: likesCount } = await supabase
-          .from('ghost_likes')
-          .select('*', { count: 'exact', head: true })
-          .eq('ghost_profile_id', gpId)
-        const { count: commentsCount } = await supabase
-          .from('ghost_comments')
-          .select('*', { count: 'exact', head: true })
-          .eq('ghost_profile_id', gpId)
-        if ((likesCount || 0) === 0 && (commentsCount || 0) === 0) {
-          await supabase.from('ghost_profiles').delete().eq('id', gpId)
-        }
-      }
+      await pruneOrphanGhostProfiles(ids)
     }
 
     if (count <= 0) return
 
-    for (let i = 0; i < count; i++) {
+    // Batch insert N ghost_profiles puis N ghost_comments (2 requêtes au lieu de 2N).
+    const profileRows = Array.from({ length: count }, () => {
       const { displayName, username } = generateFakeName()
-      const { data: profile, error: profileError } = await supabase
-        .from('ghost_profiles')
-        .insert({ display_name: displayName, username })
-        .select()
-        .single()
+      return { display_name: displayName, username }
+    })
+    const { data: createdProfiles, error: profilesError } = await supabase
+      .from('ghost_profiles')
+      .insert(profileRows)
+      .select('id')
+    if (profilesError || !createdProfiles) return
 
-      if (profileError || !profile) continue
-
-      const content = getRandomPhrase(mood)
-      await supabase.from('ghost_comments').insert({
-        post_id: postId,
-        ghost_profile_id: profile.id,
-        content,
-        mood,
-      })
+    const commentRows = createdProfiles.map((p) => ({
+      post_id: postId,
+      ghost_profile_id: p.id,
+      content: getRandomPhrase(mood),
+      mood,
+    }))
+    if (commentRows.length > 0) {
+      await supabase.from('ghost_comments').insert(commentRows)
     }
   }
 

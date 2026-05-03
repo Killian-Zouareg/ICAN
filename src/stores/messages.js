@@ -155,11 +155,14 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function fetchMessages(conversationId) {
     loading.value = true
+    // On charge les 100 derniers messages (DESC + limit), puis on inverse côté JS
+    // pour garder l'ordre chronologique attendu par l'UI.
     const { data, error } = await supabase
       .from('messages')
       .select('*, sender:profiles!messages_sender_id_fkey(id, username, display_name, avatar_url)')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
+      .limit(100)
 
     if (error) {
       console.error('fetchMessages error:', error)
@@ -167,7 +170,7 @@ export const useMessagesStore = defineStore('messages', () => {
       return
     }
 
-    const newData = data || []
+    const newData = (data || []).reverse()
 
     // Hydrate parent message previews (for replies) in a second batch query.
     // We do this separately so a failure here never wipes the message list.
