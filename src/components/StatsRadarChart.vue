@@ -1,5 +1,5 @@
 <template>
-  <svg :width="size" :height="size" :viewBox="`0 0 ${size} ${size}`" class="radar-chart">
+  <svg :width="renderedSize" :height="renderedSize" :viewBox="`0 0 ${renderedSize} ${renderedSize}`" class="radar-chart">
     <!-- Grid levels (33%, 66%, 100%) -->
     <polygon
       v-for="level in [0.33, 0.66, 1]"
@@ -51,7 +51,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
   stats: {
@@ -64,6 +64,18 @@ const props = defineProps({
   },
 })
 
+const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1024)
+function onResize() { viewportWidth.value = window.innerWidth }
+onMounted(() => window.addEventListener('resize', onResize))
+onUnmounted(() => window.removeEventListener('resize', onResize))
+
+const renderedSize = computed(() => {
+  if (viewportWidth.value <= 768) {
+    return Math.max(180, Math.min(props.size, viewportWidth.value - 80))
+  }
+  return props.size
+})
+
 const statKeys = ['charisme', 'intelligence', 'force', 'vigueur', 'mobilite']
 const statLabels = {
   charisme: 'Charisme',
@@ -73,9 +85,9 @@ const statLabels = {
   mobilite: 'Mobilité',
 }
 
-const cx = computed(() => props.size / 2)
-const cy = computed(() => props.size / 2)
-const radius = computed(() => props.size * 0.30)
+const cx = computed(() => renderedSize.value / 2)
+const cy = computed(() => renderedSize.value / 2)
+const radius = computed(() => renderedSize.value * 0.30)
 
 function angle(i) {
   return -Math.PI / 2 + (2 * Math.PI * i) / 5

@@ -149,3 +149,24 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 480px) {
+  .ghost-modal-overlay {
+    align-items: flex-end;
+  }
+  .ghost-modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: var(--safe-bottom);
+  }
+  .ghost-input,
+  .ghost-select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .ghost-btn-clear,
+  .ghost-btn-apply {
+    min-height: 44px;
+  }
+}

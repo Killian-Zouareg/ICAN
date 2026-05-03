@@ -494,3 +494,40 @@
 .toggle-switch.on .toggle-knob {
   transform: translateX(20px);
 }
+
+@media (max-width: 768px) {
+  .settings-page {
+    border-left: none;
+    border-right: none;
+  }
+  .section {
+    padding: 0.75rem;
+  }
+  .field input,
+  .bio-input,
+  .color-text {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .save-btn,
+  .add-profile-btn,
+  .delete-profile-btn {
+    min-height: 44px;
+  }
+  .form-actions {
+    flex-wrap: wrap;
+  }
+  .form-actions .save-btn {
+    flex: 1;
+  }
+  .pref-row {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .color-fields {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+}

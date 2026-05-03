@@ -111,28 +111,16 @@
     </div>
 
     <!-- Webcam live -->
-    <div class="alw-section alw-webcam-section">
-      <div class="alw-section-head">
-        <span class="alw-section-title">📹 Webcam live</span>
-        <a
-          href="https://www.windy.com/webcams/1604870873"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="alw-section-more"
-        >plein écran</a>
-      </div>
-      <div class="alw-webcam-frame">
-        <iframe
-          src="https://webcams.windy.com/webcams/public/embed/player?playerType=day&webcamId=1604870873&loop=true&interactive=true&forceFullScreenOnOverlayPlay=false"
-          frameborder="0"
-          allow="autoplay; fullscreen"
-          allowfullscreen
-          loading="lazy"
-          title="Webcam Allentown SR-309"
-        ></iframe>
-      </div>
-      <div class="alw-webcam-caption">SR-309 · Eastown Rd</div>
-    </div>
+    <a
+      href="https://www.fox29.com/allentown-webcam"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="alw-webcam-link"
+    >
+      <span class="alw-webcam-link-icon">📹</span>
+      <span class="alw-webcam-link-text">Webcam live Allentown · Fox 29</span>
+      <span class="alw-webcam-link-arrow">→</span>
+    </a>
 
     <!-- Footer link to full page -->
     <router-link to="/live" class="alw-footer-link">Ouvrir Live Allentown →</router-link>

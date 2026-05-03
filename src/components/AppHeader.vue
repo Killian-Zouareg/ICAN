@@ -22,12 +22,15 @@ import NotificationBell from './NotificationBell.vue'
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
+  padding-top: calc(0.5rem + var(--safe-top));
+  padding-left: calc(1rem + var(--safe-left));
+  padding-right: calc(1rem + var(--safe-right));
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 50;
-  height: 48px;
+  height: calc(48px + var(--safe-top));
 }
 
 .header-left {

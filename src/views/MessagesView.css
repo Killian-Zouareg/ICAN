@@ -267,7 +267,12 @@
 @media (max-width: 768px) {
   .messages-page {
     width: 100vw;
-    height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
+    height: calc(100vh - var(--header-height) - var(--mobile-nav-height) - var(--safe-top) - var(--safe-bottom));
+  }
+
+  .back-btn {
+    min-width: 40px;
+    min-height: 40px;
   }
 
   .messages-sidebar {

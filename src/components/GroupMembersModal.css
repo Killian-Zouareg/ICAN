@@ -203,3 +203,30 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+@media (max-width: 480px) {
+  .modal-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .modal {
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: var(--safe-bottom);
+  }
+  .add-input {
+    font-size: 16px;
+    min-height: 40px;
+  }
+  .member-row {
+    min-height: 56px;
+  }
+  .remove-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .danger-btn {
+    min-height: 44px;
+  }
+}

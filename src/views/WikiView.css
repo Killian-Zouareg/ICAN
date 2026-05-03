@@ -547,6 +547,9 @@
 
 /* ═══════════ RESPONSIVE ═══════════ */
 @media (max-width: 768px) {
+  .wiki-page {
+    padding: 0 0.5rem 2rem;
+  }
   .showcase-section {
     padding: 1.5rem 1rem;
   }
@@ -559,5 +562,20 @@
   }
   .showcase-card {
     width: 150px;
+  }
+  .showcase-card:hover {
+    transform: none;
+  }
+  .wiki-tab {
+    padding: 0.65rem 0.4rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 480px) {
+  .showcase-card {
+    width: calc(50% - 0.5rem);
+    min-width: 130px;
   }
 }

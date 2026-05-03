@@ -132,7 +132,7 @@ function formatBanDate(date) {
   .app-layout {
     margin-left: 0;
     margin-right: 0;
-    padding-bottom: 56px;
+    padding-bottom: calc(var(--mobile-nav-height) + var(--safe-bottom));
   }
 }
 

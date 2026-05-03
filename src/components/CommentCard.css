@@ -164,3 +164,29 @@
 .comment-image:hover {
   opacity: 0.92;
 }
+
+@media (max-width: 768px) {
+  .comment-card {
+    padding: 0.6rem 0.75rem;
+  }
+  .comment-actions {
+    gap: 1rem;
+  }
+  .action-btn {
+    padding: 0.4rem;
+    min-height: 36px;
+    min-width: 36px;
+    justify-content: center;
+  }
+  .replies {
+    margin-left: clamp(0.5rem, 3vw, 1.5rem);
+    padding-left: 0.5rem;
+  }
+  .is-reply .replies {
+    margin-left: clamp(0.5rem, 3vw, 1.25rem);
+  }
+  .comment-image,
+  .comment-image-wrapper {
+    max-height: 50vh;
+  }
+}

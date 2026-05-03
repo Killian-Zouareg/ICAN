@@ -583,4 +583,16 @@
   .relations-grid { grid-template-columns: 1fr; }
   .edit-grid { grid-template-columns: 1fr; }
   .stats-display { flex-direction: column; }
+  .particle-canvas { display: none; }
+  .hero-back-btn,
+  .hero-edit-btn,
+  .save-btn,
+  .cancel-btn {
+    min-height: 44px;
+  }
+  .edit-grid input,
+  .edit-grid textarea,
+  .edit-grid select {
+    font-size: 16px;
+  }
 }

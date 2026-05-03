@@ -174,3 +174,28 @@
 .publish-btn:hover:not(:disabled) {
   background: var(--accent-hover);
 }
+
+@media (max-width: 768px) {
+  .quote-overlay {
+    align-items: flex-end;
+  }
+  .quote-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+  }
+  .quote-modal-body {
+    padding: 0.75rem 1rem 1rem;
+  }
+  .quote-textarea {
+    font-size: 16px;
+  }
+  .icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .publish-btn {
+    min-height: 40px;
+  }
+}

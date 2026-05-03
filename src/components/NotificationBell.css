@@ -310,16 +310,24 @@
 }
 
 /* ---- Mobile ---- */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .notif-panel {
     position: fixed;
-    top: var(--header-height);
+    top: calc(var(--header-height) + var(--safe-top));
     left: 0;
     right: 0;
     width: 100%;
-    max-height: calc(100vh - var(--header-height) - var(--mobile-nav-height));
+    max-height: calc(100vh - var(--header-height) - var(--mobile-nav-height) - var(--safe-top) - var(--safe-bottom));
     border-radius: 0;
     border-left: none;
     border-right: none;
+  }
+  .notif-btn {
+    min-width: 40px;
+    min-height: 40px;
+    justify-content: center;
+  }
+  .notif-item {
+    min-height: 60px;
   }
 }

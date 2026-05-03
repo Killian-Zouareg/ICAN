@@ -34,3 +34,12 @@
   background: var(--bg-hover);
   transform: scale(1.2);
 }
+
+@media (max-width: 768px) {
+  .picker-emoji {
+    font-size: 1.4rem;
+    padding: 0.4rem 0.5rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}

@@ -112,3 +112,25 @@
 .submit-btn:hover:not(:disabled) {
   opacity: 0.9;
 }
+
+@media (max-width: 768px) {
+  .login-card {
+    padding: 1.5rem 1.25rem;
+    margin: 0.75rem;
+    border-radius: 12px;
+  }
+  .logo {
+    font-size: 1.75rem;
+  }
+  .field input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .submit-btn {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+  .tabs button {
+    min-height: 44px;
+  }
+}

@@ -121,3 +121,25 @@
 .cropper-btn.confirm:hover {
   background: var(--accent-hover);
 }
+
+@media (max-width: 480px) {
+  .cropper-modal {
+    width: 100%;
+    max-width: 100%;
+    padding: 1rem;
+  }
+  .cropper-area {
+    width: 100%;
+    max-width: 320px;
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+  .cropper-actions {
+    padding-bottom: var(--safe-bottom);
+  }
+  .cropper-btn {
+    flex: 1;
+    min-height: 44px;
+    font-size: 0.95rem;
+  }
+}

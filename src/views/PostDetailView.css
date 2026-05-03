@@ -134,3 +134,28 @@
   padding: 0.1rem 0.5rem;
   border-radius: 10px;
 }
+
+@media (max-width: 768px) {
+  .post-detail {
+    border-left: none;
+    border-right: none;
+  }
+  .back-bar {
+    padding: 0.5rem 0.75rem;
+  }
+  .back-btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .comments-header {
+    padding: 0.6rem 0.75rem;
+  }
+  .liked-user {
+    padding: 0.5rem 0.75rem;
+    min-height: 44px;
+  }
+  .likes-toggle {
+    min-height: 44px;
+  }
+}

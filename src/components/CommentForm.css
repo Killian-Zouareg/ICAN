@@ -120,3 +120,25 @@ button[type='submit']:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+@media (max-width: 768px) {
+  .comment-form {
+    padding: 0.5rem 0.75rem;
+    gap: 0.4rem;
+  }
+  .comment-form :deep(input[type="text"]) {
+    font-size: 16px;
+    min-height: 40px;
+  }
+  .icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  button[type='submit'] {
+    min-height: 40px;
+    padding: 0.4rem 0.85rem;
+  }
+  .image-preview {
+    margin: 0.5rem 0.75rem 0;
+  }
+}

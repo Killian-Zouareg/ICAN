@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.22.0',
+    date: '3 mai 2026',
+    icon: '\u{1F4F1}',
+    color: '#1da1f2',
+    title: 'Refonte responsive — iCAN parfait sur téléphone',
+    description: 'iCAN passe au mobile-first. <strong>Toutes les vues et tous les composants</strong> ont reçu un traitement responsive dédié : Login, Search, Settings, PostDetail (qui n\'avaient aucune media query) sont maintenant impeccables sur petit écran. Les <strong>tap targets</strong> respectent le minimum de 44px (boutons d\'actions, nav, liens). Les <strong>inputs ne déclenchent plus le zoom iOS</strong> au focus (font-size 16px). Les modales (cropper, ghost, group, drafts) passent en <strong>plein écran sur mobile</strong>. Le canvas particules de l\'iWiki Hero est désactivé sur mobile pour les performances. Et surtout : prise en charge complète des <strong>safe areas iPhone</strong> (encoches, home indicator) — la nav du bas et le header s\'ajustent automatiquement.',
+    tags: ['Mobile', 'Responsive', 'iOS', 'Safe-area', 'Tap targets'],
+  },
+  {
     version: '4.21.0',
     date: '2 mai 2026',
     icon: '\u{1F4F9}',
@@ -570,6 +579,23 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.22.0',
+    date: '3 mai 2026',
+    title: 'Refonte responsive complète — mobile-first',
+    tag: 'improved',
+    changes: [
+      { type: 'new', text: 'Ajout de variables CSS `--safe-top/--safe-bottom/--safe-left/--safe-right` (env safe-area-inset-*) et `viewport-fit=cover` dans `index.html`. La `MobileNav`, l\'`AppHeader` et l\'input des messages s\'ajustent automatiquement à l\'encoche et au home indicator iPhone.' },
+      { type: 'new', text: 'Bloc mobile dédié sur les 4 vues qui n\'en avaient aucun : `LoginView`, `SearchView`, `SettingsView`, `PostDetailView`.' },
+      { type: 'new', text: 'Bloc mobile sur 14 composants critiques : `PostCard`, `PostComposer`, `CommentCard/Form`, `QuoteComposer`, `QuotedPostEmbed`, `MessageBubble/Input`, `ConversationList`, `ImageCropper`, `GhostEngagementModal`, `GroupMembersModal`, `NewConversation`, `ReactionPicker`, `NotificationBell`.' },
+      { type: 'improved', text: 'Tap targets minimum 44px sur tous les boutons interactifs (nav, action posts, formulaires).' },
+      { type: 'improved', text: 'Inputs/textareas en `font-size: 16px` sur mobile pour éviter le zoom iOS au focus.' },
+      { type: 'improved', text: '`StatsRadarChart` redimensionne dynamiquement sa taille selon la largeur de viewport (listener resize).' },
+      { type: 'improved', text: 'Modales (cropper, ghost, group, drafts, character) passent en plein écran/bottom sheet sur ≤480px.' },
+      { type: 'improved', text: '`WikiHeroView` désactive le canvas particules sur mobile (économie GPU).' },
+      { type: 'improved', text: 'Page-bottom-padding global réajusté à `var(--mobile-nav-height) + var(--safe-bottom)` ; harmonisation App.vue.' },
+    ],
+  },
   {
     version: '4.21.0',
     date: '2 mai 2026',

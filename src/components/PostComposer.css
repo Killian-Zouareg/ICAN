@@ -346,3 +346,42 @@
   border-color: var(--danger);
   color: var(--danger);
 }
+
+@media (max-width: 768px) {
+  .composer {
+    padding: 0.75rem;
+  }
+  .composer :deep(textarea) {
+    font-size: 16px;
+  }
+  .image-preview,
+  .image-preview img {
+    max-height: 50vh;
+  }
+  .composer-footer {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .footer-left {
+    gap: 0.5rem;
+  }
+  .icon-btn {
+    min-width: 40px;
+    min-height: 40px;
+  }
+  .publish-btn {
+    min-height: 40px;
+    padding: 0.45rem 1rem;
+  }
+  .drafts-modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 12px 12px 0 0;
+  }
+  .drafts-overlay {
+    align-items: flex-end;
+  }
+  .draft-item {
+    padding: 0.75rem;
+  }
+}

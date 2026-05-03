@@ -107,3 +107,9 @@
   object-fit: cover;
   display: block;
 }
+
+@media (max-width: 768px) {
+  .quoted-image {
+    max-height: 40vh;
+  }
+}

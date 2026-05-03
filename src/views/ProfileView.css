@@ -457,14 +457,38 @@
 }
 
 /* ============ Responsive ============ */
-@media (max-width: 600px) {
-  .profile-banner { height: 130px; }
+@media (max-width: 768px) {
+  .profile-page {
+    border-left: none;
+    border-right: none;
+  }
+  .profile-top-bar {
+    top: calc(var(--header-height) + var(--safe-top));
+  }
+  .profile-banner { height: 140px; }
   .profile-avatar-row { margin-top: -45px; }
   .avatar-wrapper :deep(.user-avatar) { width: 90px !important; height: 90px !important; }
   .media-grid { grid-template-columns: repeat(2, 1fr); }
-
+  .edit-profile-btn,
+  .action-dm-btn {
+    min-height: 40px;
+  }
+  .character-card {
+    margin: 0 0.75rem 0.5rem;
+  }
+  .profile-stats {
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
   .lightbox-content img {
     width: 240px;
     height: 240px;
+  }
+}
+
+@media (max-width: 480px) {
+  .profile-banner { height: 120px; }
+  .profile-stats {
+    font-size: 0.8rem;
   }
 }

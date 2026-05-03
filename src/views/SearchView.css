@@ -397,3 +397,42 @@
   color: var(--text-secondary);
   flex-shrink: 0;
 }
+
+@media (max-width: 768px) {
+  .search-page {
+    border-left: none;
+    border-right: none;
+  }
+  .search-input-wrap {
+    padding: 0.5rem 0.75rem;
+  }
+  .search-input {
+    font-size: 16px;
+    min-height: 40px;
+  }
+  .search-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .search-tab {
+    flex: 1 0 auto;
+    min-width: 0;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.8rem;
+    min-height: 44px;
+  }
+  .tab-count {
+    font-size: 0.7rem;
+  }
+  .inline-trending {
+    padding: 0 0.5rem 1rem;
+  }
+  .inline-trends-grid {
+    padding: 0.5rem 0.75rem;
+  }
+  .result-post-image img {
+    max-height: 200px;
+    width: 100%;
+  }
+}
