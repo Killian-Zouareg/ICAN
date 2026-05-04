@@ -203,8 +203,12 @@ CREATE TABLE conversation_members (
   conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
   profile_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   joined_at TIMESTAMPTZ DEFAULT now(),
+  last_read_at TIMESTAMPTZ DEFAULT NULL,
   UNIQUE(conversation_id, profile_id)
 );
+
+-- Migration pour bases existantes :
+-- ALTER TABLE conversation_members ADD COLUMN IF NOT EXISTS last_read_at TIMESTAMPTZ DEFAULT NULL;
 
 -- =============================================
 -- TABLE: notifications

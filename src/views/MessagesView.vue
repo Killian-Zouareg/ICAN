@@ -84,6 +84,7 @@
               :firstOfGroup="i === 0 || messagesStore.currentMessages[i - 1].sender_id !== msg.sender_id"
               :showReadStatus="i === lastMineIndex"
               :reactions="reactionsStore.getForMessage(msg.id)"
+              :groupReads="activeConv?.is_group ? messagesStore.currentGroupReads : null"
               @delete="handleDeleteMessage"
               @reply="handleReply"
               @toggle-reaction="handleToggleReaction"
@@ -160,6 +161,7 @@ const lastMineIndex = computed(() => {
 let pollInterval = null
 let msgRealtimeSub = null
 let reactionsRealtimeSub = null
+let readsRealtimeSub = null
 
 // Realtime subscription for conversation list updates
 const { subscribe: subscribeConvList } = useRealtimeSubscription('conv-list', [
@@ -219,8 +221,28 @@ function closeConversation() {
   pollInterval = null
   if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
   if (reactionsRealtimeSub) { reactionsRealtimeSub.unsubscribe(); reactionsRealtimeSub = null }
+  if (readsRealtimeSub) { readsRealtimeSub.unsubscribe(); readsRealtimeSub = null }
   reactionsStore.clearForConversation()
   router.replace('/messages')
+}
+
+function setupReadsRealtime(conversationId) {
+  if (readsRealtimeSub) { readsRealtimeSub.unsubscribe(); readsRealtimeSub = null }
+  const { subscribe, unsubscribe } = useRealtimeSubscription(
+    'reads-conv-' + conversationId,
+    [{
+      event: 'UPDATE',
+      table: 'conversation_members',
+      filter: `conversation_id=eq.${conversationId}`,
+      callback: (payload) => {
+        const row = payload.new
+        if (!row) return
+        messagesStore.patchGroupRead(row.profile_id, row.last_read_at)
+      },
+    }]
+  )
+  readsRealtimeSub = { unsubscribe }
+  subscribe()
 }
 
 function setupReactionsRealtime(conversationId) {
@@ -262,6 +284,7 @@ async function loadMessages() {
 
   setupMessageRealtime(activeConvId.value)
   setupReactionsRealtime(activeConvId.value)
+  if (activeConv.value?.is_group) setupReadsRealtime(activeConvId.value)
 
   // Realtime (setupMessageRealtime) gère les nouveaux messages en push.
   // Fallback à 5 min uniquement au cas où la WebSocket tombe.
@@ -408,6 +431,7 @@ onUnmounted(() => {
   clearInterval(convPollInterval)
   if (msgRealtimeSub) { msgRealtimeSub.unsubscribe(); msgRealtimeSub = null }
   if (reactionsRealtimeSub) { reactionsRealtimeSub.unsubscribe(); reactionsRealtimeSub = null }
+  if (readsRealtimeSub) { readsRealtimeSub.unsubscribe(); readsRealtimeSub = null }
   window.removeEventListener('dm-message-sent', onExternalMessageSent)
   window.removeEventListener('dm-read-update', onExternalReadUpdate)
 })

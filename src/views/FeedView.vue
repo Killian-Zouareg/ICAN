@@ -136,7 +136,7 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border);
   background: var(--bg-secondary);
   position: sticky;
-  top: 52px;
+  top: calc(var(--header-height) + var(--safe-top));
   z-index: 5;
 }
 

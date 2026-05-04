@@ -15,6 +15,9 @@ export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
   const currentMessages = ref([])
   const loading = ref(false)
+  // Per-member last_read_at for the currently open conversation (groups only).
+  // Map<profile_id, { profile, last_read_at }>
+  const currentGroupReads = ref(new Map())
 
   async function fetchConversations() {
     const auth = useAuthStore()
@@ -153,8 +156,42 @@ export const useMessagesStore = defineStore('messages', () => {
     loading.value = false
   }
 
+  async function fetchGroupReads(conversationId) {
+    const { data, error } = await supabase
+      .from('conversation_members')
+      .select('profile_id, last_read_at, profiles(id, username, display_name, avatar_url)')
+      .eq('conversation_id', conversationId)
+    if (error) {
+      console.warn('[messages] fetchGroupReads error:', error)
+      currentGroupReads.value = new Map()
+      return
+    }
+    const map = new Map()
+    ;(data || []).forEach((row) => {
+      if (!row.profiles) return
+      map.set(row.profile_id, { profile: row.profiles, last_read_at: row.last_read_at })
+    })
+    currentGroupReads.value = map
+  }
+
+  function patchGroupRead(profileId, lastReadAt) {
+    const existing = currentGroupReads.value.get(profileId)
+    if (!existing) return
+    const next = new Map(currentGroupReads.value)
+    next.set(profileId, { ...existing, last_read_at: lastReadAt })
+    currentGroupReads.value = next
+  }
+
   async function fetchMessages(conversationId) {
     loading.value = true
+    // Determine if it's a group to decide whether to load per-member reads.
+    const conv = conversations.value.find((c) => c.id === conversationId)
+    const isGroup = conv?.is_group === true
+    if (isGroup) {
+      fetchGroupReads(conversationId).catch((e) => console.warn('[messages] groupReads:', e))
+    } else {
+      currentGroupReads.value = new Map()
+    }
     // On charge les 100 derniers messages (DESC + limit), puis on inverse côté JS
     // pour garder l'ordre chronologique attendu par l'UI.
     const { data, error } = await supabase
@@ -325,6 +362,17 @@ export const useMessagesStore = defineStore('messages', () => {
       .eq('conversation_id', conversationId)
       .neq('sender_id', auth.activeProfile.id)
       .eq('read', false)
+
+    // Per-member read tracking (utile en groupe pour le "vu par")
+    const now = new Date().toISOString()
+    await supabase
+      .from('conversation_members')
+      .update({ last_read_at: now })
+      .eq('conversation_id', conversationId)
+      .eq('profile_id', auth.activeProfile.id)
+
+    // Optimistic local patch for the open conversation
+    patchGroupRead(auth.activeProfile.id, now)
   }
 
   async function deleteMessage(messageId) {
@@ -416,9 +464,12 @@ export const useMessagesStore = defineStore('messages', () => {
   return {
     conversations,
     currentMessages,
+    currentGroupReads,
     loading,
     fetchConversations,
     fetchMessages,
+    fetchGroupReads,
+    patchGroupRead,
     sendMessage,
     getOrCreateConversation,
     markAsRead,

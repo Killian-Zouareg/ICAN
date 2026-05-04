@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.23.0',
+    date: '4 mai 2026',
+    icon: '\u{1F441}',
+    color: '#17bf63',
+    title: 'Vu par — détail des lecteurs en groupe',
+    description: 'Dans les conversations de groupe, sous chacun de tes messages s\'affiche désormais une <strong>pile d\'avatars</strong> des membres qui ont réellement vu le message. Au clic, un <strong>popover détaillé</strong> liste chaque lecteur avec son <strong>horodatage</strong> ("il y a 2 min"). Fini le booléen partagé qui passait à "Lu" dès qu\'une seule personne avait ouvert : iCAN suit maintenant la lecture <strong>par membre</strong> via `conversation_members.last_read_at`, mis à jour en temps réel via Supabase Realtime.',
+    tags: ['Messages', 'Groupes', 'Vu par', 'Realtime'],
+  },
+  {
     version: '4.22.0',
     date: '3 mai 2026',
     icon: '\u{1F4F1}',
@@ -579,6 +588,19 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.23.0',
+    date: '4 mai 2026',
+    title: 'Vu par — détail des lecteurs en groupe',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: 'Nouvelle colonne `last_read_at` sur `conversation_members` (TIMESTAMPTZ, nullable) — un timestamp de lecture par membre par conversation.' },
+      { type: 'new', text: 'Dans `MessagesView`/`MessageBubble`, sous chaque message envoyé en groupe : pile d\'avatars (max 3 + `+N`) des membres qui l\'ont vu (`last_read_at >= message.created_at`, sender exclu). Clic → popover listant les lecteurs avec horodatage relatif via `timeAgo`.' },
+      { type: 'improved', text: '`markAsRead()` (`stores/messages.js`) écrit désormais aussi `last_read_at = now()` sur la ligne `conversation_members` du profil actif, en plus de l\'UPDATE historique sur `messages.read`.' },
+      { type: 'improved', text: 'Nouvel état `currentGroupReads` (Map) dans le store messages, hydraté à `fetchMessages()` pour les groupes uniquement (les DM 1-on-1 conservent l\'indicateur Lu/Envoyé inchangé).' },
+      { type: 'new', text: 'Subscription Supabase Realtime sur `conversation_members` (UPDATE filtré par `conversation_id`) : la pile d\'avatars apparaît sans refresh dès qu\'un autre membre ouvre le groupe.' },
+    ],
+  },
   {
     version: '4.22.0',
     date: '3 mai 2026',

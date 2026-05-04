@@ -77,9 +77,9 @@
         </button>
       </div>
 
-      <!-- Read receipt -->
+      <!-- Read receipt (1-on-1 only) -->
       <div
-        v-if="showReadStatus && isMine && !message.deleted_for_everyone"
+        v-if="showReadStatus && isMine && !isGroup && !message.deleted_for_everyone"
         class="read-receipt"
         :class="{ read: message.read }"
       >
@@ -91,6 +91,50 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
           Envoyé
         </span>
+      </div>
+
+      <!-- Group "vu par" — per-message avatar stack -->
+      <div
+        v-if="isGroup && isMine && !message.deleted_for_everyone"
+        class="readers-row"
+      >
+        <button
+          v-if="groupReaders.length > 0"
+          class="readers-stack"
+          @click.stop="toggleReadersDetail"
+          :title="`Vu par ${groupReaders.length} ${groupReaders.length > 1 ? 'membres' : 'membre'}`"
+        >
+          <UserAvatar
+            v-for="r in visibleReaders"
+            :key="r.profile.id"
+            class="reader-avatar"
+            :url="r.profile.avatar_url"
+            :name="r.profile.display_name || '?'"
+            :size="16"
+          />
+          <span v-if="extraReaders > 0" class="readers-extra">+{{ extraReaders }}</span>
+        </button>
+        <span v-else-if="showReadStatus" class="readers-sent">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+          Envoyé
+        </span>
+
+        <div v-if="showReadersDetail && groupReaders.length > 0" class="readers-detail" @click.stop>
+          <div class="readers-detail-header">Vu par</div>
+          <div
+            v-for="r in groupReaders"
+            :key="r.profile.id"
+            class="readers-detail-row"
+          >
+            <UserAvatar
+              :url="r.profile.avatar_url"
+              :name="r.profile.display_name || '?'"
+              :size="24"
+            />
+            <span class="readers-detail-name">{{ r.profile.display_name || r.profile.username }}</span>
+            <span class="readers-detail-time">{{ timeAgo(r.last_read_at) }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Picker popover -->
@@ -115,6 +159,8 @@ const props = defineProps({
   firstOfGroup: { type: Boolean, default: false },
   showReadStatus: { type: Boolean, default: false },
   reactions: { type: Array, default: () => [] },
+  // Map<profile_id, { profile, last_read_at }> for the open group conversation
+  groupReads: { type: [Map, null], default: null },
 })
 
 const emit = defineEmits(['delete', 'reply', 'toggle-reaction'])
@@ -145,6 +191,33 @@ const parentPreview = computed(() => {
   return c.length > 80 ? c.slice(0, 80) + '...' : (c || '🖼️ Image')
 })
 
+const groupReaders = computed(() => {
+  if (!props.isGroup || !props.groupReads || !isMine.value) return []
+  if (props.message.deleted_for_everyone) return []
+  const sentAt = new Date(props.message.created_at).getTime()
+  const out = []
+  for (const [profileId, entry] of props.groupReads) {
+    if (!entry?.last_read_at) continue
+    if (profileId === props.message.sender_id) continue
+    const readAt = new Date(entry.last_read_at).getTime()
+    if (readAt >= sentAt) {
+      out.push({ profile: entry.profile, last_read_at: entry.last_read_at })
+    }
+  }
+  return out.sort((a, b) => new Date(b.last_read_at) - new Date(a.last_read_at))
+})
+
+const visibleReaders = computed(() => groupReaders.value.slice(0, 3))
+const extraReaders = computed(() => Math.max(0, groupReaders.value.length - 3))
+
+const showReadersDetail = ref(false)
+function toggleReadersDetail() {
+  showReadersDetail.value = !showReadersDetail.value
+}
+function closeReadersDetail() {
+  showReadersDetail.value = false
+}
+
 function openImage(url) {
   window.open(url, '_blank')
 }
@@ -164,11 +237,17 @@ function confirmDelete() {
 }
 
 function onClickOutside(e) {
-  if (!showPicker.value) return
-  // Close if click is outside any reaction-picker / action button
   const target = e.target
-  if (target.closest && (target.closest('.reaction-picker') || target.closest('.action-btn-mini'))) return
-  showPicker.value = false
+  if (showPicker.value) {
+    if (!(target.closest && (target.closest('.reaction-picker') || target.closest('.action-btn-mini')))) {
+      showPicker.value = false
+    }
+  }
+  if (showReadersDetail.value) {
+    if (!(target.closest && (target.closest('.readers-detail') || target.closest('.readers-stack')))) {
+      showReadersDetail.value = false
+    }
+  }
 }
 
 onMounted(() => document.addEventListener('click', onClickOutside))
