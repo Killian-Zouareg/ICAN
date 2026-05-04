@@ -375,6 +375,25 @@ export const useMessagesStore = defineStore('messages', () => {
     patchGroupRead(auth.activeProfile.id, now)
   }
 
+  async function editMessage(messageId, newContent) {
+    const auth = useAuthStore()
+    const trimmed = (newContent || '').trim()
+    if (!trimmed) throw new Error('Le message ne peut pas être vide')
+    if (trimmed.length > 2000) throw new Error('Le message ne doit pas dépasser 2000 caractères')
+    const editedAt = new Date().toISOString()
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: trimmed, edited_at: editedAt })
+      .eq('id', messageId)
+      .eq('sender_id', auth.activeProfile.id)
+    if (error) throw error
+    const local = currentMessages.value.find((m) => m.id === messageId)
+    if (local) {
+      local.content = trimmed
+      local.edited_at = editedAt
+    }
+  }
+
   async function deleteMessage(messageId) {
     const auth = useAuthStore()
     // Soft-delete: keep the row, mark as deleted, clear content/image
@@ -474,6 +493,7 @@ export const useMessagesStore = defineStore('messages', () => {
     getOrCreateConversation,
     markAsRead,
     deleteMessage,
+    editMessage,
     hideConversation,
     unhideConversation,
     createGroupConversation,

@@ -21,10 +21,10 @@ export const useReactionsStore = defineStore('reactions', () => {
     if (!msgs || msgs.length === 0) return
 
     const messageIds = msgs.map((m) => m.id)
-    // 2. Fetch reactions for those messages
+    // 2. Fetch reactions for those messages (with reactor profile)
     const { data: rxs } = await supabase
       .from('message_reactions')
-      .select('message_id, emoji, profile_id')
+      .select('message_id, emoji, profile_id, profiles(id, username, display_name, avatar_url)')
       .in('message_id', messageIds)
 
     // 3. Aggregate: per message, group by emoji
@@ -32,11 +32,12 @@ export const useReactionsStore = defineStore('reactions', () => {
     for (const r of rxs || []) {
       if (!next[r.message_id]) next[r.message_id] = {}
       if (!next[r.message_id][r.emoji]) {
-        next[r.message_id][r.emoji] = { emoji: r.emoji, count: 0, mine: false, profileIds: [] }
+        next[r.message_id][r.emoji] = { emoji: r.emoji, count: 0, mine: false, profileIds: [], profiles: [] }
       }
       const entry = next[r.message_id][r.emoji]
       entry.count += 1
       entry.profileIds.push(r.profile_id)
+      if (r.profiles) entry.profiles.push(r.profiles)
       if (myProfileIds.has(r.profile_id)) entry.mine = true
     }
 
@@ -71,10 +72,10 @@ export const useReactionsStore = defineStore('reactions', () => {
       // Optimistic local update
       entry.count -= 1
       entry.profileIds = entry.profileIds.filter((id) => id !== myProfileId)
+      entry.profiles = (entry.profiles || []).filter((p) => p.id !== myProfileId)
       if (entry.count <= 0) {
         reactionsByMessage.value[messageId] = list.filter((r) => r.emoji !== emoji)
       } else {
-        // Recompute mine
         const myIds = new Set(auth.profiles.map((p) => p.id))
         entry.mine = entry.profileIds.some((id) => myIds.has(id))
       }
@@ -86,9 +87,18 @@ export const useReactionsStore = defineStore('reactions', () => {
       if (error) throw error
       if (!reactionsByMessage.value[messageId]) reactionsByMessage.value[messageId] = []
       const existing = reactionsByMessage.value[messageId].find((r) => r.emoji === emoji)
+      const myProfile = auth.activeProfile
+        ? {
+            id: auth.activeProfile.id,
+            username: auth.activeProfile.username,
+            display_name: auth.activeProfile.display_name,
+            avatar_url: auth.activeProfile.avatar_url,
+          }
+        : null
       if (existing) {
         existing.count += 1
         existing.profileIds.push(myProfileId)
+        if (myProfile) (existing.profiles ||= []).push(myProfile)
         existing.mine = true
       } else {
         reactionsByMessage.value[messageId].push({
@@ -96,6 +106,7 @@ export const useReactionsStore = defineStore('reactions', () => {
           count: 1,
           mine: true,
           profileIds: [myProfileId],
+          profiles: myProfile ? [myProfile] : [],
         })
         // Sort by canonical emoji order
         reactionsByMessage.value[messageId].sort(

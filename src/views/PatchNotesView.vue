@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.24.0',
+    date: '4 mai 2026',
+    icon: '✏️',
+    color: '#1da1f2',
+    title: 'Édition de messages + bouton info (vues & réactions)',
+    description: 'Tu peux désormais <strong>modifier tes messages</strong> dans les DM et les groupes via le bouton crayon : la bulle bascule en édition inline (Entrée pour valider, Échap pour annuler), et le label <em>· modifié</em> apparaît à côté du timestamp. Côté lecture, la pile d\'avatars "vu par" laisse place à un <strong>bouton ℹ️ unifié</strong> sous chaque message : un panneau à deux onglets <strong>Vues</strong> (Lu/Envoyé en 1-on-1, liste des lecteurs avec horodatage en groupe) et <strong>Réactions</strong> (groupées par emoji avec le détail de chaque profil ayant réagi).',
+    tags: ['Messages', 'Edit', 'Réactions', 'Vu par'],
+  },
+  {
     version: '4.23.0',
     date: '4 mai 2026',
     icon: '\u{1F441}',
@@ -588,6 +597,22 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.24.0',
+    date: '4 mai 2026',
+    title: 'Édition de messages + bouton info unifié',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: 'Nouvelle colonne `edited_at` (TIMESTAMPTZ, nullable) sur la table `messages` — renseignée par l\'action `editMessage` du store.' },
+      { type: 'new', text: 'Action `editMessage(messageId, content)` dans `stores/messages.js` : UPDATE filtré sur `sender_id`, garde-fou côté client (vide / >2000 chars), patch local optimiste pour rafraîchir la bulle instantanément.' },
+      { type: 'new', text: '`MessageBubble` : bouton crayon dans la barre d\'actions (visible uniquement sur tes propres messages textuels), mode édition inline (textarea + Enregistrer/Annuler, raccourcis Entrée/Échap), affichage discret <em>· modifié</em> à côté du timestamp si `edited_at` est présent.' },
+      { type: 'new', text: '`MessageBubble` : nouveau bouton ℹ️ unifié sous chaque bulle qui regroupe les vues et les réactions dans un panneau à 2 onglets — remplace l\'ancienne pile d\'avatars "vu par".' },
+      { type: 'new', text: 'Onglet <em>Réactions</em> : récupération de la fiche profil de chaque réaction (`stores/reactions.js` enrichi avec `profiles(id, username, display_name, avatar_url)`) — on voit qui a mis quoi.' },
+      { type: 'improved', text: 'Onglet <em>Vues</em> : conserve toute la logique existante (Lu/Envoyé en 1-on-1, lecteurs `last_read_at >= created_at` avec timestamps relatifs en groupe).' },
+      { type: 'improved', text: 'Subscription Realtime UPDATE sur `messages` (déjà en place pour la suppression) propage maintenant aussi les éditions à tous les participants.' },
+      { type: 'removed', text: 'Suppression des classes CSS `.readers-row/.readers-stack/.reader-avatar/.readers-detail*/.read-receipt/.receipt-icon` devenues inutilisées.' },
+    ],
+  },
   {
     version: '4.23.0',
     date: '4 mai 2026',

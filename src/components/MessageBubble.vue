@@ -8,7 +8,7 @@
       :size="32"
     />
     <!-- Action buttons -->
-    <div v-if="!message.deleted_for_everyone" class="bubble-actions">
+    <div v-if="!message.deleted_for_everyone && !editMode" class="bubble-actions">
       <button
         class="action-btn-mini"
         @click.stop="togglePicker"
@@ -24,6 +24,14 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></svg>
       </button>
       <button
+        v-if="canEdit"
+        class="action-btn-mini edit-btn"
+        @click.stop="startEdit"
+        title="Modifier"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </button>
+      <button
         v-if="isMine || auth.isAdmin"
         class="action-btn-mini delete-btn"
         @click="confirmDelete"
@@ -34,7 +42,7 @@
     </div>
 
     <div class="bubble-content-wrap">
-      <div class="bubble" :class="{ mine: isMine, deleted: message.deleted_for_everyone, mentioned: mentionsMe }">
+      <div class="bubble" :class="{ mine: isMine, deleted: message.deleted_for_everyone, mentioned: mentionsMe, editing: editMode }">
         <span v-if="isGroup && !isMine && !message.deleted_for_everyone && firstOfGroup" class="bubble-sender">
           {{ message.sender?.display_name || '?' }}
         </span>
@@ -56,10 +64,34 @@
             class="bubble-image"
             @click="openImage(message.image_url)"
           />
-          <p v-if="message.content" class="bubble-text">{{ message.content }}</p>
+
+          <!-- Edit mode -->
+          <div v-if="editMode" class="edit-area">
+            <textarea
+              ref="editTextarea"
+              v-model="editDraft"
+              class="edit-textarea"
+              maxlength="2000"
+              rows="2"
+              @keydown.enter.exact.prevent="saveEdit"
+              @keydown.esc.prevent="cancelEdit"
+            ></textarea>
+            <div class="edit-actions">
+              <button class="edit-btn-cancel" @click.stop="cancelEdit" :disabled="editSaving">Annuler</button>
+              <button class="edit-btn-save" @click.stop="saveEdit" :disabled="editSaving || !canSaveEdit">
+                {{ editSaving ? '...' : 'Enregistrer' }}
+              </button>
+            </div>
+            <span v-if="editError" class="edit-error">{{ editError }}</span>
+          </div>
+
+          <p v-else-if="message.content" class="bubble-text">{{ message.content }}</p>
         </template>
 
-        <span class="bubble-time">{{ timeAgo(message.created_at) }}</span>
+        <span class="bubble-time">
+          {{ timeAgo(message.created_at) }}
+          <span v-if="message.edited_at && !message.deleted_for_everyone" class="bubble-edited" title="Message modifié">· modifié</span>
+        </span>
       </div>
 
       <!-- Reactions -->
@@ -77,62 +109,90 @@
         </button>
       </div>
 
-      <!-- Read receipt (1-on-1 only) -->
-      <div
-        v-if="showReadStatus && isMine && !isGroup && !message.deleted_for_everyone"
-        class="read-receipt"
-        :class="{ read: message.read }"
-      >
-        <span v-if="message.read" class="receipt-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 7 17 13 11"/><polyline points="10 17 15 17 22 7"/></svg>
-          Lu
-        </span>
-        <span v-else class="receipt-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
-          Envoyé
-        </span>
-      </div>
-
-      <!-- Group "vu par" — per-message avatar stack -->
-      <div
-        v-if="isGroup && isMine && !message.deleted_for_everyone"
-        class="readers-row"
-      >
+      <!-- Info button (regroupe vues + réactions) -->
+      <div v-if="showInfoButton" class="info-row">
         <button
-          v-if="groupReaders.length > 0"
-          class="readers-stack"
-          @click.stop="toggleReadersDetail"
-          :title="`Vu par ${groupReaders.length} ${groupReaders.length > 1 ? 'membres' : 'membre'}`"
+          class="info-btn"
+          @click.stop="toggleInfo"
+          :title="infoButtonTitle"
         >
-          <UserAvatar
-            v-for="r in visibleReaders"
-            :key="r.profile.id"
-            class="reader-avatar"
-            :url="r.profile.avatar_url"
-            :name="r.profile.display_name || '?'"
-            :size="16"
-          />
-          <span v-if="extraReaders > 0" class="readers-extra">+{{ extraReaders }}</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span class="info-btn-label">{{ infoButtonLabel }}</span>
         </button>
-        <span v-else-if="showReadStatus" class="readers-sent">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
-          Envoyé
-        </span>
 
-        <div v-if="showReadersDetail && groupReaders.length > 0" class="readers-detail" @click.stop>
-          <div class="readers-detail-header">Vu par</div>
-          <div
-            v-for="r in groupReaders"
-            :key="r.profile.id"
-            class="readers-detail-row"
-          >
-            <UserAvatar
-              :url="r.profile.avatar_url"
-              :name="r.profile.display_name || '?'"
-              :size="24"
-            />
-            <span class="readers-detail-name">{{ r.profile.display_name || r.profile.username }}</span>
-            <span class="readers-detail-time">{{ timeAgo(r.last_read_at) }}</span>
+        <div v-if="showInfoPanel" class="info-panel" @click.stop>
+          <div class="info-tabs">
+            <button
+              class="info-tab"
+              :class="{ active: infoTab === 'views' }"
+              @click="infoTab = 'views'"
+              :disabled="!hasViewsTab"
+            >
+              Vues<span v-if="viewsCount > 0" class="info-tab-count">{{ viewsCount }}</span>
+            </button>
+            <button
+              class="info-tab"
+              :class="{ active: infoTab === 'reactions' }"
+              @click="infoTab = 'reactions'"
+              :disabled="!hasReactionsTab"
+            >
+              Réactions<span v-if="totalReactions > 0" class="info-tab-count">{{ totalReactions }}</span>
+            </button>
+          </div>
+
+          <!-- Views tab -->
+          <div v-if="infoTab === 'views'" class="info-tab-content">
+            <template v-if="!isGroup && isMine">
+              <div class="info-status-row">
+                <span class="info-status-icon" :class="{ read: message.read }">
+                  <svg v-if="message.read" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="2 12 7 17 13 11"/><polyline points="10 17 15 17 22 7"/></svg>
+                  <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12 10 18 20 6"/></svg>
+                </span>
+                <span class="info-status-text">{{ message.read ? 'Lu par votre interlocuteur' : 'Envoyé, pas encore lu' }}</span>
+              </div>
+            </template>
+            <template v-else-if="isGroup && isMine">
+              <div v-if="groupReaders.length === 0" class="info-empty">Personne ne l'a encore lu.</div>
+              <div
+                v-for="r in groupReaders"
+                :key="r.profile.id"
+                class="info-row-line"
+              >
+                <UserAvatar
+                  :url="r.profile.avatar_url"
+                  :name="r.profile.display_name || '?'"
+                  :size="24"
+                />
+                <span class="info-row-name">{{ r.profile.display_name || r.profile.username }}</span>
+                <span class="info-row-time">{{ timeAgo(r.last_read_at) }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="info-empty">Aucune information de lecture.</div>
+            </template>
+          </div>
+
+          <!-- Reactions tab -->
+          <div v-else-if="infoTab === 'reactions'" class="info-tab-content">
+            <div v-if="reactions.length === 0" class="info-empty">Aucune réaction.</div>
+            <div v-for="r in reactions" :key="r.emoji" class="info-reaction-group">
+              <div class="info-reaction-header">
+                <span class="info-reaction-emoji">{{ r.emoji }}</span>
+                <span class="info-reaction-count">{{ r.count }}</span>
+              </div>
+              <div
+                v-for="p in (r.profiles || [])"
+                :key="r.emoji + '-' + p.id"
+                class="info-row-line"
+              >
+                <UserAvatar
+                  :url="p.avatar_url"
+                  :name="p.display_name || '?'"
+                  :size="22"
+                />
+                <span class="info-row-name">{{ p.display_name || p.username }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -147,8 +207,9 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted, onUnmounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted, nextTick } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { useMessagesStore } from '../stores/messages'
 import { timeAgo } from '../lib/time'
 import ReactionPicker from './ReactionPicker.vue'
 import UserAvatar from './UserAvatar.vue'
@@ -166,6 +227,7 @@ const props = defineProps({
 const emit = defineEmits(['delete', 'reply', 'toggle-reaction'])
 
 const auth = useAuthStore()
+const messagesStore = useMessagesStore()
 const showPicker = ref(false)
 
 const isMine = computed(() => {
@@ -207,15 +269,104 @@ const groupReaders = computed(() => {
   return out.sort((a, b) => new Date(b.last_read_at) - new Date(a.last_read_at))
 })
 
-const visibleReaders = computed(() => groupReaders.value.slice(0, 3))
-const extraReaders = computed(() => Math.max(0, groupReaders.value.length - 3))
+// ============ Edit mode ============
+const canEdit = computed(() =>
+  isMine.value &&
+  !props.message.deleted_for_everyone &&
+  typeof props.message.content === 'string' &&
+  props.message.content.trim().length > 0
+)
+const editMode = ref(false)
+const editDraft = ref('')
+const editSaving = ref(false)
+const editError = ref('')
+const editTextarea = ref(null)
+const canSaveEdit = computed(() => {
+  const t = (editDraft.value || '').trim()
+  return t.length > 0 && t !== (props.message.content || '').trim() && t.length <= 2000
+})
 
-const showReadersDetail = ref(false)
-function toggleReadersDetail() {
-  showReadersDetail.value = !showReadersDetail.value
+function startEdit() {
+  editDraft.value = props.message.content || ''
+  editError.value = ''
+  editMode.value = true
+  showPicker.value = false
+  showInfoPanel.value = false
+  nextTick(() => {
+    if (editTextarea.value) {
+      editTextarea.value.focus()
+      const len = editTextarea.value.value.length
+      editTextarea.value.setSelectionRange(len, len)
+    }
+  })
 }
-function closeReadersDetail() {
-  showReadersDetail.value = false
+
+function cancelEdit() {
+  editMode.value = false
+  editDraft.value = ''
+  editError.value = ''
+}
+
+async function saveEdit() {
+  if (!canSaveEdit.value || editSaving.value) return
+  editSaving.value = true
+  editError.value = ''
+  try {
+    await messagesStore.editMessage(props.message.id, editDraft.value)
+    editMode.value = false
+    editDraft.value = ''
+  } catch (e) {
+    editError.value = e.message || 'Erreur lors de la modification'
+  } finally {
+    editSaving.value = false
+  }
+}
+
+// ============ Info panel ============
+const showInfoPanel = ref(false)
+const infoTab = ref('views')
+
+const totalReactions = computed(() =>
+  (props.reactions || []).reduce((sum, r) => sum + (r.count || 0), 0)
+)
+
+const hasReactionsTab = computed(() => totalReactions.value > 0)
+const hasViewsTab = computed(() => {
+  if (props.message.deleted_for_everyone) return false
+  if (!isMine.value) return false
+  return true
+})
+
+const viewsCount = computed(() => {
+  if (!hasViewsTab.value) return 0
+  if (props.isGroup) return groupReaders.value.length
+  return props.message.read ? 1 : 0
+})
+
+const showInfoButton = computed(() => {
+  if (props.message.deleted_for_everyone) return false
+  if (editMode.value) return false
+  return hasReactionsTab.value || hasViewsTab.value
+})
+
+const infoButtonLabel = computed(() => {
+  const parts = []
+  if (hasViewsTab.value) {
+    if (props.isGroup) parts.push(`${groupReaders.value.length} vu`)
+    else parts.push(props.message.read ? 'Lu' : 'Envoyé')
+  }
+  if (hasReactionsTab.value) parts.push(`${totalReactions.value} réa.`)
+  return parts.join(' · ')
+})
+
+const infoButtonTitle = computed(() => 'Détails (vues et réactions)')
+
+function toggleInfo() {
+  if (!showInfoPanel.value) {
+    if (hasViewsTab.value) infoTab.value = 'views'
+    else if (hasReactionsTab.value) infoTab.value = 'reactions'
+  }
+  showInfoPanel.value = !showInfoPanel.value
 }
 
 function openImage(url) {
@@ -243,9 +394,9 @@ function onClickOutside(e) {
       showPicker.value = false
     }
   }
-  if (showReadersDetail.value) {
-    if (!(target.closest && (target.closest('.readers-detail') || target.closest('.readers-stack')))) {
-      showReadersDetail.value = false
+  if (showInfoPanel.value) {
+    if (!(target.closest && (target.closest('.info-panel') || target.closest('.info-btn')))) {
+      showInfoPanel.value = false
     }
   }
 }
