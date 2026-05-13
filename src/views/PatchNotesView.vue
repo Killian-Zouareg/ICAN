@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.25.0',
+    date: '13 mai 2026',
+    icon: '\u{1F4DC}',
+    color: '#1da1f2',
+    title: 'Charger les messages plus anciens dans les conversations',
+    description: 'Les conversations chargent par défaut les 100 derniers messages. Quand il y en a davantage, un <strong>bandeau "Charger les messages plus anciens"</strong> apparaît en haut du fil et déroule 100 messages supplémentaires à chaque clic, en <strong>conservant ta position de scroll</strong> pour rester ancré sur le même message. Plus besoin de passer par le panel admin pour retrouver le début d\'un échange.',
+    tags: ['Messages', 'Pagination', 'QoL'],
+  },
+  {
     version: '4.24.0',
     date: '4 mai 2026',
     icon: '✏️',
@@ -597,6 +606,17 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.25.0',
+    date: '13 mai 2026',
+    title: 'Pagination "charger plus" dans les conversations',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: '`stores/messages.js` : pagination par pages de 100 — nouveaux états `hasMoreMessages` et `loadingOlder`, action `loadOlderMessages(conversationId)` qui incrémente la limite et refetch. Détection du "il y en a plus" via `limit + 1`.' },
+      { type: 'new', text: '`MessagesView` : bandeau cliquable en haut du fil de messages (affiché uniquement si `hasMoreMessages`) qui déclenche le chargement, avec préservation du scroll (`scrollTop += deltaScrollHeight`) pour rester ancré sur le même message après l\'ajout.' },
+      { type: 'improved', text: 'Reset automatique de la pagination lors du changement de conversation (currentLimit revient à 100).' },
+    ],
+  },
   {
     version: '4.24.0',
     date: '4 mai 2026',

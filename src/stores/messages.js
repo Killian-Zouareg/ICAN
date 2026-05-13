@@ -15,9 +15,15 @@ export const useMessagesStore = defineStore('messages', () => {
   const conversations = ref([])
   const currentMessages = ref([])
   const loading = ref(false)
+  const loadingOlder = ref(false)
+  const hasMoreMessages = ref(false)
   // Per-member last_read_at for the currently open conversation (groups only).
   // Map<profile_id, { profile, last_read_at }>
   const currentGroupReads = ref(new Map())
+
+  const PAGE_SIZE = 100
+  let currentConvId = null
+  let currentLimit = PAGE_SIZE
 
   async function fetchConversations() {
     const auth = useAuthStore()
@@ -184,6 +190,12 @@ export const useMessagesStore = defineStore('messages', () => {
 
   async function fetchMessages(conversationId) {
     loading.value = true
+    // Reset pagination when switching conversation
+    if (currentConvId !== conversationId) {
+      currentConvId = conversationId
+      currentLimit = PAGE_SIZE
+      hasMoreMessages.value = false
+    }
     // Determine if it's a group to decide whether to load per-member reads.
     const conv = conversations.value.find((c) => c.id === conversationId)
     const isGroup = conv?.is_group === true
@@ -192,14 +204,14 @@ export const useMessagesStore = defineStore('messages', () => {
     } else {
       currentGroupReads.value = new Map()
     }
-    // On charge les 100 derniers messages (DESC + limit), puis on inverse côté JS
-    // pour garder l'ordre chronologique attendu par l'UI.
+    // On charge les N derniers messages (DESC + limit), puis on inverse côté JS
+    // pour garder l'ordre chronologique attendu par l'UI. On demande +1 pour savoir s'il en reste.
     const { data, error } = await supabase
       .from('messages')
       .select('*, sender:profiles!messages_sender_id_fkey(id, username, display_name, avatar_url)')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: false })
-      .limit(100)
+      .limit(currentLimit + 1)
 
     if (error) {
       console.error('fetchMessages error:', error)
@@ -207,7 +219,10 @@ export const useMessagesStore = defineStore('messages', () => {
       return
     }
 
-    const newData = (data || []).reverse()
+    const rows = data || []
+    hasMoreMessages.value = rows.length > currentLimit
+    const trimmed = hasMoreMessages.value ? rows.slice(0, currentLimit) : rows
+    const newData = trimmed.reverse()
 
     // Hydrate parent message previews (for replies) in a second batch query.
     // We do this separately so a failure here never wipes the message list.
@@ -245,6 +260,18 @@ export const useMessagesStore = defineStore('messages', () => {
       currentMessages.value = newData
     }
     loading.value = false
+  }
+
+  async function loadOlderMessages(conversationId) {
+    if (loadingOlder.value || !hasMoreMessages.value) return
+    if (currentConvId !== conversationId) return
+    loadingOlder.value = true
+    currentLimit += PAGE_SIZE
+    try {
+      await fetchMessages(conversationId)
+    } finally {
+      loadingOlder.value = false
+    }
   }
 
   async function sendMessage(conversationId, content, imageUrl = null, parentMessageId = null) {
@@ -485,8 +512,11 @@ export const useMessagesStore = defineStore('messages', () => {
     currentMessages,
     currentGroupReads,
     loading,
+    loadingOlder,
+    hasMoreMessages,
     fetchConversations,
     fetchMessages,
+    loadOlderMessages,
     fetchGroupReads,
     patchGroupRead,
     sendMessage,

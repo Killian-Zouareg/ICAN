@@ -66,6 +66,15 @@
             Chargement...
           </div>
           <template v-else>
+            <div
+              v-if="messagesStore.hasMoreMessages"
+              class="load-older-banner"
+              :class="{ 'is-loading': messagesStore.loadingOlder }"
+              @click="handleLoadOlder"
+            >
+              <span v-if="messagesStore.loadingOlder">Chargement...</span>
+              <span v-else>Charger les messages plus anciens</span>
+            </div>
             <div v-if="messagesStore.currentMessages.length === 0" class="empty-conv">
               <div class="empty-conv-icon">&#x2709;</div>
               <p v-if="activeConv?.is_group">
@@ -330,6 +339,20 @@ async function handleSend({ content, imageFile }) {
   scrollToBottom()
   messagesStore.fetchConversations()
   window.dispatchEvent(new CustomEvent('dm-message-sent', { detail: { conversationId: activeConvId.value } }))
+}
+
+async function handleLoadOlder() {
+  if (messagesStore.loadingOlder || !messagesStore.hasMoreMessages) return
+  const el = messagesContainer.value
+  const prevScrollHeight = el?.scrollHeight || 0
+  const prevScrollTop = el?.scrollTop || 0
+  await messagesStore.loadOlderMessages(activeConvId.value)
+  // Preserve scroll position so the user stays anchored to the same message
+  nextTick(() => {
+    if (!messagesContainer.value) return
+    const newScrollHeight = messagesContainer.value.scrollHeight
+    messagesContainer.value.scrollTop = prevScrollTop + (newScrollHeight - prevScrollHeight)
+  })
 }
 
 async function handleDeleteMessage(messageId) {
