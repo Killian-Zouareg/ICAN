@@ -28,9 +28,9 @@
           v-if="auth.isAdmin && !drawingZone"
           class="zone-btn"
           @click="startDrawingZone"
-          title="Dessiner une zone"
+          title="Ajouter une zone"
         >
-          &#x1F6E1;&#xFE0F; Zone
+          &#x1F6E1;&#xFE0F; Ajouter une zone
         </button>
         <button
           v-if="auth.isAdmin"
@@ -91,6 +91,47 @@
           </Transition>
         </Teleport>
       </div>
+      <div
+        class="filter-chip-wrapper"
+        @mouseenter="showZonesDropdown($event)"
+        @mouseleave="scheduleZonesDropdownHide"
+      >
+        <button class="filter-chip zones-chip" :class="{ active: zonesDropdownOpen }">
+          &#x1F6E1;&#xFE0F; Zones
+        </button>
+        <Teleport to="body">
+          <Transition name="dropdown">
+            <div
+              v-if="zonesDropdownOpen"
+              class="filter-dropdown zones-dropdown"
+              :style="zonesDropdownStyle"
+              @mouseenter="cancelZonesDropdownHide"
+              @mouseleave="scheduleZonesDropdownHide"
+            >
+              <template v-for="(label, type) in ZONE_LABELS" :key="type">
+                <div class="zones-dropdown-section-title" :style="{ color: ZONE_STYLES[type].color }">
+                  {{ ZONE_STYLES[type].emoji }} {{ label }}
+                </div>
+                <div
+                  v-for="zone in zonesByType(type)"
+                  :key="zone.id"
+                  class="filter-dropdown-item"
+                  @click="flyToZone(zone)"
+                >
+                  <span
+                    class="zone-dot"
+                    :style="{ background: ZONE_STYLES[zone.zone_type].color }"
+                  ></span>
+                  {{ zone.name }}
+                </div>
+                <div v-if="zonesByType(type).length === 0" class="filter-dropdown-empty">
+                  Aucune zone
+                </div>
+              </template>
+            </div>
+          </Transition>
+        </Teleport>
+      </div>
     </div>
 
     <!-- Map container -->
@@ -103,12 +144,52 @@
       ></div>
       <WeatherOverlay class="map-weather-overlay" />
       <div class="map-vignette"></div>
+      <!-- Long-press progress indicator -->
+      <div
+        v-if="longPressActive"
+        class="long-press-indicator"
+        :style="{ left: longPressPos.x + 'px', top: longPressPos.y + 'px' }"
+      >
+        <svg viewBox="0 0 36 36">
+          <circle class="lp-track" cx="18" cy="18" r="16" />
+          <circle class="lp-fill" cx="18" cy="18" r="16" />
+        </svg>
+        <span class="lp-emoji">&#x1F4DD;</span>
+      </div>
     </div>
 
     <!-- Add mode hint (outside map-wrapper to avoid overflow:hidden clipping) -->
     <div v-if="addMode" class="add-mode-hint">
       Cliquez sur la carte pour placer un lieu
     </div>
+
+    <!-- Post-from-map confirmation modal -->
+    <Transition name="modal">
+      <div v-if="postHerePicked" class="post-here-overlay" @click.self="cancelPostHere">
+        <div class="post-here-modal">
+          <h3 class="post-here-title">Cr&eacute;er un post depuis ce lieu</h3>
+          <p class="post-here-coords">
+            &#x1F4CD; {{ postHerePicked.lat.toFixed(5) }}, {{ postHerePicked.lng.toFixed(5) }}
+          </p>
+          <label class="post-here-label">
+            Nom du lieu (visible dans le post)
+            <input
+              v-model="postHereLabel"
+              type="text"
+              maxlength="80"
+              placeholder="Ex. &Eacute;cole de police"
+              @keydown.enter="confirmPostHere"
+            />
+          </label>
+          <div class="post-here-actions">
+            <button class="post-here-cancel" @click="cancelPostHere">Annuler</button>
+            <button class="post-here-validate" :disabled="!postHereLabel.trim()" @click="confirmPostHere">
+              Valider
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
 
     <!-- Zone drawing hint -->
     <div v-if="drawingZone" class="add-mode-hint zone-drawing-hint">
@@ -353,7 +434,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMapLocationsStore } from '../stores/mapLocations'
 import { supabase } from '../lib/supabase'
@@ -373,8 +454,117 @@ const weatherTileStyle = computed(() => {
 })
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const store = useMapLocationsStore()
+
+// --- Post-from-map (long-press) ---
+const postHerePicked = ref(null) // { lat, lng } | null
+const postHereLabel = ref('')
+
+const LONG_PRESS_MS = 600
+const longPressActive = ref(false)
+const longPressPos = ref({ x: 0, y: 0 })
+let longPressTimer = null
+let longPressStart = null
+let longPressLatLng = null
+
+function pickPostHerePoint(lat, lng) {
+  postHerePicked.value = { lat, lng }
+  postHereLabel.value = `${lat.toFixed(4)}, ${lng.toFixed(4)}`
+}
+
+function cancelPostHere() {
+  postHerePicked.value = null
+  postHereLabel.value = ''
+}
+
+function confirmPostHere() {
+  const picked = postHerePicked.value
+  const label = postHereLabel.value.trim()
+  if (!picked || !label) return
+  router.push({
+    path: '/',
+    query: {
+      postLat: picked.lat.toFixed(6),
+      postLng: picked.lng.toFixed(6),
+      postLabel: label,
+    },
+  })
+}
+
+function dropTransientPin(lat, lng, label) {
+  if (!map) return
+  const safe = (label || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  const html = `<div class="post-target-pin"><span class="ptp-emoji">\u{1F4CD}</span>${safe ? `<span class="ptp-label">${safe}</span>` : ''}</div>`
+  const icon = L.divIcon({ className: 'post-target-pin-icon', html, iconSize: null })
+  const m = L.marker([lat, lng], { icon, interactive: false, keyboard: false }).addTo(map)
+  setTimeout(() => { try { map.removeLayer(m) } catch (_) { /* noop */ } }, 10000)
+}
+
+function isInteractiveMapTarget(target) {
+  if (!target || !target.closest) return false
+  // Block long-press on markers / popups / controls — but ALLOW it on zone polygons
+  // (which carry `.leaflet-interactive`). Zone polygons are SVG <path>; markers are not.
+  if (target.closest('.leaflet-marker-icon, .leaflet-popup, .leaflet-control, .marker-cluster, .custom-marker')) {
+    return true
+  }
+  return false
+}
+
+let suppressClickUntil = 0
+function onMapClickCapture(ev) {
+  if (Date.now() < suppressClickUntil) {
+    ev.stopPropagation()
+    ev.preventDefault()
+    suppressClickUntil = 0
+  }
+}
+
+function clearLongPress() {
+  if (longPressTimer) clearTimeout(longPressTimer)
+  longPressTimer = null
+  longPressStart = null
+  longPressLatLng = null
+  longPressActive.value = false
+}
+
+function onMapPointerDown(ev) {
+  // Left button / primary touch only
+  if (ev.button !== undefined && ev.button !== 0) return
+  if (addMode.value || drawingZone.value) return
+  if (postHerePicked.value) return // modal already open
+  if (isInteractiveMapTarget(ev.target)) return
+  if (!map) return
+
+  longPressStart = { x: ev.clientX, y: ev.clientY }
+  longPressLatLng = map.mouseEventToLatLng(ev)
+  longPressPos.value = {
+    x: ev.clientX - (mapContainer.value?.getBoundingClientRect().left || 0),
+    y: ev.clientY - (mapContainer.value?.getBoundingClientRect().top || 0),
+  }
+  longPressActive.value = true
+  longPressTimer = setTimeout(() => {
+    if (longPressLatLng) {
+      pickPostHerePoint(longPressLatLng.lat, longPressLatLng.lng)
+      // Suppress the click that will fire on pointerup so a long-press
+      // inside a zone doesn't also open the zone detail panel.
+      suppressClickUntil = Date.now() + 500
+    }
+    clearLongPress()
+  }, LONG_PRESS_MS)
+}
+
+function onMapPointerMove(ev) {
+  if (!longPressStart) return
+  const dx = ev.clientX - longPressStart.x
+  const dy = ev.clientY - longPressStart.y
+  if (Math.hypot(dx, dy) > 8) clearLongPress()
+}
+
+function onMapPointerUp() {
+  clearLongPress()
+}
 
 const mapContainer = ref(null)
 const imageInput = ref(null)
@@ -406,10 +596,10 @@ const zoneFormData = ref({ name: '', zoneType: 'safe', description: '' })
 const selectedZone = ref(null)
 
 const ZONE_STYLES = {
-  safe:       { color: '#17bf63', fillColor: '#17bf63', fillOpacity: 0.15, weight: 2, dashArray: null },
-  danger:     { color: '#e0245e', fillColor: '#e0245e', fillOpacity: 0.15, weight: 2, dashArray: null },
-  neutral:    { color: '#1da1f2', fillColor: '#1da1f2', fillOpacity: 0.1,  weight: 1, dashArray: '6 4' },
-  contested:  { color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.15, weight: 2, dashArray: null },
+  safe:       { color: '#17bf63', fillColor: '#17bf63', fillOpacity: 0.25, weight: 3, dashArray: null, emoji: '\u{1F6E1}\u{FE0F}' },
+  danger:     { color: '#e0245e', fillColor: '#e0245e', fillOpacity: 0.28, weight: 3, dashArray: null, emoji: '\u{26A0}\u{FE0F}' },
+  neutral:    { color: '#1da1f2', fillColor: '#1da1f2', fillOpacity: 0.20, weight: 2, dashArray: '6 4', emoji: '\u{1F535}' },
+  contested:  { color: '#f39c12', fillColor: '#f39c12', fillOpacity: 0.25, weight: 3, dashArray: '4 4', emoji: '\u{2694}\u{FE0F}' },
 }
 
 const ZONE_LABELS = {
@@ -417,6 +607,12 @@ const ZONE_LABELS = {
   danger: 'Danger',
   neutral: 'Neutre',
   contested: 'Contest\u00e9',
+}
+
+function zoneCentroid(coords) {
+  let lat = 0, lng = 0
+  for (const c of coords) { lat += c[0]; lng += c[1] }
+  return [lat / coords.length, lng / coords.length]
 }
 
 // Add mode
@@ -483,6 +679,15 @@ onMounted(async () => {
         store.selectLocation(target)
         if (map) map.setView([target.lat, target.lng], 16)
       }
+    } else if (route.query.lat && route.query.lng) {
+      // From a "📍 Label (lat, lng)" mention inside a post
+      const lat = Number(route.query.lat)
+      const lng = Number(route.query.lng)
+      const label = route.query.label ? decodeURIComponent(route.query.label) : ''
+      if (Number.isFinite(lat) && Number.isFinite(lng) && map) {
+        map.setView([lat, lng], 16)
+        dropTransientPin(lat, lng, label)
+      }
     }
   } catch (e) {
     console.error('Failed to load map locations:', e)
@@ -490,6 +695,16 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  clearLongPress()
+  const el = mapContainer.value
+  if (el) {
+    el.removeEventListener('pointerdown', onMapPointerDown)
+    el.removeEventListener('pointermove', onMapPointerMove)
+    el.removeEventListener('pointerup', onMapPointerUp)
+    el.removeEventListener('pointercancel', onMapPointerUp)
+    el.removeEventListener('pointerleave', onMapPointerUp)
+    el.removeEventListener('click', onMapClickCapture, true)
+  }
   if (map) {
     map.remove()
     map = null
@@ -542,6 +757,17 @@ function initMap() {
     if (!addMode.value) return
     openAddForm(e.latlng.lat, e.latlng.lng)
   })
+
+  // Long-press on map background / zones -> open "post from here" modal
+  const el = mapContainer.value
+  if (el) {
+    el.addEventListener('pointerdown', onMapPointerDown)
+    el.addEventListener('pointermove', onMapPointerMove)
+    el.addEventListener('pointerup', onMapPointerUp)
+    el.addEventListener('pointercancel', onMapPointerUp)
+    el.addEventListener('pointerleave', onMapPointerUp)
+    el.addEventListener('click', onMapClickCapture, true)
+  }
 
   // Recalculate clusters on zoom/pan
   map.on('zoomend', debouncedRenderMarkers)
@@ -826,6 +1052,50 @@ function flyToLocation(loc) {
   if (map) map.flyTo([loc.lat, loc.lng], 16, { duration: 0.8 })
 }
 
+// --- Zones dropdown ---
+const zonesDropdownOpen = ref(false)
+const zonesDropdownStyle = ref({})
+let zonesDropdownHideTimeout = null
+
+function zonesByType(type) {
+  return store.zones
+    .filter(z => z.zone_type === type)
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function showZonesDropdown(event) {
+  clearTimeout(zonesDropdownHideTimeout)
+  zonesDropdownOpen.value = true
+  const rect = event.currentTarget.getBoundingClientRect()
+  zonesDropdownStyle.value = {
+    position: 'fixed',
+    top: rect.bottom + 4 + 'px',
+    left: Math.max(8, rect.left) + 'px',
+    zIndex: 9999,
+  }
+}
+
+function scheduleZonesDropdownHide() {
+  zonesDropdownHideTimeout = setTimeout(() => {
+    zonesDropdownOpen.value = false
+  }, 250)
+}
+
+function cancelZonesDropdownHide() {
+  clearTimeout(zonesDropdownHideTimeout)
+}
+
+function flyToZone(zone) {
+  zonesDropdownOpen.value = false
+  selectedZone.value = zone
+  store.clearSelection()
+  if (map) {
+    const bounds = L.latLngBounds(zone.coordinates)
+    map.flyToBounds(bounds, { duration: 0.8, padding: [60, 60], maxZoom: 17 })
+  }
+}
+
 // --- Render markers with clustering ---
 
 function renderMarkers() {
@@ -923,7 +1193,13 @@ function renderZones() {
   zonesLayer = L.layerGroup()
   for (const zone of store.zones) {
     const style = ZONE_STYLES[zone.zone_type] || ZONE_STYLES.neutral
-    const polygon = L.polygon(zone.coordinates, { ...style })
+    const polygon = L.polygon(zone.coordinates, {
+      color: style.color,
+      fillColor: style.fillColor,
+      fillOpacity: style.fillOpacity,
+      weight: style.weight,
+      dashArray: style.dashArray,
+    })
     polygon.bindTooltip(zone.name, { className: 'map-tooltip', sticky: true })
     polygon.on('click', () => {
       selectedZone.value = zone

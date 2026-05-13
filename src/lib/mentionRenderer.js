@@ -18,5 +18,14 @@ export function renderMentions(text) {
   const escaped = escapeHtml(text)
   let result = escaped.replace(/@([a-zA-Z0-9_]+)/g, '<a href="#/user/$1" class="mention">@$1</a>')
   result = result.replace(/&lt;([^&]+?)&gt;/g, '<a href="#/map?location=$1" class="location-mention">\u{1F4CD} $1</a>')
+  // Map coordinates: 📍 Label (lat, lng) -> clickable link opening the map centered on those coords
+  result = result.replace(
+    /\u{1F4CD} ([^()\n]+?) \((-?\d+(?:\.\d+)?),\s?(-?\d+(?:\.\d+)?)\)/gu,
+    (_m, label, lat, lng) => {
+      const cleanLabel = label.trim()
+      const href = `#/map?lat=${encodeURIComponent(lat)}&lng=${encodeURIComponent(lng)}&label=${encodeURIComponent(cleanLabel)}`
+      return `<a href="${href}" class="location-mention">\u{1F4CD} ${cleanLabel}</a>`
+    }
+  )
   return result
 }

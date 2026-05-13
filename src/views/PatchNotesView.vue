@@ -31,7 +31,7 @@
               <span class="hl-card-version">v{{ item.version }}</span>
               <span class="hl-card-date">{{ item.date }}</span>
               <h3 class="hl-card-title">{{ item.title }}</h3>
-              <p class="hl-card-desc">{{ item.description }}</p>
+              <p class="hl-card-desc" v-html="item.description"></p>
               <div class="hl-card-tags">
                 <span v-for="(tag, j) in item.tags" :key="j" class="hl-tag" :style="{ background: item.color + '20', color: item.color }">{{ tag }}</span>
               </div>
@@ -82,12 +82,30 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.27.0',
+    date: '13 mai 2026',
+    icon: '\u{1F4DD}',
+    color: '#17bf63',
+    title: 'Poster directement depuis la carte',
+    description: '<strong>Clic maintenu</strong> sur la carte → modale pour nommer le lieu, puis redirection vers le feed avec le composer pré-rempli. Le <strong>📍 lieu</strong> devient un lien cliquable dans le post publié qui ramène à la carte.',
+    tags: ['Map', 'Post', 'QoL'],
+  },
+  {
+    version: '4.26.0',
+    date: '13 mai 2026',
+    icon: '\u{1F5FA}\u{FE0F}',
+    color: '#17bf63',
+    title: 'Zones de la carte plus identifiables',
+    description: 'Nouveau chip <strong>🛡️ Zones</strong> dans les filtres de la carte : menu déroulant des zones <strong>groupées par type</strong> (Safe, Danger, Neutre, Contesté), clic = fly to. Bordures renforcées pour mieux repérer les petites zones.',
+    tags: ['Map', 'Zones', 'UX'],
+  },
+  {
     version: '4.25.0',
     date: '13 mai 2026',
     icon: '\u{1F4DC}',
     color: '#1da1f2',
     title: 'Charger les messages plus anciens dans les conversations',
-    description: 'Les conversations chargent par défaut les 100 derniers messages. Quand il y en a davantage, un <strong>bandeau "Charger les messages plus anciens"</strong> apparaît en haut du fil et déroule 100 messages supplémentaires à chaque clic, en <strong>conservant ta position de scroll</strong> pour rester ancré sur le même message. Plus besoin de passer par le panel admin pour retrouver le début d\'un échange.',
+    description: 'Les conversations chargent les 100 derniers messages. Un <strong>bandeau en haut du fil</strong> en déroule 100 de plus à chaque clic, en conservant ta position de scroll.',
     tags: ['Messages', 'Pagination', 'QoL'],
   },
   {
@@ -96,7 +114,7 @@ const highlights = [
     icon: '✏️',
     color: '#1da1f2',
     title: 'Édition de messages + bouton info (vues & réactions)',
-    description: 'Tu peux désormais <strong>modifier tes messages</strong> dans les DM et les groupes via le bouton crayon : la bulle bascule en édition inline (Entrée pour valider, Échap pour annuler), et le label <em>· modifié</em> apparaît à côté du timestamp. Côté lecture, la pile d\'avatars "vu par" laisse place à un <strong>bouton ℹ️ unifié</strong> sous chaque message : un panneau à deux onglets <strong>Vues</strong> (Lu/Envoyé en 1-on-1, liste des lecteurs avec horodatage en groupe) et <strong>Réactions</strong> (groupées par emoji avec le détail de chaque profil ayant réagi).',
+    description: '<strong>Édition inline</strong> de tes messages (bouton crayon, label <em>· modifié</em>) et nouveau <strong>bouton ℹ️</strong> sous chaque message — panneau à deux onglets : <strong>Vues</strong> (qui a lu, quand) et <strong>Réactions</strong> (groupées par emoji).',
     tags: ['Messages', 'Edit', 'Réactions', 'Vu par'],
   },
   {
@@ -105,7 +123,7 @@ const highlights = [
     icon: '\u{1F441}',
     color: '#17bf63',
     title: 'Vu par — détail des lecteurs en groupe',
-    description: 'Dans les conversations de groupe, sous chacun de tes messages s\'affiche désormais une <strong>pile d\'avatars</strong> des membres qui ont réellement vu le message. Au clic, un <strong>popover détaillé</strong> liste chaque lecteur avec son <strong>horodatage</strong> ("il y a 2 min"). Fini le booléen partagé qui passait à "Lu" dès qu\'une seule personne avait ouvert : iCAN suit maintenant la lecture <strong>par membre</strong> via `conversation_members.last_read_at`, mis à jour en temps réel via Supabase Realtime.',
+    description: 'Sous chaque message en groupe, une <strong>pile d\'avatars</strong> des lecteurs. Au clic, un popover liste chacun avec son <strong>horodatage</strong>. Suivi <strong>par membre</strong>, mis à jour en temps réel.',
     tags: ['Messages', 'Groupes', 'Vu par', 'Realtime'],
   },
   {
@@ -114,7 +132,7 @@ const highlights = [
     icon: '\u{1F4F1}',
     color: '#1da1f2',
     title: 'Refonte responsive — iCAN parfait sur téléphone',
-    description: 'iCAN passe au mobile-first. <strong>Toutes les vues et tous les composants</strong> ont reçu un traitement responsive dédié : Login, Search, Settings, PostDetail (qui n\'avaient aucune media query) sont maintenant impeccables sur petit écran. Les <strong>tap targets</strong> respectent le minimum de 44px (boutons d\'actions, nav, liens). Les <strong>inputs ne déclenchent plus le zoom iOS</strong> au focus (font-size 16px). Les modales (cropper, ghost, group, drafts) passent en <strong>plein écran sur mobile</strong>. Le canvas particules de l\'iWiki Hero est désactivé sur mobile pour les performances. Et surtout : prise en charge complète des <strong>safe areas iPhone</strong> (encoches, home indicator) — la nav du bas et le header s\'ajustent automatiquement.',
+    description: 'Passage <strong>mobile-first</strong> : toutes les vues responsive, <strong>tap targets ≥ 44 px</strong>, plus de zoom iOS au focus, modales plein écran, et prise en charge des <strong>safe areas iPhone</strong> (encoche, home indicator).',
     tags: ['Mobile', 'Responsive', 'iOS', 'Safe-area', 'Tap targets'],
   },
   {
@@ -123,7 +141,7 @@ const highlights = [
     icon: '\u{1F4F9}',
     color: '#1da1f2',
     title: 'Webcam d\'Allentown — la vraie ville en direct',
-    description: 'Le widget <strong>Allentown Live</strong> de la sidebar embarque maintenant une <strong>webcam live</strong> intégrée (Windy.com, SR-309 · Eastown Rd). Lecture automatique, format 16/9, lien plein écran. En bonus, un bouton <strong>📹 Webcam</strong> apparaît dans la toolbar de la carte pour ouvrir la cam Fox 29 dans un nouvel onglet. La vraie Allentown, en direct, depuis n\'importe quelle page d\'iCAN.',
+    description: '<strong>Webcam live</strong> d\'Allentown intégrée à la sidebar (Windy.com) et bouton <strong>📹 Webcam</strong> sur la carte (Fox 29). La vraie ville en direct, depuis n\'importe quelle page.',
     tags: ['Webcam', 'Live', 'Windy', 'Immersif'],
   },
   {
@@ -132,7 +150,7 @@ const highlights = [
     icon: '\u{1F4AC}',
     color: '#1da1f2',
     title: 'Refonte messagerie — réponses, réactions, groupes',
-    description: 'La messagerie d\'iCAN passe à la vitesse supérieure. Tu peux maintenant <strong>répondre à un message précis</strong> (la bulle parente s\'affiche en preview), <strong>réagir avec des emojis</strong> (👍 ❤️ 😂 😮 😢 🙏), <strong>supprimer un message pour tout le monde</strong> (avec tombstone "Message supprimé" qui préserve le contexte). Les <strong>groupes apparaissent enfin dans l\'onglet Messages</strong> à gauche : crée un groupe, ajoute/retire des membres après coup, supprime-le si tu en es le créateur. Bug du scroll qui remontait toutes les 30s : corrigé. Faille RLS qui permettait de s\'auto-ajouter à un groupe : colmatée.',
+    description: '<strong>Réponse à un message</strong>, <strong>réactions emoji</strong>, <strong>suppression pour tout le monde</strong>, et les <strong>groupes</strong> apparaissent dans l\'onglet Messages avec gestion des membres.',
     tags: ['Messages', 'Reply', 'Reactions', 'Groupes', 'RLS'],
   },
   {
@@ -141,7 +159,7 @@ const highlights = [
     icon: '\u{1F324}',
     color: '#4a90e2',
     title: 'Allentown Live — la vraie ville s\'invite dans iCAN',
-    description: 'iCAN se connecte au monde réel. Un nouveau panneau <strong>Allentown Live</strong> dans la sidebar affiche en permanence la <strong>vraie météo d\'Allentown, PA</strong>, les <strong>alertes officielles du NWS</strong> (orages, tornades), les <strong>vraies news locales</strong> (Lehigh Valley Live), les <strong>concerts et matchs à venir</strong> (PPL Center, Phantoms…) et la <strong>phase lunaire</strong> du soir. Une bannière sticky rouge apparaît automatiquement quand le NWS émet une alerte sévère. Et quand il pleut vraiment à Allentown, il pleut sur la carte — particules de pluie, tile filter, mode nuit, flash d\'éclairs en cas d\'orage.',
+    description: 'Panneau <strong>Allentown Live</strong> dans la sidebar : vraie météo, alertes NWS, news locales, concerts/matchs, phase lunaire. Et quand il pleut vraiment là-bas, il pleut sur la carte (particules, éclairs en cas d\'orage).',
     tags: ['API réelle', 'Météo', 'NWS', 'News', 'Immersif'],
   },
   {
@@ -150,7 +168,7 @@ const highlights = [
     icon: '\u{1F576}',
     color: '#fef3a7',
     title: 'iAnonym — Mur de confessions anonymes',
-    description: 'Un nouvel onglet <strong>iAnonym</strong> rejoint la navigation : un grand <strong>tableau en liège</strong> sur lequel n’importe qui peut épingler un post anonyme (280 caractères max). Chaque message s’affiche sous la forme d’un <strong>post-it</strong> coloré, légèrement incliné, avec sa punaise rouge. Les emplacements sont aléatoires mais stables (chaque post garde sa position). Aucun lien avec le compte qui publie — totalement anonyme. Survole une note pour la mettre en avant.',
+    description: 'Nouvel onglet <strong>iAnonym</strong> : un <strong>tableau en liège</strong> où chacun épingle des post-its anonymes (280 caractères). Aucun lien avec le compte qui publie.',
     tags: ['Anonyme', 'Post-it', 'Tableau', 'Nouveau'],
   },
   {
@@ -159,7 +177,7 @@ const highlights = [
     icon: '\u{1F355}',
     color: '#c02828',
     title: 'Hub 3D — Chez Gumbatti, la pizzeria du campus',
-    description: 'Une nouvelle adresse ouvre au nord-est du campus : <strong>Chez Gumbatti</strong>, pizzeria italienne crépi terracotta, toit de tuiles rouges et auvent vert/blanc/rouge. À l’intérieur, un sol en damier rouge/blanc, quatre tables rondes nappées, des chaises en bois, et surtout un <strong>vrai four à pizza voûté</strong> dont la bouche rougeoie et illumine la salle. Sur le mur, une <strong>TV diffuse Gordon Ramsay</strong> en boucle pour t’encourager à manger plus vite. Buon appetito.',
+    description: '<strong>Chez Gumbatti</strong>, pizzeria italienne au nord-est du campus : sol en damier, tables nappées, <strong>four à pizza voûté</strong> qui rougeoie, et une <strong>TV diffusant Gordon Ramsay</strong> en boucle. Buon appetito.',
     tags: ['3D', 'Pizzeria', 'GIF', 'Bâtiment'],
   },
   {
@@ -168,7 +186,7 @@ const highlights = [
     icon: '\u{1F3AC}',
     color: '#f2c84b',
     title: 'Hub 3D — iCINEMA, le cinéma du campus',
-    description: 'Un nouveau bâtiment ouvre ses portes au nord-ouest du campus : l’<strong>iCINEMA</strong>, avec marquise dorée illuminée, marches d’entrée et salle complète. À l’intérieur, des rangées de fauteuils rouges face à un <strong>écran géant</strong> qui projette en boucle un GIF animé. La salle est éclairée par la lueur chaude qui s’échappe de l’écran. Approche, entre par la porte, installe-toi : la projection est déjà commencée.',
+    description: 'L\'<strong>iCINEMA</strong> ouvre au nord-ouest du campus : marquise dorée, fauteuils rouges et <strong>écran géant</strong> qui projette un GIF animé en boucle. La projection est déjà commencée.',
     tags: ['3D', 'Cinéma', 'GIF', 'Bâtiment'],
   },
   {
@@ -177,7 +195,7 @@ const highlights = [
     icon: '\u{1F514}',
     color: '#1da1f2',
     title: 'Notification sonore + compteur d’onglet pour les nouveaux posts',
-    description: 'Quand un nouveau post tombe sur le feed, un petit <strong>"ting"</strong> discret se fait entendre et le titre de l’onglet du navigateur affiche <strong>(1)</strong>, <strong>(2)</strong>, etc. Vous savez tout de suite qu’il y a du nouveau, même si l’onglet iCAN est en arrière-plan. Le compteur disparaît dès que vous chargez les nouveaux posts.',
+    description: 'Un petit <strong>"ting"</strong> à chaque nouveau post du feed et un <strong>compteur (n)</strong> dans le titre de l\'onglet, même quand iCAN est en arrière-plan.',
     tags: ['Notif', 'Audio', 'Feed', 'QoL'],
   },
   {
@@ -186,7 +204,7 @@ const highlights = [
     icon: '\u{1F7E2}',
     color: '#17bf63',
     title: 'Présence en direct — voyez qui est où',
-    description: 'Un <strong>compteur en temps réel</strong> apparaît à côté de chaque onglet de la navigation : Feed, Hub 3D, iWiki, Carte, etc. Vous savez instantanément combien de personnes consultent la même section que vous. Propulsé par <strong>Supabase Realtime presence</strong> — aucune persistance, le compteur baisse dès qu’un utilisateur quitte la section ou se déconnecte.',
+    description: '<strong>Compteur en temps réel</strong> à côté de chaque onglet de nav : Feed, Hub 3D, iWiki, Carte… tu vois qui est où. Propulsé par Supabase Realtime presence.',
     tags: ['Realtime', 'Presence', 'Navigation', 'Live'],
   },
   {
@@ -195,7 +213,7 @@ const highlights = [
     icon: '\u{1F5BC}',
     color: '#1da1f2',
     title: 'Recadrage des photos — iCharacter & héros iWiki',
-    description: 'Plus besoin d’uploader des photos parfaitement carrées : un <strong>recadreur intégré</strong> s’ouvre maintenant lors de la modification de la photo iCharacter et de la photo d’un héros/vilain de l’iWiki. Glissez, zoomez, validez. Le même composant que pour les avatars, en mode carré (400x400) pour respecter le format d’affichage.',
+    description: '<strong>Recadreur intégré</strong> sur la photo iCharacter et celles des héros/vilains de l\'iWiki — glisser, zoomer, valider.',
     tags: ['iCharacter', 'iWiki', 'Crop', 'QoL'],
   },
   {
@@ -204,7 +222,7 @@ const highlights = [
     icon: '\u{1F4CB}',
     color: '#1da1f2',
     title: 'Brouillons de posts — sauvegardez vos templates (texte + image)',
-    description: 'Plus besoin de tout retaper : enregistrez vos posts comme <strong>brouillons</strong> directement depuis le composer, <strong>image incluse</strong>. Donnez-leur un nom (ou pas), rechargez-en un en un clic, renommez ou supprimez. Parfait pour vos templates récurrents (annonces, RP, formats spéciaux). Les brouillons sont stockés en local sur votre appareil, isolés par profil.',
+    description: 'Sauvegarde tes posts en <strong>brouillons</strong> (texte + image) depuis le composer. Nommer, recharger, renommer, supprimer. Stockés en local, isolés par profil.',
     tags: ['Brouillons', 'Templates', 'Images', 'Composer', 'QoL'],
   },
   {
@@ -213,7 +231,7 @@ const highlights = [
     icon: '\u{1F5FF}',
     color: '#ffd700',
     title: 'Hub 3D \u2014 Place des L\u00e9gendes + parkour fini & sortie de v\u00e9hicule corrig\u00e9e',
-    description: 'Au nord du spawn, une nouvelle <strong>Place des L\u00e9gendes</strong> dresse une statue dor\u00e9e par h\u00e9ros (et rouge sombre par vilain) de l\u2019iWiki, avec halo lumineux pulsant et plaque grav\u00e9e. Approche, appuie sur <strong>E</strong>, et tu file droit sur la fiche du h\u00e9ros. C\u00f4t\u00e9 fixes : le <strong>gauntlet final du iPARKOUR</strong> est enfin atteignable (gap apr\u00e8s le slime r\u00e9duit, plateforme \u00e9largie), et on ne reste <strong>plus coinc\u00e9 dans la voiture/le v\u00e9lo</strong> en sortant en diagonale (l\u2019offset de sortie utilise maintenant la vraie demi-AABB rot\u00e9e + reset propre de la physique).',
+    description: 'Nouvelle <strong>Place des L\u00e9gendes</strong> au nord du spawn : une statue par h\u00e9ros/vilain (dor\u00e9e ou rouge), halo pulsant, <strong>E</strong> ouvre la fiche iWiki. Fixes : iPARKOUR final atteignable, sortie diagonale des v\u00e9hicules.',
     tags: ['3D', 'Wiki', 'Statues', 'Parkour', 'Fix'],
   },
   {
@@ -606,6 +624,35 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.27.0',
+    date: '13 mai 2026',
+    title: 'Création d\'un post depuis la carte (clic continu)',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: '`MapView` : détection long-press via listeners `pointerdown/move/up/cancel/leave` sur le `mapContainer`. `LONG_PRESS_MS = 600` ms ; déplacement > 8 px → annule. Conversion `clientX/Y` → latlng via `map.mouseEventToLatLng`.' },
+      { type: 'new', text: '`isInteractiveMapTarget` filtre les clics sur `.leaflet-marker-icon`, `.leaflet-popup`, `.leaflet-control`, `.marker-cluster`, `.custom-marker` — un long-press sur un lieu ne déclenche pas la modale. Le long-press est en revanche autorisé **à l\'intérieur d\'une zone** ; un `click` capture-phase listener (`suppressClickUntil`) avale le click final pour éviter d\'ouvrir le panneau de détail de la zone par-dessus la modale.' },
+      { type: 'new', text: 'Indicateur visuel circulaire pendant le press : `<svg>` avec deux cercles (`.lp-track` fond + `.lp-fill` animé via `@keyframes lp-fill` sur `stroke-dashoffset` 600 ms) et emoji 📝 au centre. Positionné absolu dans `.map-wrapper` aux coords `clientX - rect.left`.' },
+      { type: 'new', text: 'Modale de confirmation (`Transition name="modal"`) avec coords formatées et input pour personnaliser le nom du lieu (défaut = `lat.toFixed(4), lng.toFixed(4)`). Validation → `router.push({ path: \'/\', query: { postLat, postLng, postLabel } })`.' },
+      { type: 'new', text: '`FeedView` : lit `route.query.postLabel/postLat/postLng`, construit `composerPrefill = "📍 <label> (lat, lng)"` et le passe en prop à `PostComposer`. `router.replace` ensuite pour vider la query.' },
+      { type: 'new', text: '`PostComposer` : nouvelle prop `prefill` (String). Watch `immediate: true` qui injecte la valeur en tête du `content` (avec `\\n`), sans écraser ce que l\'utilisateur a déjà tapé.' },
+      { type: 'removed', text: 'Bouton `📝 Poster d\'ici` et état `postHereMode` retirés — remplacés par le clic continu sur la carte.' },
+      { type: 'new', text: '`mentionRenderer` : nouvelle regex qui détecte `📍 Label (lat, lng)` dans le contenu d\'un post et le transforme en `<a class="location-mention" href="#/map?lat=…&lng=…&label=…">📍 Label</a>`.' },
+      { type: 'new', text: '`MapView` : prise en charge des query params `lat/lng/label` — la carte centre la vue sur le point (`setView`, zoom 16) et y dépose un pin transient (`dropTransientPin` : `L.divIcon` avec emoji + label, animation `ptp-pulse` 1.4 s, retiré après 10 s).' },
+    ],
+  },
+  {
+    version: '4.26.0',
+    date: '13 mai 2026',
+    title: 'Zones de la carte — menu déroulant',
+    tag: 'improved',
+    changes: [
+      { type: 'new', text: '`MapView` : chip `🛡️ Zones` ajouté dans la `.map-filters` (à la suite des catégories), ouvre au survol un dropdown (`Teleport` body) groupant les zones par `zone_type` avec pastille colorée. Clic → `flyToZone` qui fit les bounds du polygone et ouvre le panneau de détail.' },
+      { type: 'improved', text: 'Bouton admin de tracé de zone renommé en `🛡️ Ajouter une zone` (intitulé explicite, au lieu de `🛡️ Zone`).' },
+      { type: 'improved', text: 'ZONE_STYLES : opacités de remplissage augmentées (0.20–0.28) et épaisseurs de bordure passées à 3 px pour Safe/Danger/Contesté ; emoji ajouté à chaque type, utilisé dans les titres du menu.' },
+      { type: 'new', text: '`MapView.css` : styles `.zones-chip.active`, `.zones-dropdown`, `.zones-dropdown-section-title` et `.zone-dot` (réutilise `.filter-chip` et `.filter-dropdown`).' },
+    ],
+  },
   {
     version: '4.25.0',
     date: '13 mai 2026',

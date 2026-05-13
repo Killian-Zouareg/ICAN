@@ -19,7 +19,7 @@
       </button>
     </Transition>
 
-    <PostComposer />
+    <PostComposer :prefill="composerPrefill" />
 
     <div v-if="postsStore.loading" class="loading">Chargement...</div>
     <div v-else-if="postsStore.posts.length === 0" class="empty">
@@ -37,8 +37,8 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
 import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
@@ -48,6 +48,24 @@ import PostCard from '../components/PostCard.vue'
 const postsStore = usePostsStore()
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
+
+// Pre-fill for the composer when redirected from the map ("Poster d'ici")
+const composerPrefill = ref('')
+function consumeComposerPrefillFromRoute() {
+  const { postLat, postLng, postLabel } = route.query
+  if (!postLabel) return
+  const lat = Number(postLat)
+  const lng = Number(postLng)
+  const coordStr = Number.isFinite(lat) && Number.isFinite(lng)
+    ? ` (${lat.toFixed(4)}, ${lng.toFixed(4)})`
+    : ''
+  composerPrefill.value = `\u{1F4CD} ${postLabel}${coordStr}`
+  // Clear the query so refreshing doesn't re-trigger the prefill
+  router.replace({ path: route.path, query: {} })
+}
+consumeComposerPrefillFromRoute()
+watch(() => route.query, consumeComposerPrefillFromRoute)
 
 function goToPost(postId) {
   router.push(`/post/${postId}`)

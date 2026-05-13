@@ -104,13 +104,17 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { usePostsStore } from '../stores/posts'
 import { useMapLocationsStore } from '../stores/mapLocations'
 import { useAuthStore } from '../stores/auth'
 import { extractLocationIds } from '../lib/locationMentions'
 import { listDrafts, saveDraft, deleteDraft, renameDraft } from '../lib/drafts'
 import MentionInput from './MentionInput.vue'
+
+const props = defineProps({
+  prefill: { type: String, default: '' },
+})
 
 const postsStore = usePostsStore()
 const mapStore = useMapLocationsStore()
@@ -185,6 +189,16 @@ function refreshDrafts() {
   drafts.value = listDrafts(profileId())
 }
 refreshDrafts()
+
+watch(
+  () => props.prefill,
+  (val) => {
+    if (!val) return
+    const prefix = val.endsWith('\n') ? val : val + '\n'
+    content.value = content.value ? `${prefix}${content.value}` : prefix
+  },
+  { immediate: true },
+)
 
 function openDrafts() {
   refreshDrafts()
