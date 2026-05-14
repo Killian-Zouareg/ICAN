@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.28.0',
+    date: '14 mai 2026',
+    icon: '\u{1F4DC}',
+    color: '#1da1f2',
+    title: 'Charger les posts plus anciens en bas du feed',
+    description: 'Le feed charge les 50 derniers posts. Quand tu scrolles tout en bas, les <strong>50 suivants</strong> arrivent automatiquement (et un bandeau cliquable assure le coup en cas de besoin).',
+    tags: ['Feed', 'Pagination', 'Infinite scroll'],
+  },
+  {
     version: '4.27.0',
     date: '13 mai 2026',
     icon: '\u{1F4DD}',
@@ -624,6 +633,18 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.28.0',
+    date: '14 mai 2026',
+    title: 'Pagination du feed — chargement des posts plus anciens',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: '`stores/posts.js` : `fetchFeed` et `fetchUserPosts` passent en pagination par curseur (`PAGE_SIZE = 50`, requête `limit(PAGE_SIZE + 1)` pour détecter `hasMorePosts`). Nouveau state `loadingOlder` + `hasMorePosts`, et tracking de `currentFeedContext` (`feed` ou `user`) pour savoir quelle requête prolonger.' },
+      { type: 'new', text: '`loadOlderPosts()` : requête `lt(\'created_at\', oldest.created_at)` avec le même tri DESC, enrichissement reposts/auteurs identique à `fetchFeed`, dédup par `id` (anti race-condition realtime), et extension du `Set` `userLikes` pour les nouveaux IDs uniquement.' },
+      { type: 'new', text: '`FeedView` : sentinel `<div ref="loadOlderSentinel">` rendu sous la liste quand `hasMorePosts`. `IntersectionObserver` (`rootMargin: 400px`) déclenche `loadOlderPosts()` à l\'approche du bas. Ré-attaché via `watch` sur `[hasMorePosts, posts.length]` après chaque `nextTick`.' },
+      { type: 'new', text: 'Le sentinel sert aussi de bandeau cliquable (style `.load-older-banner` repris de `MessagesView.css`) : "Charger les posts plus anciens" / "Chargement..." selon `loadingOlder`. Cleanup `observer.disconnect()` dans `onUnmounted`.' },
+    ],
+  },
   {
     version: '4.27.0',
     date: '13 mai 2026',

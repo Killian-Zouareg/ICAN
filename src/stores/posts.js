@@ -5,22 +5,34 @@ import { useAuthStore } from './auth'
 import { checkRateLimit } from '../lib/rateLimit'
 import { compressImage } from '../lib/imageCompress'
 
+const PAGE_SIZE = 50
+
 export const usePostsStore = defineStore('posts', () => {
   const posts = ref([])
   const loading = ref(false)
+  const loadingOlder = ref(false)
+  const hasMorePosts = ref(false)
   const userLikes = ref(new Set())
   const userReposts = ref(new Set()) // IDs of original posts the user has reposted
 
+  // Tracks the current feed context so loadOlderPosts knows which query to extend
+  // { type: 'feed' } | { type: 'user', profileId }
+  let currentFeedContext = null
+
   async function fetchFeed() {
     loading.value = true
+    currentFeedContext = { type: 'feed' }
     try {
       const { data, error } = await supabase
         .from('posts_with_stats')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(PAGE_SIZE + 1)
       if (!error) {
-        let enriched = await enrichReposts(data || [])
+        const rows = data || []
+        hasMorePosts.value = rows.length > PAGE_SIZE
+        const trimmed = hasMorePosts.value ? rows.slice(0, PAGE_SIZE) : rows
+        let enriched = await enrichReposts(trimmed)
         enriched = await enrichAuthorStatus(enriched)
         posts.value = enriched
         await fetchUserLikes()
@@ -33,15 +45,19 @@ export const usePostsStore = defineStore('posts', () => {
 
   async function fetchUserPosts(profileId) {
     loading.value = true
+    currentFeedContext = { type: 'user', profileId }
     try {
       const { data, error } = await supabase
         .from('posts_with_stats')
         .select('*')
         .eq('author_id', profileId)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(PAGE_SIZE + 1)
       if (!error) {
-        let enriched = await enrichReposts(data || [])
+        const rows = data || []
+        hasMorePosts.value = rows.length > PAGE_SIZE
+        const trimmed = hasMorePosts.value ? rows.slice(0, PAGE_SIZE) : rows
+        let enriched = await enrichReposts(trimmed)
         enriched = await enrichAuthorStatus(enriched)
         posts.value = enriched
         await fetchUserLikes()
@@ -50,6 +66,51 @@ export const usePostsStore = defineStore('posts', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  async function loadOlderPosts() {
+    if (loadingOlder.value || !hasMorePosts.value || !currentFeedContext) return
+    if (posts.value.length === 0) return
+    const oldest = posts.value[posts.value.length - 1]
+    if (!oldest?.created_at) return
+    loadingOlder.value = true
+    try {
+      let query = supabase
+        .from('posts_with_stats')
+        .select('*')
+        .lt('created_at', oldest.created_at)
+        .order('created_at', { ascending: false })
+        .limit(PAGE_SIZE + 1)
+      if (currentFeedContext.type === 'user') {
+        query = query.eq('author_id', currentFeedContext.profileId)
+      }
+      const { data, error } = await query
+      if (error) return
+      const rows = data || []
+      hasMorePosts.value = rows.length > PAGE_SIZE
+      const trimmed = hasMorePosts.value ? rows.slice(0, PAGE_SIZE) : rows
+      let enriched = await enrichReposts(trimmed)
+      enriched = await enrichAuthorStatus(enriched)
+      // Dédup au cas où (race condition realtime)
+      const existing = new Set(posts.value.map((p) => p.id))
+      const fresh = enriched.filter((p) => !existing.has(p.id))
+      posts.value = [...posts.value, ...fresh]
+      // Étend les sets de likes/reposts pour les nouveaux posts
+      await extendUserLikes(fresh.map((p) => p.id))
+    } finally {
+      loadingOlder.value = false
+    }
+  }
+
+  async function extendUserLikes(postIds) {
+    const auth = useAuthStore()
+    if (!auth.activeProfile || postIds.length === 0) return
+    const { data } = await supabase
+      .from('likes')
+      .select('post_id')
+      .eq('user_id', auth.activeProfile.id)
+      .in('post_id', postIds)
+    ;(data || []).forEach((l) => userLikes.value.add(l.post_id))
   }
 
   // Fetch is_admin flag for all authors and attach it to posts
@@ -486,11 +547,14 @@ export const usePostsStore = defineStore('posts', () => {
   return {
     posts,
     loading,
+    loadingOlder,
+    hasMorePosts,
     userLikes,
     userReposts,
     newPostIds,
     fetchFeed,
     fetchUserPosts,
+    loadOlderPosts,
     createPost,
     deletePost,
     toggleLike,

@@ -32,12 +32,22 @@
         :post="post"
         @comment="goToPost"
       />
+      <div
+        v-if="postsStore.hasMorePosts"
+        ref="loadOlderSentinel"
+        class="load-older-banner"
+        :class="{ 'is-loading': postsStore.loadingOlder }"
+        @click="postsStore.loadOlderPosts()"
+      >
+        <span v-if="postsStore.loadingOlder">Chargement...</span>
+        <span v-else>Charger les posts plus anciens</span>
+      </div>
     </template>
   </div>
 </template>
 
 <script setup>
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePostsStore } from '../stores/posts'
 import { useAuthStore } from '../stores/auth'
@@ -128,6 +138,32 @@ const { subscribe } = useRealtimeSubscription('feed', [
   },
 ])
 
+// Auto-load older posts via IntersectionObserver on a sentinel at the bottom
+const loadOlderSentinel = ref(null)
+let observer = null
+
+function setupObserver() {
+  if (observer) observer.disconnect()
+  if (!loadOlderSentinel.value) return
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting) {
+        postsStore.loadOlderPosts()
+      }
+    },
+    { rootMargin: '400px 0px' },
+  )
+  observer.observe(loadOlderSentinel.value)
+}
+
+watch(
+  () => [postsStore.hasMorePosts, postsStore.posts.length],
+  async () => {
+    await nextTick()
+    setupObserver()
+  },
+)
+
 onMounted(() => {
   postsStore.fetchFeed()
   subscribe()
@@ -135,6 +171,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   document.title = ORIGINAL_TITLE
+  if (observer) observer.disconnect()
 })
 </script>
 
@@ -211,5 +248,30 @@ onUnmounted(() => {
 .new-posts-leave-to {
   transform: translateY(-100%);
   opacity: 0;
+}
+
+/* Load older posts banner */
+.load-older-banner {
+  text-align: center;
+  padding: 12px 16px;
+  margin: 8px 12px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  transition: background 0.15s ease;
+  user-select: none;
+}
+
+.load-older-banner:hover {
+  background: var(--bg-hover);
+}
+
+.load-older-banner.is-loading {
+  cursor: default;
+  color: var(--text-secondary);
 }
 </style>
