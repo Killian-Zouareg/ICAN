@@ -1,23 +1,28 @@
 <template>
-  <div v-if="share" class="live-loc-attachment" :class="{ expired: !active }" @click.stop>
-    <div ref="miniMap" class="live-loc-mini-map"></div>
+  <div class="live-loc-attachment" :class="{ expired: share && !active, loading: !share }" @click.stop>
+    <div ref="miniMap" class="live-loc-mini-map">
+      <div v-if="!share || !token" class="live-loc-skeleton">
+        <span class="live-loc-skeleton-pin">📍</span>
+      </div>
+    </div>
     <div class="live-loc-overlay">
       <span class="live-loc-pulse" v-if="active"></span>
       <div class="live-loc-info">
         <div class="live-loc-title">
           <span class="live-loc-icon">📍</span>
-          <span v-if="active">Position en direct</span>
+          <span v-if="!share">Chargement…</span>
+          <span v-else-if="active">Position en direct</span>
           <span v-else>Partage terminé</span>
         </div>
         <div class="live-loc-meta">
-          <span v-if="share.owner" class="live-loc-owner">
+          <span v-if="share && share.owner" class="live-loc-owner">
             {{ share.owner.display_name || share.owner.username }}
           </span>
-          <span v-if="active" class="live-loc-timer">· {{ remainingLabel }}</span>
-          <span v-else class="live-loc-timer">· terminé</span>
+          <span v-if="share && active" class="live-loc-timer">· {{ remainingLabel }}</span>
+          <span v-else-if="share" class="live-loc-timer">· terminé</span>
         </div>
       </div>
-      <button class="live-loc-view-btn" @click.stop="openMap" :title="active ? 'Voir sur la carte' : 'Voir le dernier emplacement'">
+      <button v-if="share" class="live-loc-view-btn" @click.stop="openMap" :title="active ? 'Voir sur la carte' : 'Voir le dernier emplacement'">
         Voir
       </button>
     </div>
@@ -156,7 +161,25 @@ onUnmounted(() => {
   border: 1px solid var(--border);
   background: var(--bg-secondary);
   cursor: pointer;
+  width: 280px;
+  max-width: 100%;
 }
+.live-loc-skeleton {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--bg-primary), var(--bg-hover));
+  color: var(--text-secondary);
+  font-size: 2rem;
+  animation: live-loc-skeleton-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes live-loc-skeleton-shimmer {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.85; }
+}
+.live-loc-attachment.loading .live-loc-mini-map { background: var(--bg-primary); }
 .live-loc-attachment.expired {
   filter: grayscale(0.85);
   opacity: 0.7;
