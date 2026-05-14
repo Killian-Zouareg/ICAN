@@ -135,6 +135,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMessagesStore } from '../stores/messages'
 import { useReactionsStore } from '../stores/reactions'
 import { useAuthStore } from '../stores/auth'
+import { useUserTokenStore } from '../stores/userToken'
 import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/imageCompress'
 import { useRealtimeSubscription } from '../composables/useRealtimeSubscription'
@@ -150,6 +151,7 @@ const router = useRouter()
 const messagesStore = useMessagesStore()
 const reactionsStore = useReactionsStore()
 const auth = useAuthStore()
+const tokenStore = useUserTokenStore()
 
 const activeConvId = ref(null)
 const activeConv = ref(null)
@@ -321,7 +323,7 @@ function scrollToBottom() {
   })
 }
 
-async function handleSend({ content, imageFile }) {
+async function handleSend({ content, imageFile, pendingShare }) {
   let imageUrl = null
   if (imageFile) {
     const compressed = await compressImage(imageFile)
@@ -332,8 +334,30 @@ async function handleSend({ content, imageFile }) {
     const { data: urlData } = supabase.storage.from('dm-images').getPublicUrl(fileName)
     imageUrl = urlData.publicUrl
   }
+  let liveShareId = null
+  if (pendingShare) {
+    try {
+      if (!tokenStore.myToken) throw new Error('Place ton token sur la carte avant de partager ta position.')
+      const share = await tokenStore.createShare({
+        durationMinutes: pendingShare.durationMinutes,
+        target: { type: 'dm', conversationId: activeConvId.value },
+      })
+      liveShareId = share.id
+    } catch (e) {
+      alert(e.message || 'Erreur lors de la création du partage')
+      return
+    }
+  }
   const parentId = replyingTo.value?.id || null
-  await messagesStore.sendMessage(activeConvId.value, content, imageUrl, parentId)
+  try {
+    await messagesStore.sendMessage(activeConvId.value, content, imageUrl, parentId, liveShareId)
+  } catch (e) {
+    if (liveShareId) {
+      try { await tokenStore.stopShare(liveShareId) } catch (_) {}
+    }
+    alert(e.message || "Erreur lors de l'envoi")
+    return
+  }
   replyingTo.value = null
   await messagesStore.fetchMessages(activeConvId.value)
   scrollToBottom()

@@ -82,6 +82,15 @@ const tab = ref('highlights')
 // ============ HIGHLIGHTS ============
 const highlights = [
   {
+    version: '4.29.0',
+    date: '14 mai 2026',
+    icon: '\u{1F4CD}',
+    color: '#e0245e',
+    title: 'Partage de position en direct (token personnel)',
+    description: 'Chaque profil place un <strong>token personnel</strong> sur la carte, visible uniquement par lui. Depuis un <strong>post</strong> ou un <strong>DM</strong>, il peut le <strong>partager pour 15 min, 1 h, 8 h ou 24 h</strong> (style WhatsApp). Pendant le partage, la position est diffusée <strong>en temps réel</strong> via Supabase Realtime — les viewers voient le token bouger sur leur carte.',
+    tags: ['Map', 'Realtime', 'DMs', 'Posts'],
+  },
+  {
     version: '4.28.0',
     date: '14 mai 2026',
     icon: '\u{1F4DC}',
@@ -633,6 +642,22 @@ const changeBadges = {
 }
 
 const patches = [
+  {
+    version: '4.29.0',
+    date: '14 mai 2026',
+    title: 'Partage de position en direct (token personnel) — posts & DMs',
+    tag: 'new',
+    changes: [
+      { type: 'new', text: 'Tables Supabase : `user_tokens` (1 ligne par profil — lat/lng/updated_at, UNIQUE sur owner_id) et `live_location_shares` (owner_id, shared_in=post|dm, post_id/conversation_id, expires_at). Colonnes `live_share_id` ajoutées sur `posts` et `messages`. Vue `posts_with_stats` recréée pour exposer la nouvelle colonne via `p.*`.' },
+      { type: 'new', text: 'RLS `user_tokens` : l\'owner voit toujours son token ; un autre profil ne le voit que si un share actif (expires_at > now()) le rend visible — share `post` = tous les authentifiés, share `dm` = membres de la conversation (user1/user2 ou conversation_members). RLS `live_location_shares` : owner CRUD, lecteurs selon shared_in. Realtime publish ajoutée sur les deux tables.' },
+      { type: 'new', text: 'Nouveau store `stores/userToken.js` : state `tokens` (Map<owner_id, token>), `shares` (Map<share_id, row>), tick 1 s pour rafraîchir les timers. Actions `fetchMyToken`, `placeToken` (upsert), `fetchActiveShares`, `createShare`, `attachShareToPost`, `stopShare`, `ensureShare`. Channel Realtime sur `user_tokens` (UPDATE → patch in-place) et `live_location_shares` (INSERT/DELETE). Démarré globalement dans `App.vue` au login.' },
+      { type: 'new', text: '`MapView` : bouton 🎯 "Mon token / Déplacer", mode placement (curseur add-mode, clic sur la carte → `placeToken`). Bouton ⏹️ "Arrêter partage" visible si shares actifs. Couche `tokenLayer` séparée avec icône avatar (halo doré = mien, halo bleu pulsant = partage actif). Popup au clic avec statut + coords. Deep link `?share=<id>` flytTo le token.' },
+      { type: 'new', text: 'Nouveau composant `LiveLocationAttachment.vue` (props `shareId`) : mini-carte Leaflet 160 px non-interactive avec marqueur avatar, badge "Position en direct" + pulse, timer décompte mm:ss vers `expires_at`, bouton "Voir" → `/map?share=<id>`. Mode "Partage terminé" (grayscale) quand expiré. S\'abonne automatiquement via le store global.' },
+      { type: 'new', text: '`PostComposer` : bouton 📍 dans la barre d\'outils, modal duré (15 min / 1 h / 8 h / 24 h via `SHARE_DURATIONS`). Chip "Position en direct · 1 h" en attente, retirable. À la soumission, `createShare({ target: { type: \'post\' } })` puis `createPost(..., liveShareId)` ; rollback du share si insertion post échoue.' },
+      { type: 'new', text: '`MessageInput` / `MessagesView` : même flow, target `dm` avec `conversationId`. `sendMessage` accepte un 5e param `liveShareId`. `MessageBubble` rend l\'attachement si `message.live_share_id` est défini.' },
+      { type: 'new', text: '`PostCard` : rend `<LiveLocationAttachment :share-id="displayPost.live_share_id" />` sous les embeds de quote. `posts.createPost(content, imageFile, locationIds, liveShareId)` renvoie l\'id du post inséré pour lier le share via UPDATE (FK cascade).' },
+    ],
+  },
   {
     version: '4.28.0',
     date: '14 mai 2026',

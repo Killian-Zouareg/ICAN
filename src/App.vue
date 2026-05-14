@@ -42,6 +42,7 @@ import { useRoute } from 'vue-router'
 import { useAuthStore } from './stores/auth'
 import { usePresenceStore, pathToSection } from './stores/presence'
 import { useAllentownLiveStore } from './stores/allentownLive'
+import { useUserTokenStore } from './stores/userToken'
 import AppHeader from './components/AppHeader.vue'
 import SidebarNav from './components/SidebarNav.vue'
 import MobileNav from './components/MobileNav.vue'
@@ -52,6 +53,7 @@ const auth = useAuthStore()
 const route = useRoute()
 const presence = usePresenceStore()
 const live = useAllentownLiveStore()
+const tokenStore = useUserTokenStore()
 const dmWidgetEnabled = ref(localStorage.getItem('dmWidgetEnabled') !== 'false')
 const isMessagesPage = computed(() => route.path.startsWith('/messages'))
 const showDmWidget = computed(() => dmWidgetEnabled.value && !isMessagesPage.value)
@@ -74,8 +76,14 @@ watch(
     if (id) {
       presence.start(id)
       presence.setSection(pathToSection(route.path))
+      tokenStore.reset()
+      tokenStore.fetchMyToken()
+      tokenStore.fetchActiveShares()
+      tokenStore.start()
     } else {
       presence.stop()
+      tokenStore.stop()
+      tokenStore.reset()
     }
   },
   { immediate: true },

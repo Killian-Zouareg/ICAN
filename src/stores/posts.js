@@ -225,7 +225,7 @@ export const usePostsStore = defineStore('posts', () => {
     userReposts.value = new Set((data || []).map((r) => r.repost_of))
   }
 
-  async function createPost(content, imageFile = null, locationIds = []) {
+  async function createPost(content, imageFile = null, locationIds = [], liveShareId = null) {
     const auth = useAuthStore()
     await auth.checkBan()
     const rateLimitMsg = checkRateLimit('post')
@@ -272,9 +272,23 @@ export const usePostsStore = defineStore('posts', () => {
     if (locationIds.length > 0) {
       insertData.location_ids = locationIds
     }
+    if (liveShareId) {
+      insertData.live_share_id = liveShareId
+    }
 
-    const { error } = await supabase.from('posts').insert(insertData)
+    const { data: inserted, error } = await supabase
+      .from('posts')
+      .insert(insertData)
+      .select('id')
+      .single()
     if (error) throw error
+    if (liveShareId && inserted?.id) {
+      // Link share back to post for FK cascade
+      await supabase
+        .from('live_location_shares')
+        .update({ post_id: inserted.id })
+        .eq('id', liveShareId)
+    }
     await fetchFeed()
   }
 

@@ -21,6 +21,14 @@
           <span class="img-icon">&#x1F5BC;</span>
         </button>
         <button
+          class="icon-btn live-loc-btn"
+          :class="{ active: !!pendingShare }"
+          @click="openShareModal"
+          :title="pendingShare ? `Partage actif (${pendingShareLabel})` : 'Partager ma position en direct'"
+        >
+          <span class="img-icon">&#x1F4CD;</span>
+        </button>
+        <button
           class="icon-btn drafts-btn"
           @click="openDrafts"
           :title="`Brouillons (${draftsCount})`"
@@ -37,6 +45,15 @@
       </button>
     </div>
 
+    <!-- Pending live location chip -->
+    <div v-if="pendingShare" class="live-loc-pending" @click.stop>
+      <span class="live-loc-pending-icon">&#x1F4CD;</span>
+      <span class="live-loc-pending-text">
+        Position en direct · <strong>{{ pendingShareLabel }}</strong>
+      </span>
+      <button class="live-loc-pending-remove" @click="pendingShare = null" title="Annuler">&times;</button>
+    </div>
+
     <input
       ref="fileInputRef"
       type="file"
@@ -44,6 +61,43 @@
       style="display: none"
       @change="handleFileChange"
     />
+
+    <!-- Live location share modal -->
+    <div v-if="showShareModal" class="drafts-overlay" @click.self="showShareModal = false">
+      <div class="drafts-modal live-loc-modal">
+        <div class="drafts-header">
+          <h3>Partager ma position en direct</h3>
+          <button class="close-modal" @click="showShareModal = false">&times;</button>
+        </div>
+        <div v-if="!tokenStore.myToken" class="live-loc-empty">
+          <p>Tu n'as pas encore placé ton token sur la carte.</p>
+          <router-link to="/map" class="live-loc-go-map">Placer mon token sur la carte &rarr;</router-link>
+        </div>
+        <template v-else>
+          <p class="live-loc-coords">
+            Token actuel : <strong>{{ tokenStore.myToken.lat.toFixed(4) }}, {{ tokenStore.myToken.lng.toFixed(4) }}</strong>
+          </p>
+          <p class="live-loc-help">
+            La position sera visible par tous les utilisateurs pendant la durée choisie. Tu peux déplacer ton token sur la carte à tout moment ; les viewers verront le déplacement en direct.
+          </p>
+          <div class="live-loc-duration-grid">
+            <button
+              v-for="d in SHARE_DURATIONS"
+              :key="d.minutes"
+              class="live-loc-duration-btn"
+              :class="{ active: selectedDuration === d.minutes }"
+              @click="selectedDuration = d.minutes"
+            >
+              {{ d.label }}
+            </button>
+          </div>
+          <div class="form-actions">
+            <button class="form-cancel" @click="showShareModal = false">Annuler</button>
+            <button class="form-save" @click="confirmShare">Activer le partage</button>
+          </div>
+        </template>
+      </div>
+    </div>
 
     <!-- Drafts modal -->
     <div v-if="showDrafts" class="drafts-overlay" @click.self="closeDrafts">
@@ -108,6 +162,7 @@ import { ref, computed, watch } from 'vue'
 import { usePostsStore } from '../stores/posts'
 import { useMapLocationsStore } from '../stores/mapLocations'
 import { useAuthStore } from '../stores/auth'
+import { useUserTokenStore, SHARE_DURATIONS } from '../stores/userToken'
 import { extractLocationIds } from '../lib/locationMentions'
 import { listDrafts, saveDraft, deleteDraft, renameDraft } from '../lib/drafts'
 import MentionInput from './MentionInput.vue'
@@ -119,6 +174,35 @@ const props = defineProps({
 const postsStore = usePostsStore()
 const mapStore = useMapLocationsStore()
 const auth = useAuthStore()
+const tokenStore = useUserTokenStore()
+
+const showShareModal = ref(false)
+const selectedDuration = ref(SHARE_DURATIONS[0].minutes)
+// pendingShare = { durationMinutes }
+const pendingShare = ref(null)
+
+const pendingShareLabel = computed(() => {
+  const d = pendingShare.value
+  if (!d) return ''
+  const match = SHARE_DURATIONS.find((x) => x.minutes === d.durationMinutes)
+  return match ? match.label : `${d.durationMinutes} min`
+})
+
+function openShareModal() {
+  if (pendingShare.value) {
+    if (confirm('Retirer le partage de position de ce post ?')) pendingShare.value = null
+    return
+  }
+  tokenStore.fetchMyToken()
+  selectedDuration.value = SHARE_DURATIONS[0].minutes
+  showShareModal.value = true
+}
+
+function confirmShare() {
+  if (!tokenStore.myToken) return
+  pendingShare.value = { durationMinutes: selectedDuration.value }
+  showShareModal.value = false
+}
 const content = ref('')
 const submitting = ref(false)
 const imageFile = ref(null)
@@ -309,14 +393,28 @@ function removeImage() {
 }
 
 async function submit() {
-  if (!content.value.trim() && !imageFile.value) return
+  if (!content.value.trim() && !imageFile.value && !pendingShare.value) return
   submitting.value = true
+  let createdShareId = null
   try {
     const locationIds = extractLocationIds(content.value, mapStore.locations)
-    await postsStore.createPost(content.value.trim(), imageFile.value, locationIds)
+    if (pendingShare.value) {
+      if (!tokenStore.myToken) throw new Error('Place ton token sur la carte avant de partager ta position.')
+      const share = await tokenStore.createShare({
+        durationMinutes: pendingShare.value.durationMinutes,
+        target: { type: 'post' },
+      })
+      createdShareId = share.id
+    }
+    await postsStore.createPost(content.value.trim(), imageFile.value, locationIds, createdShareId)
     content.value = ''
     removeImage()
+    pendingShare.value = null
   } catch (e) {
+    // Rollback share if post creation failed
+    if (createdShareId) {
+      try { await tokenStore.stopShare(createdShareId) } catch (_) {}
+    }
     alert(e.message || 'Erreur lors de la publication')
   } finally {
     submitting.value = false

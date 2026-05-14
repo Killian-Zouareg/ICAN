@@ -86,6 +86,11 @@
           </div>
 
           <p v-else-if="message.content" class="bubble-text">{{ message.content }}</p>
+
+          <LiveLocationAttachment
+            v-if="message.live_share_id"
+            :share-id="message.live_share_id"
+          />
         </template>
 
         <span class="bubble-time">
@@ -222,6 +227,7 @@ import { useMessagesStore } from '../stores/messages'
 import { timeAgo } from '../lib/time'
 import ReactionPicker from './ReactionPicker.vue'
 import UserAvatar from './UserAvatar.vue'
+import LiveLocationAttachment from './LiveLocationAttachment.vue'
 
 const props = defineProps({
   message: { type: Object, required: true },

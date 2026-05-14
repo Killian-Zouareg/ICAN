@@ -25,6 +25,22 @@
           &#x1F525;
         </button>
         <button
+          class="token-btn"
+          :class="{ active: placeTokenMode }"
+          @click="toggleTokenPlaceMode"
+          :title="tokenStore.myToken ? 'Déplacer mon token' : 'Placer mon token'"
+        >
+          {{ placeTokenMode ? '✖ Annuler' : (tokenStore.myToken ? '\u{1F3AF} Déplacer' : '\u{1F3AF} Mon token') }}
+        </button>
+        <button
+          v-if="tokenStore.myActiveShares.length > 0"
+          class="token-stop-btn"
+          @click="stopMyShares"
+          :title="`Arrêter mes partages (${tokenStore.myActiveShares.length})`"
+        >
+          &#x23F9;&#xFE0F; Arrêter partage ({{ tokenStore.myActiveShares.length }})
+        </button>
+        <button
           v-if="auth.isAdmin && !drawingZone"
           class="zone-btn"
           @click="startDrawingZone"
@@ -139,7 +155,7 @@
       <div
         ref="mapContainer"
         class="map-container"
-        :class="{ 'add-mode': addMode || drawingZone }"
+        :class="{ 'add-mode': addMode || drawingZone || placeTokenMode }"
         :style="weatherTileStyle"
       ></div>
       <WeatherOverlay class="map-weather-overlay" />
@@ -161,6 +177,9 @@
     <!-- Add mode hint (outside map-wrapper to avoid overflow:hidden clipping) -->
     <div v-if="addMode" class="add-mode-hint">
       Cliquez sur la carte pour placer un lieu
+    </div>
+    <div v-if="placeTokenMode" class="add-mode-hint">
+      Cliquez sur la carte pour {{ tokenStore.myToken ? 'déplacer' : 'placer' }} ton token
     </div>
 
     <!-- Post-from-map confirmation modal -->
@@ -437,6 +456,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useMapLocationsStore } from '../stores/mapLocations'
+import { useUserTokenStore } from '../stores/userToken'
 import { supabase } from '../lib/supabase'
 import { timeAgo } from '../lib/time'
 import UserAvatar from '../components/UserAvatar.vue'
@@ -457,6 +477,133 @@ const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const store = useMapLocationsStore()
+const tokenStore = useUserTokenStore()
+
+// --- Personal token + shared tokens ---
+const placeTokenMode = ref(false)
+let tokenLayer = null
+const tokenMarkers = new Map() // owner_id -> L.marker
+
+function toggleTokenPlaceMode() {
+  placeTokenMode.value = !placeTokenMode.value
+  if (placeTokenMode.value) {
+    addMode.value = false
+    if (drawingZone.value) cancelDrawing()
+  }
+}
+
+function buildTokenIcon({ profile, isMine, isActive }) {
+  const avatar = profile?.avatar_url
+  const initials = (profile?.display_name || profile?.username || '?').slice(0, 2).toUpperCase()
+  const inner = avatar
+    ? `<img src="${avatar}" alt="" />`
+    : `<span class="map-token-initials">${initials}</span>`
+  let cls = 'map-token-marker'
+  if (isMine) cls += ' mine'
+  if (isActive) cls += ' active'
+  return L.divIcon({
+    className: 'map-token-icon',
+    html: `<div class="${cls}">${inner}</div>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+    popupAnchor: [0, -22],
+  })
+}
+
+function renderTokens() {
+  if (!map) return
+  if (!tokenLayer) {
+    tokenLayer = L.layerGroup().addTo(map)
+  }
+  const myProfileId = auth.activeProfile?.id
+
+  // Build the set of owner_ids to display: me + any owner with an active share
+  const visibleOwners = new Map() // owner_id -> { isMine, profile }
+  if (myProfileId && tokenStore.getTokenForOwner(myProfileId)) {
+    visibleOwners.set(myProfileId, { isMine: true, profile: auth.activeProfile })
+  }
+  for (const s of tokenStore.activeShares) {
+    if (!visibleOwners.has(s.owner_id)) {
+      visibleOwners.set(s.owner_id, { isMine: s.owner_id === myProfileId, profile: s.owner })
+    }
+  }
+
+  // Remove markers no longer visible
+  for (const [ownerId, marker] of tokenMarkers) {
+    if (!visibleOwners.has(ownerId)) {
+      tokenLayer.removeLayer(marker)
+      tokenMarkers.delete(ownerId)
+    }
+  }
+
+  // Add / update markers
+  for (const [ownerId, info] of visibleOwners) {
+    const tok = tokenStore.getTokenForOwner(ownerId)
+    if (!tok) continue
+    const isActive = ownerId !== myProfileId || tokenStore.myActiveShares.length > 0
+    const icon = buildTokenIcon({ profile: info.profile, isMine: info.isMine, isActive })
+    const latlng = [tok.lat, tok.lng]
+    let marker = tokenMarkers.get(ownerId)
+    if (!marker) {
+      marker = L.marker(latlng, { icon, zIndexOffset: 500 })
+      bindTokenPopup(marker, ownerId, info)
+      tokenLayer.addLayer(marker)
+      tokenMarkers.set(ownerId, marker)
+    } else {
+      marker.setLatLng(latlng)
+      marker.setIcon(icon)
+    }
+  }
+}
+
+function bindTokenPopup(marker, ownerId, info) {
+  marker.on('click', () => {
+    const tok = tokenStore.getTokenForOwner(ownerId)
+    const isMine = info.isMine
+    const shares = [...tokenStore.activeShares].filter((s) => s.owner_id === ownerId)
+    const profile = info.profile
+    const name = escapeHtml(profile?.display_name || profile?.username || '?')
+    const handle = profile?.username ? `@${escapeHtml(profile.username)}` : ''
+    let body
+    if (isMine) {
+      const activeCount = shares.length
+      body = activeCount > 0
+        ? `<div class="map-token-popup-status">Partagé · ${activeCount} actif${activeCount > 1 ? 's' : ''}</div>`
+        : `<div class="map-token-popup-status muted">Visible par vous uniquement</div>`
+    } else {
+      const s = shares[0]
+      const remainMs = s ? new Date(s.expires_at).getTime() - Date.now() : 0
+      const remainMin = Math.max(0, Math.round(remainMs / 60000))
+      body = `<div class="map-token-popup-status">Partage en direct · expire dans ${remainMin} min</div>`
+    }
+    const html = `
+      <div class="map-token-popup">
+        <div class="map-token-popup-name">${name}</div>
+        ${handle ? `<div class="map-token-popup-handle">${handle}</div>` : ''}
+        ${body}
+        ${tok ? `<div class="map-token-popup-coords">${tok.lat.toFixed(5)}, ${tok.lng.toFixed(5)}</div>` : ''}
+      </div>
+    `
+    marker.bindPopup(html, { className: 'map-token-popup-wrap' }).openPopup()
+  })
+}
+
+async function handleTokenPlaceClick(latlng) {
+  try {
+    await tokenStore.placeToken(latlng.lat, latlng.lng)
+    placeTokenMode.value = false
+    renderTokens()
+  } catch (e) {
+    alert('Erreur: ' + (e.message || e))
+  }
+}
+
+async function stopMyShares() {
+  if (!confirm('Arrêter tous tes partages de position en cours ?')) return
+  for (const s of [...tokenStore.myActiveShares]) {
+    try { await tokenStore.stopShare(s.id) } catch (_) {}
+  }
+}
 
 // --- Post-from-map (long-press) ---
 const postHerePicked = ref(null) // { lat, lng } | null
@@ -669,6 +816,21 @@ onMounted(async () => {
     store.fetchRecentLocationPosts()
     store.fetchZones().then(renderZones)
 
+    // Personal token + active shares (already kept fresh by App.vue Realtime channel)
+    await tokenStore.fetchMyToken()
+    await tokenStore.fetchActiveShares()
+    renderTokens()
+
+    // ?share=<id> deep link
+    if (route.query.share) {
+      const shareId = String(route.query.share)
+      const s = await tokenStore.ensureShare(shareId)
+      if (s) {
+        const tok = tokenStore.getTokenForOwner(s.owner_id)
+        if (tok && map) map.flyTo([tok.lat, tok.lng], 16, { duration: 0.8 })
+      }
+    }
+
     // Navigate to location from query param (e.g. from location mention click)
     if (route.query.location) {
       const targetName = decodeURIComponent(route.query.location)
@@ -748,8 +910,12 @@ function initMap() {
     ro.observe(mapContainer.value)
   }
 
-  // Map click for add mode or zone drawing
+  // Map click for add mode, zone drawing, or token placement
   map.on('click', (e) => {
+    if (placeTokenMode.value) {
+      handleTokenPlaceClick(e.latlng)
+      return
+    }
     if (drawingZone.value) {
       addDrawingPoint(e.latlng)
       return
@@ -1212,6 +1378,10 @@ function renderZones() {
 
 watch(() => store.zones, renderZones, { deep: true })
 
+// Re-render tokens when the store state changes
+watch(() => tokenStore.tokens, renderTokens, { deep: true })
+watch(() => tokenStore.shares, renderTokens, { deep: true })
+
 // Zone drawing tool
 function startDrawingZone() {
   drawingZone.value = true
@@ -1479,4 +1649,47 @@ async function handleDelete(location) {
   z-index: 350;
   pointer-events: none;
 }
+
+/* --- Personal token + shared tokens --- */
+.map-token-icon { background: transparent !important; border: none !important; }
+.map-token-marker {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--text-secondary, #8899a6);
+  background: var(--bg-secondary, #192734);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 4px rgba(136,153,166,0.18), 0 2px 10px rgba(0,0,0,0.4);
+}
+.map-token-marker.mine {
+  border-color: var(--hero-primary, #FFD700);
+  box-shadow: 0 0 0 4px rgba(255,215,0,0.25), 0 0 14px rgba(255,215,0,0.55);
+}
+.map-token-marker.active {
+  border-color: var(--accent, #1da1f2);
+  box-shadow: 0 0 0 4px rgba(29,161,242,0.25), 0 0 16px rgba(29,161,242,0.7);
+  animation: map-token-pulse 1.8s infinite;
+}
+.map-token-marker.mine.active {
+  border-color: var(--hero-primary, #FFD700);
+  box-shadow: 0 0 0 4px rgba(255,215,0,0.3), 0 0 16px rgba(255,215,0,0.7);
+}
+.map-token-marker img { width: 100%; height: 100%; object-fit: cover; }
+.map-token-initials {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary, #e1e8ed);
+}
+@keyframes map-token-pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(29,161,242,0.25), 0 0 14px rgba(29,161,242,0.7); }
+  50% { box-shadow: 0 0 0 10px rgba(29,161,242,0.05), 0 0 20px rgba(29,161,242,0.85); }
+}
+.map-token-popup .map-token-popup-name { font-weight: 700; font-size: 0.95rem; color: var(--text-primary, #e1e8ed); }
+.map-token-popup .map-token-popup-handle { font-size: 0.78rem; color: var(--text-secondary, #8899a6); margin-top: 2px; }
+.map-token-popup .map-token-popup-status { margin-top: 6px; font-size: 0.8rem; color: var(--accent, #1da1f2); }
+.map-token-popup .map-token-popup-status.muted { color: var(--text-secondary, #8899a6); }
+.map-token-popup .map-token-popup-coords { margin-top: 4px; font-size: 0.72rem; color: var(--text-secondary, #8899a6); font-variant-numeric: tabular-nums; }
 </style>

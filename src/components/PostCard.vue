@@ -71,6 +71,12 @@
           />
         </div>
 
+        <!-- Live location attachment -->
+        <LiveLocationAttachment
+          v-if="displayPost.live_share_id"
+          :share-id="displayPost.live_share_id"
+        />
+
         <div class="actions">
 
           <button
@@ -176,6 +182,7 @@ import GhostEngagementModal from './GhostEngagementModal.vue'
 import QuotedPostEmbed from './QuotedPostEmbed.vue'
 import QuotedCommentEmbed from './QuotedCommentEmbed.vue'
 import QuoteComposer from './QuoteComposer.vue'
+import LiveLocationAttachment from './LiveLocationAttachment.vue'
 
 const props = defineProps({
   post: { type: Object, required: true },

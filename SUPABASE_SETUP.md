@@ -1479,3 +1479,186 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- =============================================
 ALTER PUBLICATION supabase_realtime ADD TABLE message_reactions;
 ```
+
+---
+
+## 11. Live location sharing (token personnel + partages temporaires)
+
+Inspiré du partage de position live de WhatsApp : chaque profil place un "token" personnel sur la carte (visible par lui seul), puis peut le partager pour une durée choisie via un post ou un DM.
+
+```sql
+-- =============================================
+-- TABLE: user_tokens
+-- Un token personnel par profil — visible par l'owner et,
+-- pendant un partage actif, par les destinataires.
+-- =============================================
+CREATE TABLE user_tokens (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID NOT NULL UNIQUE REFERENCES profiles(id) ON DELETE CASCADE,
+  lat DOUBLE PRECISION NOT NULL,
+  lng DOUBLE PRECISION NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_user_tokens_owner ON user_tokens(owner_id);
+
+-- =============================================
+-- TABLE: live_location_shares
+-- Un partage actif = une ligne. expires_at gouverne la visibilité.
+-- =============================================
+CREATE TABLE live_location_shares (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  shared_in TEXT NOT NULL CHECK (shared_in IN ('post','dm')),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  conversation_id UUID REFERENCES conversations(id) ON DELETE CASCADE,
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  CHECK (
+    (shared_in='post' AND conversation_id IS NULL)
+    OR (shared_in='dm' AND post_id IS NULL AND conversation_id IS NOT NULL)
+  )
+);
+
+CREATE INDEX idx_live_shares_owner ON live_location_shares(owner_id);
+CREATE INDEX idx_live_shares_post ON live_location_shares(post_id);
+CREATE INDEX idx_live_shares_conv ON live_location_shares(conversation_id);
+CREATE INDEX idx_live_shares_expires ON live_location_shares(expires_at);
+
+-- =============================================
+-- Liens vers les posts / messages
+-- =============================================
+ALTER TABLE posts
+  ADD COLUMN IF NOT EXISTS live_share_id UUID REFERENCES live_location_shares(id) ON DELETE SET NULL;
+
+ALTER TABLE messages
+  ADD COLUMN IF NOT EXISTS live_share_id UUID REFERENCES live_location_shares(id) ON DELETE SET NULL;
+
+-- =============================================
+-- RLS — user_tokens
+-- =============================================
+ALTER TABLE user_tokens ENABLE ROW LEVEL SECURITY;
+
+-- L'owner voit toujours son token
+DROP POLICY IF EXISTS "Owner sees own token" ON user_tokens;
+CREATE POLICY "Owner sees own token"
+  ON user_tokens FOR SELECT TO authenticated
+  USING (owner_id IN (SELECT my_profile_ids()));
+
+-- Un viewer voit le token si un partage actif le rend visible :
+--  - partage de type 'post' (visible par tout authentifié)
+--  - partage de type 'dm' dont le viewer est membre
+DROP POLICY IF EXISTS "Viewers see shared tokens" ON user_tokens;
+CREATE POLICY "Viewers see shared tokens"
+  ON user_tokens FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM live_location_shares s
+      WHERE s.owner_id = user_tokens.owner_id
+        AND s.expires_at > now()
+        AND (
+          s.shared_in = 'post'
+          OR (
+            s.shared_in = 'dm' AND (
+              EXISTS (
+                SELECT 1 FROM conversations c
+                WHERE c.id = s.conversation_id
+                  AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+              )
+              OR EXISTS (
+                SELECT 1 FROM conversation_members m
+                WHERE m.conversation_id = s.conversation_id
+                  AND m.profile_id IN (SELECT my_profile_ids())
+              )
+            )
+          )
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS "Owner upserts own token" ON user_tokens;
+CREATE POLICY "Owner upserts own token"
+  ON user_tokens FOR INSERT TO authenticated
+  WITH CHECK (owner_id IN (SELECT my_profile_ids()));
+
+DROP POLICY IF EXISTS "Owner updates own token" ON user_tokens;
+CREATE POLICY "Owner updates own token"
+  ON user_tokens FOR UPDATE TO authenticated
+  USING (owner_id IN (SELECT my_profile_ids()))
+  WITH CHECK (owner_id IN (SELECT my_profile_ids()));
+
+DROP POLICY IF EXISTS "Owner deletes own token" ON user_tokens;
+CREATE POLICY "Owner deletes own token"
+  ON user_tokens FOR DELETE TO authenticated
+  USING (owner_id IN (SELECT my_profile_ids()));
+
+-- =============================================
+-- RLS — live_location_shares
+-- =============================================
+ALTER TABLE live_location_shares ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Owner sees own shares" ON live_location_shares;
+CREATE POLICY "Owner sees own shares"
+  ON live_location_shares FOR SELECT TO authenticated
+  USING (owner_id IN (SELECT my_profile_ids()));
+
+DROP POLICY IF EXISTS "Authenticated see post shares" ON live_location_shares;
+CREATE POLICY "Authenticated see post shares"
+  ON live_location_shares FOR SELECT TO authenticated
+  USING (shared_in = 'post');
+
+DROP POLICY IF EXISTS "Members see dm shares" ON live_location_shares;
+CREATE POLICY "Members see dm shares"
+  ON live_location_shares FOR SELECT TO authenticated
+  USING (
+    shared_in = 'dm' AND (
+      EXISTS (
+        SELECT 1 FROM conversations c
+        WHERE c.id = live_location_shares.conversation_id
+          AND (c.user1_id IN (SELECT my_profile_ids()) OR c.user2_id IN (SELECT my_profile_ids()))
+      )
+      OR EXISTS (
+        SELECT 1 FROM conversation_members m
+        WHERE m.conversation_id = live_location_shares.conversation_id
+          AND m.profile_id IN (SELECT my_profile_ids())
+      )
+    )
+  );
+
+DROP POLICY IF EXISTS "Owner inserts own shares" ON live_location_shares;
+CREATE POLICY "Owner inserts own shares"
+  ON live_location_shares FOR INSERT TO authenticated
+  WITH CHECK (owner_id IN (SELECT my_profile_ids()));
+
+DROP POLICY IF EXISTS "Owner deletes own shares" ON live_location_shares;
+CREATE POLICY "Owner deletes own shares"
+  ON live_location_shares FOR DELETE TO authenticated
+  USING (owner_id IN (SELECT my_profile_ids()));
+
+-- =============================================
+-- Recréer la vue posts_with_stats (pour inclure live_share_id via p.*)
+-- =============================================
+DROP VIEW IF EXISTS posts_with_stats;
+CREATE VIEW posts_with_stats AS
+SELECT
+  p.*,
+  pr.username,
+  pr.display_name,
+  pr.avatar_url,
+  (SELECT COUNT(*) FROM likes l WHERE l.post_id = p.id) AS like_count,
+  (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.id) AS comment_count,
+  (SELECT COUNT(*) FROM posts r WHERE r.repost_of = p.id) AS repost_count
+FROM posts p
+JOIN profiles pr ON p.author_id = pr.id;
+
+-- =============================================
+-- Realtime publish
+-- =============================================
+ALTER PUBLICATION supabase_realtime ADD TABLE user_tokens;
+ALTER PUBLICATION supabase_realtime ADD TABLE live_location_shares;
+```
+
+> Notes :
+> - Les partages sont automatiquement masqués côté client dès que `expires_at <= now()`. Un cron Supabase optionnel peut supprimer les lignes expirées (`DELETE FROM live_location_shares WHERE expires_at <= now() - interval '1 day';`).
+> - La policy `user_tokens` dépend de `live_location_shares` : assure-toi de créer les deux tables dans l'ordre indiqué.
+

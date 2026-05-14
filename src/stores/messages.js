@@ -274,10 +274,10 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  async function sendMessage(conversationId, content, imageUrl = null, parentMessageId = null) {
+  async function sendMessage(conversationId, content, imageUrl = null, parentMessageId = null, liveShareId = null) {
     const auth = useAuthStore()
     await auth.checkBan()
-    if (!content?.trim() && !imageUrl) throw new Error('Le message ne peut pas être vide')
+    if (!content?.trim() && !imageUrl && !liveShareId) throw new Error('Le message ne peut pas être vide')
     if (content && content.length > 2000) throw new Error('Le message ne doit pas dépasser 2000 caractères')
     const insertData = {
       conversation_id: conversationId,
@@ -286,6 +286,7 @@ export const useMessagesStore = defineStore('messages', () => {
     }
     if (imageUrl) insertData.image_url = imageUrl
     if (parentMessageId) insertData.parent_message_id = parentMessageId
+    if (liveShareId) insertData.live_share_id = liveShareId
     const { error } = await supabase.from('messages').insert(insertData)
     if (error) throw error
 
