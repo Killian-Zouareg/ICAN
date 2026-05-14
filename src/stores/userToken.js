@@ -20,6 +20,42 @@ export const useUserTokenStore = defineStore('userToken', () => {
   // bump every second so timers re-render
   const nowTick = ref(Date.now())
   let tickInterval = null
+  // Conversation IDs the active profile is a member of (DM visibility scope)
+  const activeProfileConvIds = ref(new Set())
+
+  async function refreshActiveProfileConvs() {
+    const auth = useAuthStore()
+    const pid = auth.activeProfile?.id
+    if (!pid) {
+      activeProfileConvIds.value = new Set()
+      return
+    }
+    const ids = new Set()
+    const { data: dms } = await supabase
+      .from('conversations')
+      .select('id')
+      .or(`user1_id.eq.${pid},user2_id.eq.${pid}`)
+    ;(dms || []).forEach((c) => ids.add(c.id))
+    const { data: mems } = await supabase
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('profile_id', pid)
+    ;(mems || []).forEach((m) => ids.add(m.conversation_id))
+    activeProfileConvIds.value = ids
+  }
+
+  function isShareVisibleToActiveProfile(share) {
+    if (!share) return false
+    const auth = useAuthStore()
+    const pid = auth.activeProfile?.id
+    if (!pid) return false
+    if (share.owner_id === pid) return true
+    if (share.shared_in === 'post') return true
+    if (share.shared_in === 'dm') {
+      return activeProfileConvIds.value.has(share.conversation_id)
+    }
+    return false
+  }
 
   const myToken = computed(() => {
     const auth = useAuthStore()
@@ -31,7 +67,7 @@ export const useUserTokenStore = defineStore('userToken', () => {
   const activeShares = computed(() => {
     const now = nowTick.value
     return [...shares.value.values()].filter(
-      (s) => new Date(s.expires_at).getTime() > now
+      (s) => new Date(s.expires_at).getTime() > now && isShareVisibleToActiveProfile(s)
     )
   })
 
@@ -43,7 +79,9 @@ export const useUserTokenStore = defineStore('userToken', () => {
   })
 
   function getShare(shareId) {
-    return shares.value.get(shareId) || null
+    const s = shares.value.get(shareId)
+    if (!s) return null
+    return isShareVisibleToActiveProfile(s) ? s : null
   }
 
   function getTokenForOwner(ownerId) {
@@ -98,6 +136,7 @@ export const useUserTokenStore = defineStore('userToken', () => {
   async function fetchActiveShares() {
     loading.value = true
     try {
+      await refreshActiveProfileConvs()
       const nowIso = new Date().toISOString()
       const { data: shareRows, error } = await supabase
         .from('live_location_shares')
@@ -110,6 +149,7 @@ export const useUserTokenStore = defineStore('userToken', () => {
       const map = new Map()
       const ownerIds = new Set()
       for (const s of shareRows || []) {
+        if (!isShareVisibleToActiveProfile(s)) continue
         map.set(s.id, s)
         ownerIds.add(s.owner_id)
       }
@@ -190,13 +230,21 @@ export const useUserTokenStore = defineStore('userToken', () => {
   // Récupère un share par id si pas déjà en cache (utile pour les posts visibles avec un live_share_id).
   async function ensureShare(shareId) {
     if (!shareId) return null
-    if (shares.value.has(shareId)) return shares.value.get(shareId)
+    if (shares.value.has(shareId)) {
+      const cached = shares.value.get(shareId)
+      return isShareVisibleToActiveProfile(cached) ? cached : null
+    }
     const { data, error } = await supabase
       .from('live_location_shares')
       .select('*, owner:profiles!live_location_shares_owner_id_fkey(id, username, display_name, avatar_url, is_hero, hero_color_primary, hero_color_secondary)')
       .eq('id', shareId)
       .maybeSingle()
     if (error || !data) return null
+    if (data.shared_in === 'dm' && !activeProfileConvIds.value.has(data.conversation_id)) {
+      // Refresh memberships once before deciding (handles fresh DMs)
+      await refreshActiveProfileConvs()
+    }
+    if (!isShareVisibleToActiveProfile(data)) return null
     shares.value.set(data.id, data)
     shares.value = new Map(shares.value)
     if (!tokens.value.has(data.owner_id)) {
@@ -249,6 +297,10 @@ export const useUserTokenStore = defineStore('userToken', () => {
           .eq('id', row.id)
           .maybeSingle()
         if (data) {
+          if (data.shared_in === 'dm' && !activeProfileConvIds.value.has(data.conversation_id)) {
+            await refreshActiveProfileConvs()
+          }
+          if (!isShareVisibleToActiveProfile(data)) return
           shares.value.set(data.id, data)
           shares.value = new Map(shares.value)
         }
